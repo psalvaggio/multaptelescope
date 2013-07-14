@@ -1,0 +1,35 @@
+package mats;
+
+message DetectorBandpass {
+  // The center wavelength of the band [m]
+  optional double center_wavelength = 1;
+
+  // The quantum efficiency of the detector for this bandpass
+  optional double quantum_efficiency = 2;
+}
+
+
+message DetectorParameters {
+  // The QE spectrum of the detector, will be linearly interpolated to match
+  // the spectral bands being modeled.
+  repeated DetectorBandpass band = 1;
+
+  // The pixel pitch (spacing between the center of the pixels)
+  // of the detector [m]
+  optional double pixel_pitch = 2;
+
+  // The temperature of the detector [K]
+  optional double temperature = 3;
+
+  // The dark current doubling temperature [C or K]
+  optional double darkcurr_doubling_temp = 4;
+
+  // The sensitivity of the detector [uV/electron]
+  optional double output_sensitivity = 5;
+
+  // Read noise RMS [rms electrons]
+  optional double read_rms = 6;
+
+  // Read-out time for the detector [s]
+  optional double readout_time = 7;
+}

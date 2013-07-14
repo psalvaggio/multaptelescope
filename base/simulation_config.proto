@@ -1,0 +1,59 @@
+package mats;
+
+message SimulationConfig {
+  // The base directory for this simulation.
+  // Log files will be output to base_directory/log_files
+  // Image outputs will be put in base_directory/images
+  // Input data is stored in base_directory/input
+  optional string base_directory = 1;
+
+  // Altitude of the telescope [m]
+  optional double altitude = 2;
+
+  // The standard array size to use in simulation (512 typical).
+  optional int32 array_size = 3 [default = 512];
+
+  repeated Simulation simulation = 4;
+}
+
+message Simulation {
+  optional int32 simulation_id = 1;
+  
+  // The type of aperture to be modeled in this simulation.
+  enum ApertureType {
+    HEX18 = 0;
+    TRIARM9 = 1;
+    CASSEGRAIN = 2;
+  }
+  optional ApertureType aperture_type = 2 [default = CASSEGRAIN];
+
+  // Piston/tip/tilt optical path difference RMS [waves]
+  optional double ptt_opd_rms = 3;
+
+  // High-order aberration optical path difference RMS [waves]
+  optional double ho_opd_rms = 4;
+
+  // How much knowledge of the wavefront error to use in image reconstruction.
+  enum WfeKnowledge {
+    LOW = 0;
+    MEDIUM = 1;
+    HIGH = 2;
+    NONE = -1;
+  }
+  optional WfeKnowledge wfe_knowledge = 5 [default = NONE];
+
+  // Integration time [seconds]
+  optional double integration_time = 6;
+
+  // Encircled diameter of the aperture [m]
+  optional double encircled_diameter = 7;
+
+  // Fill factor of the aperture [0-1]
+  optional double fill_factor = 8;
+
+  // Ground Sample Distance (GSD) of the telescope [meters/pixel]
+  optional double gsd = 9;
+
+  // Number of output bands (4 or 7)
+  optional int32 num_output_bands = 10;
+}

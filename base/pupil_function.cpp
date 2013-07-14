@@ -1,0 +1,79 @@
+// File Description
+// Author: Philip Salvaggio
+
+#include "pupil_function.h"
+#include <fftw3.h>
+
+using namespace cv;
+
+namespace mats {
+
+PupilFunction::PupilFunction()
+    : pupil_real_(),
+      pupil_imag_(),
+      meters_per_pixel_(0) {}
+
+PupilFunction::~PupilFunction() {}
+
+Mat PupilFunction::PointSpreadFunction() {
+  const size_t rows = pupil_real_.rows;
+  const size_t cols = pupil_real_.cols;
+  const size_t size = rows * cols;
+
+  fftw_complex* pupil_func =
+      (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * size);
+  fftw_complex* pupil_func_fft =
+      (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * size);
+
+  Mat psf(rows, cols, CV_64FC1);
+
+  double* real_data = (double*) pupil_real_.data;
+  double* imag_data = (double*) pupil_imag_.data;
+
+  for (size_t i = 0; i < rows; i++) {
+    for (size_t j = 0; j < cols; j++) {
+      const size_t index = i * cols + j;
+      pupil_func[index][0] = real_data[index];
+      pupil_func[index][1] = imag_data[index];
+    }
+  }
+
+  fftw_plan fft_plan = fftw_plan_dft_2d(rows, cols, pupil_func, pupil_func_fft,
+                                        FFTW_FORWARD, FFTW_ESTIMATE);
+  fftw_execute(fft_plan);
+  fftw_destroy_plan(fft_plan);
+
+  double* psf_data = (double*) psf.data;
+  double psf_total;
+  for (size_t i = 0; i < rows; i++) {
+    for (size_t j = 0; j < cols; j++) {
+      const size_t index = i * cols + j;
+      const double real = pupil_func_fft[index][0];
+      const double imag = pupil_func_fft[index][1];
+      const double psf_val = real * real + imag * imag;
+
+      psf_data[index] = psf_val;
+      psf_total += psf_val;
+    }
+  }
+
+  psf /= psf_total;
+
+  return psf;
+}
+
+Mat PupilFunction::ModulationTransferFunction() {
+  Mat psf = PointSpreadFunction();
+  Mat otf;
+
+  dft(psf, otf, DFT_COMPLEX_OUTPUT);
+
+  vector<Mat> otf_planes;
+  split(otf, otf_planes);
+
+  Mat mtf;
+  magnitude(otf_planes[0], otf_planes[1], mtf);
+  return mtf;
+}
+
+}
