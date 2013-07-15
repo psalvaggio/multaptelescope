@@ -29,8 +29,6 @@ class Cassegrain : public Aperture {
 
   // The diameter of the secondary mirror [m]
   double secondary_diameter_;
-
-  REGISTER_SUBCLASS(Cassegrain, Aperture)
 };
 
 #endif  // CASSEGRAIN_H

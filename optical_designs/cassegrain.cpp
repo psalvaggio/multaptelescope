@@ -15,8 +15,6 @@ using mats::Simulation;
 using mats::PupilFunction;
 using namespace cv;
 
-REGISTER_SUBCLASS_IMPL(Cassegrain, Aperture)
-
 Cassegrain::Cassegrain(const SimulationConfig& params, int sim_index)
     : Aperture(params, sim_index),
       diameter_(simulation_params().encircled_diameter()), 

@@ -5,7 +5,6 @@
 #define APERTURE_H
 
 #include <opencv/cv.h>
-#include "base/registry.h"
 
 namespace mats {
 class SimulationConfig;
@@ -108,7 +107,5 @@ class Aperture {
   const mats::SimulationConfig& params_;
   const mats::Simulation& sim_params_;
 };
-
-CREATE_REGISTRY_2(Aperture, const mats::SimulationConfig&, int)
 
 #endif  // APERTURE_H
