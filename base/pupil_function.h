@@ -20,12 +20,16 @@ class PupilFunction {
   const cv::Mat& real_part() const { return pupil_real_; }
   const cv::Mat& imaginary_part() const { return pupil_imag_; }
 
+  cv::Mat magnitude() const;
+  cv::Mat phase() const;
+
   double meters_per_pixel() const { return meters_per_pixel_; }
   void set_meters_per_pixel(double meters_per_pixel) {
     meters_per_pixel_ = meters_per_pixel;
   }
 
   cv::Mat PointSpreadFunction();
+  cv::Mat OpticalTransferFunction();
   cv::Mat ModulationTransferFunction();
 
  private:
