@@ -1,0 +1,103 @@
+package mats_io;
+
+// Band-specific header parameters.
+message EnviBand {
+  // The name of the band.
+  optional string name = 1;
+
+  // The center wavelength of the bands. The units can be found in
+  // EnviImageHeader.wavelength_units.
+  optional double center_wavelength = 2;
+
+  // The full-width half-max of the band's spectral response. Same units as
+  // center_wavelength.
+  optional double fwhm = 3;
+
+  // 0 if this is a bad band, 1 if it is a good band.
+  optional double bad_band_multiplier = 4 [default = 1];
+}
+
+message EnviImageHeader {
+  // The various data types an image could be stored as.
+  enum DataType {
+    BYTE8 = 1;
+    INT16 = 2;
+    INT32 = 3;
+    FLOAT32 = 4;
+    FLOAT64 = 5;
+    COMPLEX2x32 = 6;
+    COMPLEX2x64 = 9;
+    UINT16 = 12;
+    UINT32 = 13;
+    UINT64 = 14;
+    UINT64_LONG = 15;
+  }
+
+  // ENVI's three interleaving schemes.
+  enum InterleaveType {
+    BSQ = 1;
+    BIP = 2;
+    BIL = 3;
+  }
+
+  // A short description of the image.
+  optional string description = 1;
+
+  // The number of samples (columns) in the image.
+  optional int32 samples = 2;
+
+  // The number of lines (rows) in the image.
+  optional int32 lines = 3;
+
+  // The number of spectral bands in the image.
+  optional int32 bands = 4;
+
+  // The number of header bytes in the image to skip before reading in the
+  // uncompressed binary image data.
+  optional int32 header_offset = 5 [default = 0];
+
+  // ENVI file type. The value is simply stored and not used.
+  optional string file_type = 6;
+
+  // The data type of the image data.
+  optional int32 data_type = 7;
+
+  // The type of data interleaving in this image.
+  optional int32 interleave_type = 8;
+
+  // The sensor from which the image was collected.
+  optional string sensor_type = 9;
+
+  // The byte order used by the image. (0 is UNIX, 1 is Windows)
+  optional int32 byte_order = 10;
+
+  // If the image is a spatial subset of another, these are the indices of the
+  // starting pixel.
+  optional int32 start_x = 11 [default = 0];
+  optional int32 start_y = 12 [default = 0];
+
+  // Information about the map projection, unused at this point.
+  optional string map_info = 13;
+  optional string projection_info = 14;
+
+  // The bands that should be loaded by default into ENVI's available band
+  // list. The value is simply read in and not parsed.
+  optional string default_bands = 15;
+
+  // Parameters for configuring z-plots. Simply read in and not parsed.
+  optional string z_plot_range = 16;
+  optional string z_plot_average = 17;
+  optional string z_plot_titles = 18;
+
+  // If the image is not georeferenced, the GSD.
+  optional string pixel_size = 19;
+
+  // The default constrast stretching scheme, simply read in, not parsed.
+  optional string default_stretch = 20;
+
+  // The units of the wavelength values in the band list.
+  optional string wavelength_units = 21;
+
+  // A list of spectral bands in the image file. See EnviBand.
+  repeated EnviBand band = 22;
+}
