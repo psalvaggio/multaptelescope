@@ -89,9 +89,7 @@ string PrintSimulation(const Simulation& simulation) {
          << simulation.encircled_diameter() << " [m]" << endl
          << "Fill Factor: " << simulation.fill_factor() * 100 << "%" << endl
          << "Ground Sample Distance: " << simulation.gsd()
-         << " [m/pixel]" << endl
-         << "Number of Output Bands: " << simulation.num_output_bands()
-         << endl;
+         << " [m/pixel]" << endl;
 
   return output.str();
 }
