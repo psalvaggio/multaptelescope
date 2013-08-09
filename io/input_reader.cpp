@@ -83,7 +83,6 @@ void InputReader::parseLine(const std::string& line,
   input_params->set_encircled_diameter(encircled_diameter);
   input_params->set_fill_factor(fill_factor);
   input_params->set_gsd(gsd);
-  input_params->set_num_output_bands(num_output_bands);
 }
 
 }
