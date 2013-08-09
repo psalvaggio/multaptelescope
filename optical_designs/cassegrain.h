@@ -10,7 +10,9 @@
 
 class Cassegrain : public Aperture {
  public:
-  Cassegrain(const mats::SimulationConfig& params, int sim_index);
+  Cassegrain(const mats::SimulationConfig& params,
+             int sim_index,
+             const ApertureParameters& aperture_params);
 
   virtual ~Cassegrain();
 
@@ -19,9 +21,11 @@ class Cassegrain : public Aperture {
 
  // Virtual functions from Aperture
  private:
-  virtual cv::Mat GetApertureTemplate() const;
+  virtual cv::Mat GetApertureTemplate();
 
-  virtual cv::Mat GetOpticalPathLengthDiff() const;
+  virtual cv::Mat GetOpticalPathLengthDiff();
+
+  virtual cv::Mat GetOpticalPathLengthDiffEstimate();
 
  private:
   // The diameter of the primary mirror [m]
@@ -29,6 +33,9 @@ class Cassegrain : public Aperture {
 
   // The diameter of the secondary mirror [m]
   double secondary_diameter_;
+
+  // The values for piston/tip/tilt [waves]
+  double ptt_vals_[3];
 };
 
 #endif  // CASSEGRAIN_H
