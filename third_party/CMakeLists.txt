@@ -1,4 +1,5 @@
-set(THIRD_PARTY_MODULES gnuplot-cpp)
+set(THIRD_PARTY_MODULES gnuplot-cpp
+                        envi-cpp)
 
 set(LINK_LIBS "")
 foreach(TMP_LIB ${THIRD_PARTY_MODULES})

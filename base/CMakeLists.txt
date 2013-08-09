@@ -1,22 +1,28 @@
 set(SUBSYS_NAME base)
 
-include(FindProtobuf)
-find_package(Protobuf REQUIRED)
 find_package(FFTW REQUIRED)
-include_directories(${PROTOBUF_INCLUDE_DIR})
 
 set(headers
+    detector.h
     pupil_function.h
     opencv_utils.h
     registry.h
     macros.h
     assertions.h
-    scoped_ptr.h)
+    str_utils.h
+    math_utils.h
+    endian.h
+    scoped_ptr.h
+    system_otf.h
+    telescope.h)
 
 set(sources
+    detector.cpp
     pupil_function.cpp
     opencv_utils.cpp
-    circshift.cpp)
+    circshift.cpp
+    system_otf.cpp
+    telescope.cpp)
 
 file(GLOB ProtoFiles "${CMAKE_CURRENT_SOURCE_DIR}/*.proto")
 PROTOBUF_GENERATE_CPP(ProtoSources ProtoHeaders ${ProtoFiles})

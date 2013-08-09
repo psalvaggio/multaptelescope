@@ -9,6 +9,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} std=c++11")
 
 # Find external libraries
 find_package(OpenCV REQUIRED)
+include(FindProtobuf)
+find_package(Protobuf REQUIRED)
+#find_package(ProtocolBuffers REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIR})
+
+set(PROTOBUF_IMPORT_DIRS ${PROTOBUF_IMPORT_DIRS} ${MATS_SOURCE_DIR})
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
@@ -27,7 +33,15 @@ set(CMAKE_CXX_FLAGS "-Wall")
 if (cmake_build_type_tolower STREQUAL "release")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -force_load")
+
+
+ADD_CUSTOM_COMMAND(
+    OUTPUT SOMEFILE.pb.h SOMEFILE.pb.cc
+    COMMAND protoc SOMEFILE.proto --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS
+    SOMEFILE.proto
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
 
 set(MODULES base
             io
