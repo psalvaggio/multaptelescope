@@ -5,7 +5,13 @@
 
 #include "base/simulation_config.pb.h"
 #include "base/pupil_function.h"
+#include "base/opencv_utils.h"
 #include "io/logging.h"
+
+#include "optical_designs/cassegrain.h"
+#include "optical_designs/triarm9.h"
+
+#include <opencv/highgui.h>
 
 #include <cmath>
 #include <cstdlib>
@@ -14,108 +20,132 @@
 using mats::SimulationConfig;
 using mats::Simulation;
 using mats::PupilFunction;
+using std::cout;
+using std::endl;
 using namespace cv;
 
-Aperture::Aperture(const SimulationConfig& params, int sim_index)
+Aperture::Aperture(const SimulationConfig& params,
+                   int sim_index,
+                   const ApertureParameters& aperture_params)
     : params_(params),
-      sim_params_(params.simulation(sim_index)) {}
+      sim_params_(params.simulation(sim_index)),
+      aperture_params_(aperture_params) {}
 
 Aperture::~Aperture() {}
 
-void Aperture::GetPupilFunction(PupilFunction* pupil) const {
-  const size_t size = params_.array_size();
-  const double half_size = size / 2;
-  const double kTargetDiameter = size / 2.0;
+void Aperture::GetPupilFunction(const Mat& wfe,
+                                double wavelength,
+                                PupilFunction* pupil) {
+  const size_t kSize = params_.array_size();
+  
+  // We want to pupil function to take up the center half of the array. This
+  // is a decent tradeoff so the user has enough resolution to upsample and a
+  // decent range (2x) over which to upsample.
+  int target_diameter = kSize / 2;
 
-  Mat& pupil_real = pupil->real_part();
-  Mat& pupil_imag = pupil->imaginary_part();
-  pupil_real.create(size, size, CV_64FC1);
-  pupil_imag.create(size, size, CV_64FC1);
-
+  // Set the scale of the pupil function, so the user can rescale the
+  // function with physical units if they need to.
   pupil->set_meters_per_pixel(sim_params_.encircled_diameter() /
-                              kTargetDiameter);
+                              target_diameter);
 
-  Mat scaled_aperture(size, size, CV_64FC1);
-  Mat unscaled_aperture = GetApertureTemplate();
-  Mat opd = GetOpticalPathLengthDiff();
+  // Resize the wavefront error and aperture template to the desired
+  // resolution.
+  Mat scaled_aperture, scaled_wfe;
+  resize(GetApertureTemplate(), scaled_aperture,
+         Size(target_diameter, target_diameter));
+  resize(wfe, scaled_wfe, Size(target_diameter, target_diameter));
 
-  Mat unscaled_aberrated_real(size, size, CV_64FC1);
-  Mat unscaled_aberrated_imag(size, size, CV_64FC1);
+  // The wavefront error is in units of the reference wavelength. So, we will
+  // need to scale it to be in terms of the requested wavelength, with this
+  // scale factor.
+  double wavelength_scale = params_.reference_wavelength() / wavelength;
 
-  double* aberrated_real = (double*) unscaled_aberrated_real.data;
-  double* aberrated_imag = (double*) unscaled_aberrated_imag.data;
-  double* unaberrated = (double*) unscaled_aperture.data;
-  double* opd_data = (double*) opd.data;
-  for (size_t i = 0; i < size*size; i++) {
-    aberrated_real[i] = unaberrated[i] * cos(2 * M_PI * opd_data[i]);
-    aberrated_imag[i] = unaberrated[i] * sin(2 * M_PI * opd_data[i]);
+  // Create the aberrated pupil function. This consists of putting the
+  // wavefront error into the phase of the complex pupil function.
+  Mat scaled_aberrated_real(target_diameter, target_diameter, CV_64FC1);
+  Mat scaled_aberrated_imag(target_diameter, target_diameter, CV_64FC1);
+
+  double* aberrated_real = (double*) scaled_aberrated_real.data;
+  double* aberrated_imag = (double*) scaled_aberrated_imag.data;
+  double* unaberrated = (double*) scaled_aperture.data;
+  double* opd_data = (double*) scaled_wfe.data;
+  for (size_t i = 0; i < target_diameter*target_diameter; i++) {
+    aberrated_real[i] = unaberrated[i] * cos(2 * M_PI * opd_data[i]) *
+                        wavelength_scale;
+    aberrated_imag[i] = unaberrated[i] * sin(2 * M_PI * opd_data[i]) *
+                        wavelength_scale;
   }
 
-  Range scaling_range;
-  scaling_range.start = half_size / 2;
-  scaling_range.end = 3 * half_size / 2 + 1;
+  // Copy the aberrated pupil function into the output variables.
+  Range crop_range;
+  crop_range.start = kSize / 2 - (target_diameter + 1) / 2;
+  crop_range.end = crop_range.start + target_diameter;
 
-  Mat real_center = pupil_real(scaling_range, scaling_range);
-  Mat imag_center = pupil_imag(scaling_range, scaling_range);
+  Mat& pupil_real(pupil->real_part());
+  Mat& pupil_imag(pupil->imaginary_part());
 
-  resize(unscaled_aberrated_real, real_center, real_center.size(), 0, 0,
-         INTER_NEAREST);
-  resize(unscaled_aberrated_imag, imag_center, imag_center.size(), 0, 0,
-         INTER_NEAREST);
+  pupil_real = Mat::zeros(kSize, kSize, CV_64FC1);
+  pupil_imag = Mat::zeros(kSize, kSize, CV_64FC1);
+
+  scaled_aberrated_real.copyTo(pupil_real(crop_range, crop_range));
+  scaled_aberrated_imag.copyTo(pupil_imag(crop_range, crop_range));
 }
 
-Mat Aperture::GetRandomPistonTipTilt(double* ptt) const {
-  Mat ptt_mat(3, 1, CV_64FC1);
-  randn(ptt_mat, 0, 1);
-
-  double* ptt_vals = (double*) ptt_mat.data;
-
-  if (ptt != NULL) {
-    memcpy(ptt, ptt_vals, 3*sizeof(double));
-  }
-
-  return GetPistonTipTilt(ptt_vals);
+Mat Aperture::GetWavefrontError() {
+  return GetOpticalPathLengthDiff();
 }
 
-Mat Aperture::GetPistonTipTiltEstimate(double* ptt_truth,
-                                       double* ptt_estimates) const {
-  int piston_adj = 2 * (rand() % 2) - 1;
-  int tip_adj = 2 * (rand() % 2) - 1;
-  int tilt_adj = 2 * (rand() % 2) - 1;
-
-  double knowledge_level = 0;
-  switch (sim_params_.wfe_knowledge()) {
-    case Simulation::HIGH: knowledge_level = 0.05; break;
-    case Simulation::MEDIUM: knowledge_level = 0.1; break;
-    default: knowledge_level = 0.2; break;
-  }
-  mainLog() << "Error in the estimates of piston/tip/tilt: "
-            << knowledge_level << " [waves]" << std::endl;
-
-  ptt_estimates[0] = ptt_truth[0] + piston_adj * knowledge_level;
-  ptt_estimates[1] = ptt_truth[1] + tip_adj * knowledge_level;
-  ptt_estimates[2] = ptt_truth[2] + tilt_adj * knowledge_level;
-
-  return GetPistonTipTilt(ptt_estimates);
+Mat Aperture::GetWavefrontErrorEstimate() {
+  return GetOpticalPathLengthDiffEstimate();
 }
 
-Mat Aperture::GetPistonTipTilt(double* ptt) const {
-  const size_t size = params_.array_size();
-  const double half_size = size / 2.0;
+Mat Aperture::GetApertureMask() {
+  return GetApertureTemplate();
+}
 
-  Mat output(size, size, CV_64FC1);
+Mat Aperture::GetPistonTipTilt(double piston, double tip, double tilt,
+                               size_t rows, size_t cols) const {
+  const double kHalfRow = rows / 2.0;
+  const double kHalfCol = cols / 2.0;
+
+  Mat output(rows, cols, CV_64FC1);
 
   double* output_data = (double*) output.data;
 
-  for (size_t i = 0; i < size; i++) {
-    double y = (i - half_size) / half_size;
-    for (size_t j = 0; j < size; j++) {
-      double x = (j - half_size) / half_size;
+  for (size_t i = 0; i < rows; i++) {
+    double y = (i - kHalfRow) / kHalfRow;
+    for (size_t j = 0; j < cols; j++) {
+      double x = (j - kHalfCol) / kHalfCol;
 
-      output_data[i*size + j] =
-          ptt[0] + ptt[1] * x + ptt[2] * y;
+      output_data[i*cols + j] = piston + tip * x + tilt * y;
     }
   }
 
   return output;
+}
+
+Mat Aperture::GetPistonTipTilt(double piston, double tip, double tilt) const {
+  const size_t size = params_.array_size();
+  return GetPistonTipTilt(piston, tip, tilt, size, size);
+}
+
+
+Aperture* ApertureFactory::Create(const mats::SimulationConfig& params, 
+                                  int sim_index,
+                                  const ApertureParameters& aperture_params) {
+  if (sim_index > params.simulation_size()) {
+    mainLog() << "ApertureFactory error: Given simulation index out of bounds."
+              << std::endl;
+    return NULL;
+  }
+
+  const Simulation& sim(params.simulation(sim_index));
+  if (sim.aperture_type() == Simulation::TRIARM9) {
+    return new Triarm9(params, sim_index, aperture_params);
+  } else if (sim.aperture_type() == Simulation::CASSEGRAIN) {
+    return new Cassegrain(params, sim_index, aperture_params);
+  }
+
+  mainLog() << "ApertureFactory error: Unsupported aperture type." << std::endl;
+  return NULL;
 }
