@@ -13,7 +13,12 @@ message SimulationConfig {
   // The standard array size to use in simulation (512 typical).
   optional int32 array_size = 3 [default = 512];
 
+  // The simulations that need to be run.
   repeated Simulation simulation = 4;
+
+  // The reference wavelength of the system. Whenever anything is in units of
+  // waves, this is the wavelength that it corresponds to.
+  optional double reference_wavelength = 5;
 }
 
 message Simulation {
@@ -54,6 +59,8 @@ message Simulation {
   // Ground Sample Distance (GSD) of the telescope [meters/pixel]
   optional double gsd = 9;
 
-  // Number of output bands (4 or 7)
-  optional int32 num_output_bands = 10;
+  // Some aperture type choices may require additional parameters.
+  // Protobuf extensions are a nice way to smuggle them in without changing the
+  // constructor interface to the Aperture subclasses.
+  extensions 1000 to max;
 }
