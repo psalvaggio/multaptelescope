@@ -6,12 +6,14 @@ message DetectorBandpass {
 
   // The quantum efficiency of the detector for this bandpass
   optional double quantum_efficiency = 2;
+
+  // The FWHM of the bandpass. [m]
+  optional double fwhm = 3;
 }
 
 
 message DetectorParameters {
-  // The QE spectrum of the detector, will be linearly interpolated to match
-  // the spectral bands being modeled.
+  // The spectral bands that will be output by the model.
   repeated DetectorBandpass band = 1;
 
   // The pixel pitch (spacing between the center of the pixels)
@@ -32,4 +34,13 @@ message DetectorParameters {
 
   // Read-out time for the detector [s]
   optional double readout_time = 7;
+
+  // --------------- COMPUTED PARAMETERS ---------------
+
+  // The number of rows in the detector
+  optional int32 array_rows = 8;
+
+  // The number of columns in the detector
+  optional int32 array_cols = 9;
+
 }
