@@ -21,10 +21,10 @@ class SystemOtf {
 
   void PushOtf(const cv::Mat& otf);
 
-  cv::Mat GetOtf() const { return otf_; }
+  cv::Mat GetOtf() const;
 
  private:
-  cv::Mat otf_;
+  cv::Mat mtf_, ptf_;
 };
 
 }
