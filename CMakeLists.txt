@@ -44,6 +44,7 @@ ADD_CUSTOM_COMMAND(
 
 
 set(MODULES base
+            deconvolution
             io
             optical_designs
             third_party)
