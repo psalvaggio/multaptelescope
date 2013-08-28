@@ -56,5 +56,5 @@ endforeach(TMP_LIB)
 add_executable(mats_main mats_main.cpp)
 target_link_libraries(mats_main ${MATS_LINK_LIBS})
 
-add_executable(write_my_detector write_my_detector.cpp)
-target_link_libraries(write_my_detector ${MATS_LINK_LIBS})
+#add_executable(write_my_detector write_my_detector.cpp)
+#target_link_libraries(write_my_detector ${MATS_LINK_LIBS})
