@@ -3,8 +3,9 @@
 
 #include "telescope.h"
 
-#include "base/pupil_function.h"
 #include "base/opencv_utils.h"
+#include "base/pupil_function.h"
+#include "base/system_otf.h"
 #include "optical_designs/aperture.h"
 
 #include <algorithm>
@@ -32,12 +33,76 @@ double Telescope::FocalLength() const {
 
 void Telescope::Image(const std::vector<Mat>& radiance,
                       const std::vector<double>& wavelength,
-                      std::vector<Mat>* image) {
+                      std::vector<Mat>* image,
+                      std::vector<Mat>* otf) {
+  vector<Mat> otfs;
+  if (otf != NULL) {
+    ComputeOtf(wavelength, otf);
+  } else {
+    ComputeOtf(wavelength, &otfs);
+    otf = &otfs;
+  }
+
+  vector<Mat> blurred_radiance;
+  
+  for (size_t i = 0; i < radiance.size(); i++) {
+    Mat img_fft;
+    vector<Mat> img_fft_planes;
+    dft(radiance[i], img_fft, DFT_COMPLEX_OUTPUT);
+    split(img_fft, img_fft_planes);
+
+    vector<Mat> otf_planes;
+    split((*otf)[i], otf_planes);
+
+    Mat blurred_fft;
+    vector<Mat> blurred_fft_planes;
+    blurred_fft_planes.push_back(img_fft_planes[0].mul(otf_planes[0]) -
+                                 img_fft_planes[1].mul(otf_planes[1]));
+    blurred_fft_planes.push_back(img_fft_planes[0].mul(otf_planes[1]) +
+                                 img_fft_planes[1].mul(otf_planes[0]));
+    merge(blurred_fft_planes, blurred_fft);
+
+    Mat tmp_blurred_radiance;
+    dft(blurred_fft, tmp_blurred_radiance,
+        DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
+
+    blurred_radiance.push_back(tmp_blurred_radiance);
+  }
+
+  detector_->ResponseElectrons(blurred_radiance, wavelength, image);
 }
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
                            std::vector<Mat>* otf) {
-  ComputeApertureOtf(wavelengths, otf);
+  vector<Mat> ap_otf;
+  ComputeApertureOtf(wavelengths, &ap_otf);
+
+  SystemOtf wave_invar_sys_otf;
+  wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf());
+  wave_invar_sys_otf.PushOtf(
+      detector_->GetSmearOtf(0, detector_->pixel_pitch() * 1e3));
+  //wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0.1));
+  Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
+  std::cout << wave_invariant_otf.rows << " " << wave_invariant_otf.cols
+            << " " << wave_invariant_otf.channels() << std::endl;
+
+  vector<Mat> otf_planes;
+  Mat mtf;
+  split(wave_invariant_otf, otf_planes);
+  magnitude(otf_planes[0], otf_planes[1], mtf);
+  std::cout << mtf.rows << " " << mtf.cols
+            << " " << mtf.channels() << std::endl;
+  double max_val;
+  minMaxIdx(mtf, NULL, &max_val);
+  std::cout << "Max of wave-invariant OTF = " << max_val << std::endl;
+  std::cout << "Got component OTFs" << std::endl;
+
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    SystemOtf sys_otf;
+    sys_otf.PushOtf(ap_otf[i]);
+    sys_otf.PushOtf(wave_invariant_otf);
+    otf->push_back(sys_otf.GetOtf());
+  }
 }
 
 void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
@@ -112,8 +177,10 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
       resize(unscaled_otf(otf_range, otf_range), scaled_otf,
              Size(kNumRows, kNumCols), 0, 0, INTER_NEAREST);
     }
+
     otf->push_back(FFTShift(scaled_otf));
   }
+
 }
 
 }

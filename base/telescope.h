@@ -27,7 +27,8 @@ class Telescope {
 
   void Image(const std::vector<cv::Mat>& radiance,
              const std::vector<double>& wavelength,
-             std::vector<cv::Mat>* image);
+             std::vector<cv::Mat>* image,
+             std::vector<cv::Mat>* otf = NULL);
 
   void ComputeOtf(const std::vector<double>& wavelengths,
                   std::vector<cv::Mat>* otf);
