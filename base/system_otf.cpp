@@ -11,7 +11,7 @@ using namespace std;
 
 namespace mats {
 
-SystemOtf::SystemOtf() : otf_() {}
+SystemOtf::SystemOtf() : mtf_(), ptf_() {}
 
 void SystemOtf::PushOtf(const cv::Mat& otf) {
   vector<Mat> otf_planes;
@@ -29,31 +29,46 @@ void SystemOtf::PushOtf(const cv::Mat& otf) {
     return;
   }
 
-  if (otf_.rows == 0) {
-    vector<Mat> new_otf_planes;
-    new_otf_planes.push_back(Mat());
-    new_otf_planes.push_back(Mat());
+  if (mtf_.rows == 0) {
+    mtf_ = Mat();
+    ptf_ = Mat();
 
-    mtf.copyTo(new_otf_planes[0]);
-    ptf.copyTo(new_otf_planes[1]);
+    mtf.copyTo(mtf_);
+    ptf.copyTo(ptf_);
 
-    merge(new_otf_planes, otf_);
     return;
   }
 
-  if (otf.rows != otf_.rows || otf.cols != otf_.cols) {
+  if (mtf.rows != mtf_.rows || mtf.cols != mtf_.cols) {
     mainLog() << "Warning: All OTFs in the system must have the same array "
               << "size!" << endl;
     return;
   }
 
-  vector<Mat> system_planes;
-  split(otf_, system_planes);
+  mtf_ = mtf_.mul(mtf);
+  ptf_ += ptf;
+}
 
-  vector<Mat> new_sys_planes;
-  new_sys_planes.push_back(system_planes[0] * mtf);
-  new_sys_planes.push_back(system_planes[1] + ptf);
-  merge(new_sys_planes, otf_);
+Mat SystemOtf::GetOtf() const {
+  vector<Mat> otf_planes;
+  otf_planes.push_back(Mat::zeros(mtf_.size(), CV_64FC1));
+  otf_planes.push_back(Mat::zeros(mtf_.size(), CV_64FC1));
+  
+  double* mtf_data = (double*) mtf_.data;
+  double* ptf_data = (double*) ptf_.data;
+
+  double* real_data = (double*) otf_planes[0].data;
+  double* imag_data = (double*) otf_planes[1].data;
+
+  const int kSize = mtf_.rows * mtf_.cols;
+  for (int i = 0; i < kSize; i++) {
+    real_data[i] = mtf_data[i] * cos(ptf_data[i]);
+    imag_data[i] = mtf_data[i] * sin(ptf_data[i]);
+  }
+
+  Mat otf;
+  merge(otf_planes, otf);
+  return otf;
 }
 
 }
