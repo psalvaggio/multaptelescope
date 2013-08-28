@@ -26,21 +26,28 @@ message DetectorParameters {
   // The dark current doubling temperature [C or K]
   optional double darkcurr_doubling_temp = 4;
 
+  // The reference temperature for the dark current [K]
+  optional double darkcurr_reference_temp = 5;
+
+  // The RMS of the dark current at the reference temperature
+  // [rms electrons / pixel / s]
+  optional double darkcurr_reference_rms = 6;
+
   // The sensitivity of the detector [uV/electron]
-  optional double output_sensitivity = 5;
+  optional double output_sensitivity = 7;
 
   // Read noise RMS [rms electrons]
-  optional double read_rms = 6;
+  optional double read_rms = 8;
 
   // Read-out time for the detector [s]
-  optional double readout_time = 7;
+  optional double readout_time = 9;
 
   // --------------- COMPUTED PARAMETERS ---------------
 
   // The number of rows in the detector
-  optional int32 array_rows = 8;
+  optional int32 array_rows = 10;
 
   // The number of columns in the detector
-  optional int32 array_cols = 9;
+  optional int32 array_cols = 11;
 
 }

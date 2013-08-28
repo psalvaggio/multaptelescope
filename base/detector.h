@@ -85,6 +85,9 @@ class Detector {
   cv::Mat GetJitterOtf(double jitter_std_dev);
 
  private:
+  cv::Mat GetNoisePattern() const;
+
+ private:
   DetectorParameters det_params_;
   SimulationConfig sim_params_;
   int sim_index_;

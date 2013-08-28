@@ -21,9 +21,16 @@ Detector::Detector(const DetectorParameters& det_params,
       sim_params_(sim_params),
       sim_index_(sim_index) {}
 
+// The governing equation for the response of a pixel in electrons is
+//              pi * A_d * t_int * F
+// S(x, y, l) = --------------------- * L(x, y, l) * tau(l) * QE(l) * l
+//              h * c * (1 + 4(F#)^2)
+//
+// This equation assumes that L has already been degraded witht the system OTF.
 void Detector::ResponseElectrons(const vector<Mat>& radiance,
                                  const vector<double>& wavelengths,
                                  vector<Mat>* electrons) {
+  // Validate the input.
   if (!electrons) return;
   if (radiance.size() == 0) return;
   if (radiance[0].rows != rows() || radiance[0].cols != cols()) {
@@ -32,11 +39,9 @@ void Detector::ResponseElectrons(const vector<Mat>& radiance,
     return;
   }
 
-  int array_rows = radiance[0].rows;
-  int array_cols = radiance[0].cols;
-
   const Simulation& simulation(sim_params_.simulation(sim_index_));
 
+  // Calculate the key scalar quantities in the governing equation.
   double focal_length = sim_params_.altitude() *
                         det_params_.pixel_pitch() /
                         simulation.gsd();
@@ -44,10 +49,15 @@ void Detector::ResponseElectrons(const vector<Mat>& radiance,
   double det_area = det_params_.pixel_pitch() * det_params_.pixel_pitch();
   double fill_factor = simulation.fill_factor();
   double int_time = simulation.integration_time();
-
   const double h = 6.62606957e-34;  // [J*s]
   const double c = 299792458;  // [m/s]
 
+  // Calculate the leading scalar factor in the governing equation.
+  double scalar_factor = M_PI * det_area * int_time * fill_factor /
+                         (h * c * (1 + 4 * f_number * f_number));
+
+  // Interpolate the QE spectrum of the detector to match the input spectral
+  // radiance bands.
   vector<double> qe;
   for (int i = 0; i < wavelengths.size(); i++) {
     double wave = wavelengths[i];
@@ -74,6 +84,7 @@ void Detector::ResponseElectrons(const vector<Mat>& radiance,
     }
   }
 
+  // We're just going to use a flat transmittance for the optics.
   const double kTransmittance = 0.9;
   vector<double> transmittances(wavelengths.size(), kTransmittance);
   mainLog() << "Using a flat transmittance of " << kTransmittance
@@ -82,13 +93,14 @@ void Detector::ResponseElectrons(const vector<Mat>& radiance,
   vector<Mat> high_res_electrons;
   for (size_t i = 0; i < wavelengths.size(); i++) {
     high_res_electrons.push_back(
-        (M_PI * det_area * int_time * fill_factor * transmittances[i] *
-        qe[i] * wavelengths[i] / (h * c * (1 + 4 * f_number * f_number))) *
-        radiance[i]);
+        scalar_factor * radiance[i] * transmittances[i] * qe[i] *
+        wavelengths[i]);
   }
 
+  // Combine the high-spectral resolution electrons into the output bands
+  // defined by the detector.
   for (size_t i = 0; i < det_params_.band_size(); i++) {
-    electrons->push_back(Mat(array_rows, array_cols, CV_64FC1));
+    electrons->push_back(Mat(rows(), cols(), CV_64FC1));
     double band_sigma = det_params_.band(i).fwhm() / 2.3548;
     
     for (size_t j = 0; j < wavelengths.size(); j++) {
@@ -103,30 +115,30 @@ void Detector::ResponseElectrons(const vector<Mat>& radiance,
 }
 
 Mat Detector::GetSamplingOtf() {
-  const int kSize = sim_params_.array_size();
+  const int kRows = rows();
+  const int kCols = cols();
+  const double kSize = std::max(kRows, kCols);
   const double kPixelPitch = det_params_.pixel_pitch();
-  const double kPixelPitch2 = kPixelPitch * kPixelPitch;
   const double kPiPixelPitch = M_PI * kPixelPitch;
-  const double kPi2PixelPitch2 = kPiPixelPitch * kPiPixelPitch;
 
   vector<Mat> otf_planes;
-  otf_planes.push_back(Mat::zeros(kSize, kSize, CV_64FC1));
-  otf_planes.push_back(Mat::zeros(kSize, kSize, CV_64FC1));
+  otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
+  otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
 
   double* real_data = (double*) otf_planes[0].data;
-  for (int r = 0; r < kSize; r++) {
-    int y = std::min(r, kSize - r);
-    double eta = (1 / kPixelPitch) * (y / double(kSize));
+  for (int r = 0; r < kRows; r++) {
+    int y = std::min(r, kRows - r);
+    double eta = (1 / kPixelPitch) * (y / kSize);
     double eta_sinc = (y == 0) ? 1 : sin(kPiPixelPitch * eta) /
                                      (kPiPixelPitch * eta);
 
     for (int c = 0; c < kSize; c++) {
-      int x = std::min(c, kSize - c);
-      double xi = (1 / kPixelPitch) * (x / double(kSize));
+      int x = std::min(c, kCols - c);
+      double xi = (1 / kPixelPitch) * (x / kSize);
       double xi_sinc = (x == 0) ? 1 : sin(kPiPixelPitch * xi) /
                                       (kPiPixelPitch * xi);
 
-      real_data[r*kSize + c] = eta_sinc * xi_sinc;
+      real_data[r*kCols + c] = eta_sinc * xi_sinc;
     }
   }
 
@@ -136,46 +148,54 @@ Mat Detector::GetSamplingOtf() {
 }
 
 Mat Detector::GetSmearOtf(double x_velocity, double y_velocity) {
-  const int kSize = sim_params_.array_size();
+  const int kRows = rows();
+  const int kCols = cols();
+  const double kSize = std::max(kRows, kCols);
   const double kPixelPitch = det_params_.pixel_pitch();
   const double kIntTime =
       sim_params_.simulation(sim_index_).integration_time();
 
-  double xi_coeff = M_PI * x_velocity * kIntTime * kPixelPitch;
-  double eta_coeff = M_PI * y_velocity * kIntTime * kPixelPitch;
+  double xi_coeff = M_PI * x_velocity * kIntTime;
+  double eta_coeff = M_PI * y_velocity * kIntTime;
+  //double xi_coeff = M_PI * x_velocity * kIntTime * kPixelPitch;
+  //double eta_coeff = M_PI * y_velocity * kIntTime * kPixelPitch;
 
   vector<Mat> otf_planes;
-  otf_planes.push_back(Mat::zeros(kSize, kSize, CV_64FC1));
-  otf_planes.push_back(Mat::zeros(kSize, kSize, CV_64FC1));
+  otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
+  otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
 
   double* real_data = (double*) otf_planes[0].data;
-  for (int r = 0; r < kSize; r++) {
-    int y = std::min(r, kSize - r);
-    double eta = (1 / kPixelPitch) * (y / double(kSize));
+  for (int r = 0; r < kRows; r++) {
+    int y = std::min(r, kRows - r);
+    double eta = (1 / kPixelPitch) * (y / kSize);
                             
-    for (int c = 0; c < kSize; c++) {
-      int x = std::min(c, kSize - c);
-      double xi = (1 / kPixelPitch) * (x / double(kSize));
+    for (int c = 0; c < kCols; c++) {
+      int x = std::min(c, kCols - c);
+      double xi = (1 / kPixelPitch) * (x / kSize);
 
       double sinc_param = xi_coeff * xi + eta_coeff * eta;
-      real_data[r*kSize + c] = (sinc_param == 0) ? 1 :
+      real_data[r*kCols + c] = (sinc_param == 0) ? 1 :
                                sin(sinc_param) / sinc_param;
     }            
   }              
-                         
+
+  double max_val;
+  minMaxIdx(otf_planes[0], NULL, &max_val);
+  std::cout << "Max of smear MTF = " << max_val << std::endl;
+  minMaxIdx(otf_planes[1], NULL, &max_val);
+  std::cout << "Max of smear MTF (imag) = " << max_val << std::endl;
+
   Mat otf;       
   merge(otf_planes, otf);
   return otf;
 }
 
 Mat Detector::GetJitterOtf(double jitter_std_dev) {
-  const int kSize = sim_params_.array_size();
+  const int kRows = rows();
+  const int kCols = cols();
   const int kNumTimesteps = 100;
   const double kIntTime =
       sim_params_.simulation(sim_index_).integration_time();
-
-  double delta_t = sim_params_.simulation(sim_index_).integration_time() /
-                   kNumTimesteps;
 
   double delta_freq = 1 / kIntTime;
   vector<double> x_offset, y_offset;
@@ -236,12 +256,12 @@ Mat Detector::GetJitterOtf(double jitter_std_dev) {
 
   for (int i = 0; i < kNumTimesteps; i++) {
     x_offset[i] = (x_offset[i] - mean_x) / std_x * jitter_std_dev +
-                  kSize / 2.0;
+                  kCols / 2.0;
     y_offset[i] = (y_offset[i] - mean_y) / std_y * jitter_std_dev +
-                  kSize / 2.0;
+                  kRows / 2.0;
   }
 
-  Mat jitter_psf = Mat::zeros(kSize, kSize, CV_64FC1);
+  Mat jitter_psf = Mat::zeros(kRows, kCols, CV_64FC1);
 
   double* psf_data = (double*) jitter_psf.data;
   
@@ -255,24 +275,24 @@ Mat Detector::GetJitterOtf(double jitter_std_dev) {
       if (y_off_rnd > y_offset[i]) {
         double y_blend = y_off_rnd - y_offset[i];
 
-        psf_data[y_off_rnd * kSize + x_off_rnd] += 
+        psf_data[y_off_rnd * kCols + x_off_rnd] += 
           (1 - x_blend) * (1 - y_blend);
-        psf_data[y_off_rnd * kSize + x_off_rnd - 1] += 
+        psf_data[y_off_rnd * kCols + x_off_rnd - 1] += 
           x_blend * (1 - y_blend);
-        psf_data[(y_off_rnd - 1) * kSize + x_off_rnd] += 
+        psf_data[(y_off_rnd - 1) * kCols + x_off_rnd] += 
           (1 - x_blend) * (y_blend);
-        psf_data[(y_off_rnd - 1) * kSize + x_off_rnd - 1] += 
+        psf_data[(y_off_rnd - 1) * kCols + x_off_rnd - 1] += 
           x_blend * y_blend;
       } else {
         double y_blend = y_offset[i] - y_off_rnd;
 
-        psf_data[y_off_rnd * kSize + x_off_rnd] += 
+        psf_data[y_off_rnd * kCols + x_off_rnd] += 
           (1 - x_blend) * (1 - y_blend);
-        psf_data[y_off_rnd * kSize + x_off_rnd - 1] += 
+        psf_data[y_off_rnd * kCols + x_off_rnd - 1] += 
           x_blend * (1 - y_blend);
-        psf_data[(y_off_rnd + 1) * kSize + x_off_rnd] += 
+        psf_data[(y_off_rnd + 1) * kCols + x_off_rnd] += 
           (1 - x_blend) * (y_blend);
-        psf_data[(y_off_rnd + 1) * kSize + x_off_rnd - 1] += 
+        psf_data[(y_off_rnd + 1) * kCols + x_off_rnd - 1] += 
           x_blend * y_blend;
       }
     } else {
@@ -281,24 +301,24 @@ Mat Detector::GetJitterOtf(double jitter_std_dev) {
       if (y_off_rnd > y_offset[i]) {
         double y_blend = y_off_rnd - y_offset[i];
 
-        psf_data[y_off_rnd * kSize + x_off_rnd] += 
+        psf_data[y_off_rnd * kCols + x_off_rnd] += 
           (1 - x_blend) * (1 - y_blend);
-        psf_data[y_off_rnd * kSize + x_off_rnd + 1] += 
+        psf_data[y_off_rnd * kCols + x_off_rnd + 1] += 
           x_blend * (1 - y_blend);
-        psf_data[(y_off_rnd - 1) * kSize + x_off_rnd] += 
+        psf_data[(y_off_rnd - 1) * kCols + x_off_rnd] += 
           (1 - x_blend) * (y_blend);
-        psf_data[(y_off_rnd - 1) * kSize + x_off_rnd + 1] += 
+        psf_data[(y_off_rnd - 1) * kCols + x_off_rnd + 1] += 
           x_blend * y_blend;
       } else {
         double y_blend = y_offset[i] - y_off_rnd;
 
-        psf_data[y_off_rnd * kSize + x_off_rnd] += 
+        psf_data[y_off_rnd * kCols + x_off_rnd] += 
           (1 - x_blend) * (1 - y_blend);
-        psf_data[y_off_rnd * kSize + x_off_rnd + 1] += 
+        psf_data[y_off_rnd * kCols + x_off_rnd + 1] += 
           x_blend * (1 - y_blend);
-        psf_data[(y_off_rnd + 1) * kSize + x_off_rnd] += 
+        psf_data[(y_off_rnd + 1) * kCols + x_off_rnd] += 
           (1 - x_blend) * (y_blend);
-        psf_data[(y_off_rnd + 1) * kSize + x_off_rnd + 1] += 
+        psf_data[(y_off_rnd + 1) * kCols + x_off_rnd + 1] += 
           x_blend * y_blend;
       }
     }
@@ -319,6 +339,26 @@ Mat Detector::GetJitterOtf(double jitter_std_dev) {
   otf_planes[1] = Mat::zeros(mtf.rows, mtf.cols, CV_64FC1);
   merge(otf_planes, otf);
   return otf;
+}
+
+Mat Detector::GetNoisePattern() const {
+  const double kTemperature = det_params_.temperature();
+  const double kIntTime =
+      sim_params_.simulation(sim_index_).integration_time();
+
+  const double kRefTemp = det_params_.darkcurr_reference_temp();
+  const double kRefRms = det_params_.darkcurr_reference_rms();
+  const double kDoublingTemp = det_params_.darkcurr_doubling_temp();
+
+  double dark_rms = sqrt(kIntTime * kRefRms * kRefRms * kIntTime *
+                         pow(2, (kTemperature - kRefTemp) / kDoublingTemp));
+  Mat dark_noise(rows(), cols(), CV_64FC1);
+  randn(dark_noise, 0, dark_rms);
+
+  Mat read_noise(rows(), cols(), CV_64FC1);
+  randn(read_noise, 0, det_params_.read_rms());
+
+  return dark_noise + read_noise;
 }
 
 }
