@@ -1,4 +1,5 @@
 set(SUBSYS_NAME base)
+set(SUBSYS_DEPS optical_designs_proto)
 
 find_package(FFTW REQUIRED)
 
@@ -31,12 +32,17 @@ PROTOBUF_GENERATE_CPP(ProtoSources ProtoHeaders ${ProtoFiles})
 set(LIB_NAME mats_${SUBSYS_NAME})
 set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${LIB_NAME} PARENT_SCOPE)
 
+foreach(TMPLIB ${SUBSYS_DEPS})
+  set(LINK_LIBS ${LINK_LIBS} mats_${TMPLIB})
+endforeach()
+
 add_library(${LIB_NAME} ${ProtoSources}
                         ${ProtoHeaders}
                         ${headers}
                         ${sources})
 target_link_libraries(${LIB_NAME} ${PROTOBUF_LIBRARY}
                                   ${OpenCV_LIBS}
-                                  ${FFTW_LIBRARIES})
+                                  ${FFTW_LIBRARIES}
+                                  ${LINK_LIBS})
 
 add_executable(registry_test registry_test.cpp registry_test.h registry.h)

@@ -6,7 +6,6 @@
 #include "base/pupil_function.h"
 #include "base/detector.h"
 #include "base/simulation_config.pb.h"
-#include "base/model_parameters.pb.h"
 #include "base/detector_parameters.pb.h"
 #include "base/endian.h"
 #include "base/str_utils.h"
