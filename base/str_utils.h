@@ -8,6 +8,9 @@
 #include <functional> 
 #include <cctype>
 #include <locale>
+#include <string>
+#include <vector>
+#include <sstream>
 
 namespace mats {
 
@@ -35,13 +38,13 @@ inline std::string& trim(std::string& s) {
 // Equivalent of PHP's explode() function. Splits a string on a given delimiter.
 void explode(const std::string& s,
              char delim,
-             std::vector<std::string>* result) {
-  std::istringstream iss(s);
+             std::vector<std::string>* result);
 
-  for (std::string token; std::getline(iss, token, delim); ) {
-    result->push_back(token);
-  }
-}
+void StringAppendf(std::string* output, const char* format, va_list vargs);
+
+std::string StringPrintf(const char* format, ...);
+
+void SStringPrintf(std::string* output, const char* format, ...);
 
 }
 

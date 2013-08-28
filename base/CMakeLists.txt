@@ -20,6 +20,7 @@ set(sources
     detector.cpp
     pupil_function.cpp
     opencv_utils.cpp
+    str_utils.cpp
     circshift.cpp
     system_otf.cpp
     telescope.cpp)
