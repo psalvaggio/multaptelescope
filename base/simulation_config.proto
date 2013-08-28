@@ -10,8 +10,9 @@ message SimulationConfig {
   // Altitude of the telescope [m]
   optional double altitude = 2;
 
-  // The standard array size to use in simulation (512 typical).
-  optional int32 array_size = 3 [default = 512];
+  // The standard array size to use in simulation. This is auto-computed using
+  // larger dimension of the input image.
+  optional int32 array_size = 3;
 
   // The simulations that need to be run.
   repeated Simulation simulation = 4;
