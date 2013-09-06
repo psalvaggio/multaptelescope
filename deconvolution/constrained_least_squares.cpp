@@ -19,10 +19,6 @@ void ConstrainedLeastSquares::Deconvolve(const Mat& input,
 
   vector<Mat> input_fft_planes;
   split(input_fft, input_fft_planes);
-  Mat input_fft_mag;
-  magnitude(input_fft_planes[0], input_fft_planes[1], input_fft_mag);
-  log(input_fft_mag + 1, input_fft_mag);
-  imshow("input", ByteScale(FFTShift(input_fft_mag)));
 
   Mat laplacian = Mat::zeros(input.rows, input.cols, CV_64FC1);
   double* laplacian_data = (double*) laplacian.data;
@@ -47,9 +43,8 @@ void ConstrainedLeastSquares::Deconvolve(const Mat& input,
                      laplacian_fft_planes[1].mul(laplacian_fft_planes[1]);
   Mat denominator = transfer_power + smoothness * smooth_power;
   
-  transfer_conj_planes[0] /= denominator;
-  transfer_conj_planes[1] /= denominator;
-  transfer_conj_planes[1] *= -1;
+  divide(transfer_conj_planes[0], denominator, transfer_conj_planes[0]);
+  divide(transfer_conj_planes[1], denominator, transfer_conj_planes[1], -1);
 
   vector<Mat> output_planes;
   output_planes.push_back(transfer_conj_planes[0].mul(input_fft_planes[0]) -
