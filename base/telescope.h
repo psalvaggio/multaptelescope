@@ -33,6 +33,9 @@ class Telescope {
   void ComputeOtf(const std::vector<double>& wavelengths,
                   std::vector<cv::Mat>* otf);
 
+  void GetTransmissionSpectrum(const std::vector<double>& wavelengths,
+                               std::vector<double>* transmission) const;
+
  private:
   void ComputeApertureOtf(const std::vector<double>& wavelengths,
                           std::vector<cv::Mat>* otf);

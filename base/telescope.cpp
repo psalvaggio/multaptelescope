@@ -6,6 +6,7 @@
 #include "base/opencv_utils.h"
 #include "base/pupil_function.h"
 #include "base/system_otf.h"
+#include "io/logging.h"
 #include "optical_designs/aperture.h"
 
 #include <algorithm>
@@ -35,15 +36,12 @@ void Telescope::Image(const std::vector<Mat>& radiance,
                       const std::vector<double>& wavelength,
                       std::vector<Mat>* image,
                       std::vector<Mat>* otf) {
-  vector<Mat> otfs;
-  if (otf != NULL) {
-    ComputeOtf(wavelength, otf);
-  } else {
-    ComputeOtf(wavelength, &otfs);
-    otf = &otfs;
-  }
+  vector<Mat> spectral_otfs;
+  ComputeOtf(wavelength, &spectral_otfs);
 
   vector<Mat> blurred_radiance;
+  vector<double> transmittances;
+  GetTransmissionSpectrum(wavelength, &transmittances);
   
   for (size_t i = 0; i < radiance.size(); i++) {
     Mat img_fft;
@@ -52,7 +50,7 @@ void Telescope::Image(const std::vector<Mat>& radiance,
     split(img_fft, img_fft_planes);
 
     vector<Mat> otf_planes;
-    split((*otf)[i], otf_planes);
+    split(spectral_otfs[i], otf_planes);
 
     Mat blurred_fft;
     vector<Mat> blurred_fft_planes;
@@ -65,10 +63,16 @@ void Telescope::Image(const std::vector<Mat>& radiance,
     Mat tmp_blurred_radiance;
     dft(blurred_fft, tmp_blurred_radiance,
         DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
+    tmp_blurred_radiance *= transmittances[i];
 
     blurred_radiance.push_back(tmp_blurred_radiance);
+    spectral_otfs[i] *= transmittances[i];
   }
 
+  if (otf != NULL) {
+    otf->clear();
+    detector_->AggregateSignal(spectral_otfs, wavelength, otf);
+  }
   detector_->ResponseElectrons(blurred_radiance, wavelength, image);
 }
 
@@ -81,7 +85,7 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf());
   wave_invar_sys_otf.PushOtf(
       detector_->GetSmearOtf(0, detector_->pixel_pitch() * 1e3));
-  //wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0.1));
+  wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0.1));
   Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
   std::cout << wave_invariant_otf.rows << " " << wave_invariant_otf.cols
             << " " << wave_invariant_otf.channels() << std::endl;
@@ -103,6 +107,19 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
     sys_otf.PushOtf(wave_invariant_otf);
     otf->push_back(sys_otf.GetOtf());
   }
+}
+
+void Telescope::GetTransmissionSpectrum(
+    const std::vector<double>& wavelengths,
+    std::vector<double>* transmission) const {
+  if (!transmission) return;
+
+  // We're just going to use a flat transmittance for the optics.
+  const double kTransmittance = 0.9;
+  transmission->clear();
+  transmission->resize(wavelengths.size(), kTransmittance);
+  mainLog() << "Using a flat transmittance of " << kTransmittance
+            << " for the telescope optics." << std::endl;
 }
 
 void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
