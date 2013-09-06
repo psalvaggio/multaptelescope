@@ -21,12 +21,43 @@ Detector::Detector(const DetectorParameters& det_params,
       sim_params_(sim_params),
       sim_index_(sim_index) {}
 
+void Detector::GetQESpectrum(const vector<double>& wavelengths,
+                             vector<double>* qe) const {
+  // Interpolate the QE spectrum of the detector to match the input spectral
+  // radiance bands.
+  for (int i = 0; i < wavelengths.size(); i++) {
+    double wave = wavelengths[i];
+    
+    int j;
+    for (j = 0; j < det_params_.band_size(); j++) {
+      double band_center = det_params_.band(j).center_wavelength();
+      if (band_center >= wave) {
+        if (j == 0) {
+          qe->push_back(det_params_.band(j).quantum_efficiency());
+        } else {
+          double last_band_center = det_params_.band(j-1).center_wavelength();
+          double blend = (wave - last_band_center) /
+                         (band_center - last_band_center);
+          qe->push_back(blend * det_params_.band(j).quantum_efficiency() +
+              (1-blend) * det_params_.band(j-1).quantum_efficiency());
+        }
+        break;
+      }
+    }
+
+    if (j == det_params_.band_size()) {
+      qe->push_back(det_params_.band(j-1).quantum_efficiency());
+    }
+  }
+}
+
 // The governing equation for the response of a pixel in electrons is
 //              pi * A_d * t_int * F
-// S(x, y, l) = --------------------- * L(x, y, l) * tau(l) * QE(l) * l
+// S(x, y, l) = --------------------- * L(x, y, l) *  QE(l) * l
 //              h * c * (1 + 4(F#)^2)
 //
-// This equation assumes that L has already been degraded witht the system OTF.
+// This equation assumes that L has already been degraded witht the system OTF
+// and attenuated by the optics.
 void Detector::ResponseElectrons(const vector<Mat>& radiance,
                                  const vector<double>& wavelengths,
                                  vector<Mat>* electrons) {
@@ -56,51 +87,38 @@ void Detector::ResponseElectrons(const vector<Mat>& radiance,
   double scalar_factor = M_PI * det_area * int_time * fill_factor /
                          (h * c * (1 + 4 * f_number * f_number));
 
-  // Interpolate the QE spectrum of the detector to match the input spectral
-  // radiance bands.
   vector<double> qe;
-  for (int i = 0; i < wavelengths.size(); i++) {
-    double wave = wavelengths[i];
-    
-    int j;
-    for (j = 0; j < det_params_.band_size(); j++) {
-      double band_center = det_params_.band(j).center_wavelength();
-      if (band_center >= wave) {
-        if (j == 0) {
-          qe.push_back(det_params_.band(j).quantum_efficiency());
-        } else {
-          double last_band_center = det_params_.band(j-1).center_wavelength();
-          double blend = (wave - last_band_center) /
-                         (band_center - last_band_center);
-          qe.push_back(blend * det_params_.band(j).quantum_efficiency() +
-              (1-blend) * det_params_.band(j-1).quantum_efficiency());
-        }
-        break;
-      }
-
-      if (j == det_params_.band_size()) {
-        qe.push_back(det_params_.band(j-1).quantum_efficiency());
-      }
-    }
-  }
-
-  // We're just going to use a flat transmittance for the optics.
-  const double kTransmittance = 0.9;
-  vector<double> transmittances(wavelengths.size(), kTransmittance);
-  mainLog() << "Using a flat transmittance of " << kTransmittance
-            << " for the telescope optics." << endl;
+  GetQESpectrum(wavelengths, &qe);
 
   vector<Mat> high_res_electrons;
   for (size_t i = 0; i < wavelengths.size(); i++) {
     high_res_electrons.push_back(
-        scalar_factor * radiance[i] * transmittances[i] * qe[i] *
-        wavelengths[i]);
+        scalar_factor * radiance[i] * qe[i] * wavelengths[i]);
   }
 
   // Combine the high-spectral resolution electrons into the output bands
   // defined by the detector.
+  AggregateSignal(high_res_electrons, wavelengths, electrons);
+}
+
+void Detector::AggregateSignal(const vector<cv::Mat>& signal,
+                               const vector<double>& wavelengths,
+                               vector<Mat>* output) {
+  if (signal.size() == 0 || !output) return;
+
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    cout << signal[i].rows << " x " << signal[i].cols << " x "
+         << signal[i].channels() << endl;
+  }
+  const int kRows = signal[0].rows;
+  const int kCols = signal[0].cols;
+  const int kDataType = signal[0].type();
+
+  output->clear();
   for (size_t i = 0; i < det_params_.band_size(); i++) {
-    electrons->push_back(Mat(rows(), cols(), CV_64FC1));
+    output->push_back(Mat::zeros(kRows, kCols, kDataType));
+
+    // Convert the FWHM to standard deviation.
     double band_sigma = det_params_.band(i).fwhm() / 2.3548;
     
     for (size_t j = 0; j < wavelengths.size(); j++) {
@@ -108,7 +126,7 @@ void Detector::ResponseElectrons(const vector<Mat>& radiance,
                                  det_params_.band(i).center_wavelength(),
                                  band_sigma);
       if (weight > 1e-4) {
-        electrons->at(i) += weight * high_res_electrons[j];
+        output->at(i) += weight * signal[j];
       }
     }
   }

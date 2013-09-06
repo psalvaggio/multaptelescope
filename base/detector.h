@@ -33,6 +33,14 @@ class Detector {
   int cols() const { return det_params_.array_cols(); }
   double pixel_pitch() const { return det_params_.pixel_pitch(); }
 
+  // Get the quantum efficiency of the detector at the requested wavelengths.
+  //
+  // Arguments:
+  //  wavelengths The wavelengths at which the QE is requested. [m]
+  //  qe          Output: The QE corresponding to the wavelengths.
+  void GetQESpectrum(const std::vector<double>& wavelengths,
+                     std::vector<double>* qe) const;
+
   // Convert the radiance field reaching the system into electrons on the 
   // detector.
   //
@@ -46,6 +54,16 @@ class Detector {
   void ResponseElectrons(const std::vector<cv::Mat>& radiance,
                          const std::vector<double>& wavelengths,
                          std::vector<cv::Mat>* electrons);
+
+  // Aggregate a spectral signal into the bands of the detector.
+  //
+  // Arguments:
+  //  signal      The spectral signal which is to be aggregated.
+  //  wavelengths The wavelengths corresponding to the elements in signal.
+  //  output      Output: The aggregated signal into bands.
+  void AggregateSignal(const std::vector<cv::Mat>& signal,
+                       const std::vector<double>& wavelengths,
+                       std::vector<cv::Mat>* output);
 
   // Get the MTF that results from the sampling of the detector. This assumes
   // that the detector elements have a fill factor of 1 and are perfectly
