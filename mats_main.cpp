@@ -159,12 +159,17 @@ int main(int argc, char** argv) {
     telescope.Image(hyp_planes, hyp_band_wavelengths, &output_image, &otfs);
 
     ConstrainedLeastSquares cls;
+    namedWindow("Input Image");
+    namedWindow("Output Image");
+    moveWindow("Input Image", 0, 0);
+    moveWindow("Output Image", 450, 0);
 
+    const double kSmoothness = 1e-3;
     for (size_t i = 0; i < output_image.size(); i++) {
-      //Mat deconvolved;
-      //cls.Deconvolve(output_image[i], otfs[i], 1, &deconvolved);
-      imshow(mats::StringPrintf("Output Image %lu", i),
-             ByteScale(output_image[i]));
+      Mat deconvolved;
+      cls.Deconvolve(output_image[i], otfs[i], kSmoothness, &deconvolved);
+      imshow("Input Image", ByteScale(output_image[i]));
+      imshow("Output Image", ByteScale(deconvolved));
       waitKey(1000);
     }
   }
