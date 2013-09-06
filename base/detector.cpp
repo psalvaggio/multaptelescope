@@ -106,10 +106,6 @@ void Detector::AggregateSignal(const vector<cv::Mat>& signal,
                                vector<Mat>* output) {
   if (signal.size() == 0 || !output) return;
 
-  for (size_t i = 0; i < wavelengths.size(); i++) {
-    cout << signal[i].rows << " x " << signal[i].cols << " x "
-         << signal[i].channels() << endl;
-  }
   const int kRows = signal[0].rows;
   const int kCols = signal[0].cols;
   const int kDataType = signal[0].type();

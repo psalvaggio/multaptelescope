@@ -87,15 +87,12 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
       detector_->GetSmearOtf(0, detector_->pixel_pitch() * 1e3));
   wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0.1));
   Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
-  std::cout << wave_invariant_otf.rows << " " << wave_invariant_otf.cols
-            << " " << wave_invariant_otf.channels() << std::endl;
 
   vector<Mat> otf_planes;
   Mat mtf;
   split(wave_invariant_otf, otf_planes);
   magnitude(otf_planes[0], otf_planes[1], mtf);
-  std::cout << mtf.rows << " " << mtf.cols
-            << " " << mtf.channels() << std::endl;
+
   double max_val;
   minMaxIdx(mtf, NULL, &max_val);
   std::cout << "Max of wave-invariant OTF = " << max_val << std::endl;

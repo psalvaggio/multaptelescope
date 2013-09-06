@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
     namedWindow("Input Image");
     namedWindow("Output Image");
     moveWindow("Input Image", 0, 0);
-    moveWindow("Output Image", 450, 0);
+    moveWindow("Output Image", 500, 0);
 
     const double kSmoothness = 1e-3;
     for (size_t i = 0; i < output_image.size(); i++) {
