@@ -193,12 +193,6 @@ Mat Detector::GetSmearOtf(double x_velocity, double y_velocity) {
     }            
   }              
 
-  double max_val;
-  minMaxIdx(otf_planes[0], NULL, &max_val);
-  std::cout << "Max of smear MTF = " << max_val << std::endl;
-  minMaxIdx(otf_planes[1], NULL, &max_val);
-  std::cout << "Max of smear MTF (imag) = " << max_val << std::endl;
-
   Mat otf;       
   merge(otf_planes, otf);
   return otf;
