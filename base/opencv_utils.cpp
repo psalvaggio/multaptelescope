@@ -5,17 +5,19 @@
 #include "io/logging.h"
 #include <iostream>
 
-void ByteScale(const cv::Mat& input, cv::Mat& output) {
+void ByteScale(const cv::Mat& input, cv::Mat& output, bool verbose) {
   double min;
   double max;
   cv::minMaxIdx(input, &min, &max);
   cv::convertScaleAbs(input - min, output, 255 / (max - min));
-  std::cout << "ByteScale: min = " << min << ", max = " << max << std::endl;
+  if (verbose) {
+    std::cout << "ByteScale: min = " << min << ", max = " << max << std::endl;
+  }
 }
 
-cv::Mat ByteScale(const cv::Mat& input) {
+cv::Mat ByteScale(const cv::Mat& input, bool verbose) {
   cv::Mat output;
-  ByteScale(input, output);
+  ByteScale(input, output, verbose);
   return output;
 }
 
