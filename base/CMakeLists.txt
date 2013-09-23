@@ -4,25 +4,27 @@ set(SUBSYS_DEPS optical_designs_proto)
 find_package(FFTW REQUIRED)
 
 set(headers
-    detector.h
-    pupil_function.h
-    opencv_utils.h
-    registry.h
-    macros.h
     assertions.h
-    str_utils.h
-    math_utils.h
+    detector.h
     endian.h
+    macros.h
+    math_utils.h
+    opencv_utils.h
+    photon_noise.h
+    pupil_function.h
+    registry.h
     scoped_ptr.h
+    str_utils.h
     system_otf.h
     telescope.h)
 
 set(sources
-    detector.cpp
-    pupil_function.cpp
-    opencv_utils.cpp
-    str_utils.cpp
     circshift.cpp
+    detector.cpp
+    opencv_utils.cpp
+    photon_noise.cpp
+    pupil_function.cpp
+    str_utils.cpp
     system_otf.cpp
     telescope.cpp)
 
