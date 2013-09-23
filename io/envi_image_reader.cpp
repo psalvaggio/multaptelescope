@@ -44,7 +44,7 @@ bool EnviImageReader::Read(const string& image_filename,
 
   if (!hdr->has_data_type()) {
     mainLog() << "Error: ENVI header \"" << header_filename
-              << "missing data type." << endl;
+              << "\" missing data type." << endl;
     return false;
   }
   
