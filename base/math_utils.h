@@ -5,7 +5,6 @@
 #define MATH_UTILS_H
 
 #include <cmath>
-#include <iostream>
 
 namespace mats {
 
