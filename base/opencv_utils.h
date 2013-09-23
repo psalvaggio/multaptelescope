@@ -6,8 +6,39 @@
 
 #include <opencv/cv.h>
 
-void ByteScale(const cv::Mat& input, cv::Mat& output, bool verbose = false);
-cv::Mat ByteScale(const cv::Mat& input, bool verbose = false);
+cv::Mat ByteScale(const cv::Mat& input,
+                  bool verbose = false);
+
+void ByteScale(const cv::Mat& input,
+               cv::Mat& output,
+               bool verbose = false);
+
+cv::Mat ByteScale(const cv::Mat& input,
+                  double* min,
+                  double* max,
+                  bool verbose = false);
+
+void ByteScale(const cv::Mat& input,
+               cv::Mat& output,
+               double* min,
+               double* max,
+               bool verbose = false);
+
+cv::Mat ByteScale(const cv::Mat& input,
+                  double min,
+                  double max,
+                  bool verbose = false);
+
+void ByteScale(const cv::Mat& input,
+               cv::Mat& output,
+               double min,
+               double max,
+               bool verbose = false);
+
+void LogScale(const cv::Mat& input,
+              cv::Mat& output);
+
+cv::Mat LogScale(const cv::Mat& input);
 
 
 void circshift(const cv::Mat& src,
