@@ -5,15 +5,18 @@
 #define TELESCOPE_H
 
 #include "base/scoped_ptr.h"
-#include "base/detector.h"
-#include "base/simulation_config.pb.h"
-#include "optical_designs/aperture_parameters.pb.h"
+#include <opencv/cv.h>
 
 #include <vector>
 
 class Aperture;
+class ApertureParameters;
 
 namespace mats {
+
+class Detector;
+class DetectorParameters;
+class SimulationConfig;
 
 class Telescope {
  public:
@@ -22,8 +25,21 @@ class Telescope {
             const ApertureParameters& ap_params,
             const DetectorParameters& det_params);
 
-
+  // Get the focal length of the telescope. [m]
   double FocalLength() const;
+
+  // Get the F# of the system. [unitless]
+  double FNumber() const;
+
+  // Get the G# of the telescope [sr^-1]. This describes the relationship
+  // between the radiance reaching the optics and the irradiance onto the
+  // detector.
+  //
+  // Arguments:
+  //   lambda  The wavelength of interest [m]
+  double GNumber(double lambda) const;
+
+  const Detector& detector() const { return *detector_; }
 
   void Image(const std::vector<cv::Mat>& radiance,
              const std::vector<double>& wavelength,

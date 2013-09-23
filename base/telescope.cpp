@@ -3,6 +3,7 @@
 
 #include "telescope.h"
 
+#include "base/detector.h"
 #include "base/opencv_utils.h"
 #include "base/pupil_function.h"
 #include "base/system_otf.h"
@@ -32,48 +33,67 @@ double Telescope::FocalLength() const {
          detector_->simulation().gsd();  // [m]
 }
 
+double Telescope::FNumber() const {
+  return FocalLength() / detector_->simulation().encircled_diameter();
+}
+
+double Telescope::GNumber(double lambda) const {
+  double f_number = FNumber();
+
+  vector<double> transmission;
+  vector<double> wavelengths(1, lambda);
+  GetTransmissionSpectrum(wavelengths, &transmission);
+
+  return (1 + f_number * f_number) /
+         (M_PI * transmission[0] * detector_->simulation().fill_factor());
+}
+
 void Telescope::Image(const std::vector<Mat>& radiance,
                       const std::vector<double>& wavelength,
                       std::vector<Mat>* image,
                       std::vector<Mat>* otf) {
+  // Compute the OTF for each of the spectral points in the input data.
   vector<Mat> spectral_otfs;
   ComputeOtf(wavelength, &spectral_otfs);
 
-  vector<Mat> blurred_radiance;
+  // Get the transmission spectrum of the optics.
   vector<double> transmittances;
   GetTransmissionSpectrum(wavelength, &transmittances);
-  
+
+  vector<Mat> blurred_irradiance;
   for (size_t i = 0; i < radiance.size(); i++) {
     Mat img_fft;
-    vector<Mat> img_fft_planes;
     dft(radiance[i], img_fft, DFT_COMPLEX_OUTPUT);
-    split(img_fft, img_fft_planes);
-
-    vector<Mat> otf_planes;
-    split(spectral_otfs[i], otf_planes);
 
     Mat blurred_fft;
-    vector<Mat> blurred_fft_planes;
-    blurred_fft_planes.push_back(img_fft_planes[0].mul(otf_planes[0]) -
-                                 img_fft_planes[1].mul(otf_planes[1]));
-    blurred_fft_planes.push_back(img_fft_planes[0].mul(otf_planes[1]) +
-                                 img_fft_planes[1].mul(otf_planes[0]));
-    merge(blurred_fft_planes, blurred_fft);
+    cv::mulSpectrums(img_fft, spectral_otfs[i], blurred_fft, 0);
 
-    Mat tmp_blurred_radiance;
-    dft(blurred_fft, tmp_blurred_radiance,
+    Mat tmp_blurred_irradiance;
+    dft(blurred_fft, tmp_blurred_irradiance,
         DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
-    tmp_blurred_radiance *= transmittances[i];
+    tmp_blurred_irradiance /= GNumber(wavelength[i]);
 
-    blurred_radiance.push_back(tmp_blurred_radiance);
+    blurred_irradiance.push_back(tmp_blurred_irradiance);
     spectral_otfs[i] *= transmittances[i];
   }
 
   if (otf != NULL) {
     otf->clear();
-    detector_->AggregateSignal(spectral_otfs, wavelength, otf);
+    detector_->AggregateSignal(spectral_otfs, wavelength, true, otf);
+    std::cout << "Aggregated OTFs" << std::endl;
+    for (size_t i = 0; i < otf->size(); i++) {
+      vector<Mat> tmp_otf_planes;
+      split((*otf)[i], tmp_otf_planes);
+      double norm = sqrt(tmp_otf_planes[0].at<double>(0, 0) * 
+                         tmp_otf_planes[0].at<double>(0, 0) +
+                         tmp_otf_planes[1].at<double>(0, 0) * 
+                         tmp_otf_planes[1].at<double>(0, 0));
+      tmp_otf_planes[0] /= norm;
+      tmp_otf_planes[1] /= norm;
+      merge(tmp_otf_planes, (*otf)[i]);
+    }
   }
-  detector_->ResponseElectrons(blurred_radiance, wavelength, image);
+  detector_->ResponseElectrons(blurred_irradiance, wavelength, image);
 }
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
@@ -92,11 +112,6 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   Mat mtf;
   split(wave_invariant_otf, otf_planes);
   magnitude(otf_planes[0], otf_planes[1], mtf);
-
-  double max_val;
-  minMaxIdx(mtf, NULL, &max_val);
-  std::cout << "Max of wave-invariant OTF = " << max_val << std::endl;
-  std::cout << "Got component OTFs" << std::endl;
 
   for (size_t i = 0; i < wavelengths.size(); i++) {
     SystemOtf sys_otf;
@@ -194,7 +209,6 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
 
     otf->push_back(FFTShift(scaled_otf));
   }
-
 }
 
 }

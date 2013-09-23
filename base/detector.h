@@ -32,6 +32,7 @@ class Detector {
   int rows() const { return det_params_.array_rows(); }
   int cols() const { return det_params_.array_cols(); }
   double pixel_pitch() const { return det_params_.pixel_pitch(); }
+  double detector_area() const { return pixel_pitch() * pixel_pitch(); }
 
   // Get the quantum efficiency of the detector at the requested wavelengths.
   //
@@ -60,10 +61,13 @@ class Detector {
   // Arguments:
   //  signal      The spectral signal which is to be aggregated.
   //  wavelengths The wavelengths corresponding to the elements in signal.
+  //  normalize   Whether to normalize the output by the sum of the weights on
+  //              the input signal bands.
   //  output      Output: The aggregated signal into bands.
   void AggregateSignal(const std::vector<cv::Mat>& signal,
                        const std::vector<double>& wavelengths,
-                       std::vector<cv::Mat>* output);
+                       bool normalize,
+                       std::vector<cv::Mat>* output) const;
 
   // Get the MTF that results from the sampling of the detector. This assumes
   // that the detector elements have a fill factor of 1 and are perfectly

@@ -5,9 +5,11 @@
 
 #include "base/math_utils.h"
 #include "base/opencv_utils.h"
+#include "base/photon_noise.h"
 #include "io/logging.h"
 
 #include <fftw3.h>
+#include <opencv/highgui.h>
 
 using namespace std;
 using cv::Mat;
@@ -52,20 +54,20 @@ void Detector::GetQESpectrum(const vector<double>& wavelengths,
 }
 
 // The governing equation for the response of a pixel in electrons is
-//              pi * A_d * t_int * F
-// S(x, y, l) = --------------------- * L(x, y, l) *  QE(l) * l
-//              h * c * (1 + 4(F#)^2)
+//              A_d * t_int
+// S(x, y, l) = ----------- * E(x, y, l) *  QE(l) * l
+//                h * c
 //
 // This equation assumes that L has already been degraded witht the system OTF
 // and attenuated by the optics.
-void Detector::ResponseElectrons(const vector<Mat>& radiance,
+void Detector::ResponseElectrons(const vector<Mat>& irradiance,
                                  const vector<double>& wavelengths,
                                  vector<Mat>* electrons) {
   // Validate the input.
   if (!electrons) return;
-  if (radiance.size() == 0) return;
-  if (radiance[0].rows != rows() || radiance[0].cols != cols()) {
-    mainLog() << "The given radiance images did not have the proper size."
+  if (irradiance.size() == 0) return;
+  if (irradiance[0].rows != rows() || irradiance[0].cols != cols()) {
+    mainLog() << "The given irradiance images did not have the proper size."
               << endl;
     return;
   }
@@ -73,42 +75,46 @@ void Detector::ResponseElectrons(const vector<Mat>& radiance,
   const Simulation& simulation(sim_params_.simulation(sim_index_));
 
   // Calculate the key scalar quantities in the governing equation.
-  double focal_length = sim_params_.altitude() *
-                        det_params_.pixel_pitch() /
-                        simulation.gsd();
-  double f_number = focal_length / simulation.encircled_diameter();
   double det_area = det_params_.pixel_pitch() * det_params_.pixel_pitch();
-  double fill_factor = simulation.fill_factor();
   double int_time = simulation.integration_time();
   const double h = 6.62606957e-34;  // [J*s]
   const double c = 299792458;  // [m/s]
 
   // Calculate the leading scalar factor in the governing equation.
-  double scalar_factor = M_PI * det_area * int_time * fill_factor /
-                         (h * c * (1 + 4 * f_number * f_number));
+  double scalar_factor = det_area * int_time / (h * c);
 
   vector<double> qe;
   GetQESpectrum(wavelengths, &qe);
 
+  PhotonNoise photon_noise;
   vector<Mat> high_res_electrons;
   for (size_t i = 0; i < wavelengths.size(); i++) {
     high_res_electrons.push_back(
-        scalar_factor * radiance[i] * qe[i] * wavelengths[i]);
+        scalar_factor * irradiance[i] * wavelengths[i]);
+    photon_noise.AddPhotonNoise(&high_res_electrons[i]);
+    high_res_electrons[i] *= qe[i];
   }
 
   // Combine the high-spectral resolution electrons into the output bands
   // defined by the detector.
-  AggregateSignal(high_res_electrons, wavelengths, electrons);
+  AggregateSignal(high_res_electrons, wavelengths, false, electrons);
+
+  for (size_t i = 0; i < det_params_.band_size(); i++) {
+    electrons->at(i) += GetNoisePattern();
+  }
 }
 
 void Detector::AggregateSignal(const vector<cv::Mat>& signal,
                                const vector<double>& wavelengths,
-                               vector<Mat>* output) {
+                               bool normalize,
+                               vector<Mat>* output) const {
   if (signal.size() == 0 || !output) return;
 
   const int kRows = signal[0].rows;
   const int kCols = signal[0].cols;
   const int kDataType = signal[0].type();
+
+  double total_weight = 0;
 
   output->clear();
   for (size_t i = 0; i < det_params_.band_size(); i++) {
@@ -123,7 +129,12 @@ void Detector::AggregateSignal(const vector<cv::Mat>& signal,
                                  band_sigma);
       if (weight > 1e-4) {
         output->at(i) += weight * signal[j];
+        total_weight += weight;
       }
+    }
+
+    if (normalize) {
+      output->at(i) /= total_weight;
     }
   }
 }
