@@ -1,33 +1,31 @@
 // File Description
 // Author: Philip Salvaggio
 
-#include "base/scoped_ptr.h"
-#include "base/opencv_utils.h"
-#include "base/pupil_function.h"
 #include "base/detector.h"
-#include "base/simulation_config.pb.h"
 #include "base/detector_parameters.pb.h"
-#include "base/endian.h"
+#include "base/opencv_utils.h"
+#include "base/photon_noise.h"
+#include "base/simulation_config.pb.h"
 #include "base/str_utils.h"
 #include "base/telescope.h"
 #include "deconvolution/constrained_least_squares.h"
-#include "io/input_reader.h"
 #include "io/detector_reader.h"
 #include "io/envi_image_reader.h"
 #include "io/envi_image_header.pb.h"
+#include "io/input_reader.h"
 #include "io/logging.h"
+#include "optical_designs/aperture_parameters.pb.h"
 #include "optical_designs/cassegrain.h"
 #include "optical_designs/triarm9.h"
 #include "optical_designs/triarm9_parameters.pb.h"
-#include "optical_designs/aperture_parameters.pb.h"
+#include "third_party/gnuplot-cpp/gnuplot_i.hpp"
 
 #include <cstdlib>
-#include <string>
 #include <fstream>
+#include <google/protobuf/text_format.h>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
-#include "third_party/gnuplot-cpp/gnuplot_i.hpp"
-#include <google/protobuf/text_format.h>
+#include <string>
 
 using namespace std;
 using namespace cv;
@@ -99,6 +97,13 @@ int main(int argc, char** argv) {
     cerr << "Could not read hyperspectral input file." << endl;
     return 1;
   }
+
+  namedWindow("Input Image");
+  namedWindow("Output Image");
+  moveWindow("Input Image", 0, 0);
+  moveWindow("Output Image", 500, 0);
+
+  // Set up the array sizes based on the size of the input image.
   detector_params.set_array_rows(hyp_header.lines());
   detector_params.set_array_cols(hyp_header.samples());
   sim_config.set_array_size(std::max(detector_params.array_rows(),
@@ -126,8 +131,13 @@ int main(int argc, char** argv) {
               << "an unrecognized unit. Assuming microns..." << endl;
   }
 
+  const double kGain = 1e4;
+
   vector<double> hyp_band_wavelengths;
   for (size_t i = 0; i < hyp_header.band_size(); i++) {
+    hyp_planes[i] *= 1e4;  // [W/m^2/sr micron^-1]
+    hyp_planes[i] *= kGain;  // [W/m^2/sr micron^-1]
+
     double wave_val = hyp_header.band(i).center_wavelength();
     if (is_wavenumber) wave_val = 1 / wave_val;
     wave_val *= wave_multiplier;
@@ -149,14 +159,22 @@ int main(int argc, char** argv) {
               << mats_io::PrintSimulation(sim_config.simulation(i)) << endl;
 
     mats::Telescope telescope(sim_config, i, ap, detector_params);
+    mats::Telescope reference(sim_config, i+1, ap, detector_params);
 
     vector<double> wavelengths;
     for (int i = 0; i < 51; i++) {
       wavelengths.push_back(400e-9 + 10e-9*i);
     }
 
-    vector<Mat> output_image, otfs;
+    cout << "Imaging..." << endl;
+    vector<Mat> output_image, otfs, output_ref, ref_otfs;
     telescope.Image(hyp_planes, hyp_band_wavelengths, &output_image, &otfs);
+    cout << "Imaging Reference..." << endl;
+    reference.Image(hyp_planes, hyp_band_wavelengths, &output_ref, &ref_otfs);
+
+    vector<Mat> low_res_hyp;
+    telescope.detector().AggregateSignal(hyp_planes, hyp_band_wavelengths,
+                                         false, &low_res_hyp);
 
     ConstrainedLeastSquares cls;
     namedWindow("Input Image");
@@ -165,12 +183,17 @@ int main(int argc, char** argv) {
     moveWindow("Output Image", 500, 0);
 
     const double kSmoothness = 1e-3;
-    for (size_t i = 0; i < output_image.size(); i++) {
-      Mat deconvolved;
-      cls.Deconvolve(output_image[i], otfs[i], kSmoothness, &deconvolved);
-      imshow("Input Image", ByteScale(output_image[i]));
-      imshow("Output Image", ByteScale(deconvolved));
-      waitKey(1000);
+    for (size_t i = 0; i < 1; i++) {
+      double min, max;
+      for (double s = 1e-5; s < 2; s *= 1.05) {
+        Mat deconvolved;
+        cls.Deconvolve(output_image[i], otfs[i], s, &deconvolved);
+        //imshow("Output Image", ByteScale(deconvolved, &min, &max));
+        imshow("Output Image", ByteScale(deconvolved));
+        imshow("Input Image", ByteScale(low_res_hyp[i]));
+        cout << "Smoothness = " << s << endl;
+        waitKey(50);
+      }
     }
   }
 
