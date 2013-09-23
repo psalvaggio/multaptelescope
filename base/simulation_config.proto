@@ -30,6 +30,7 @@ message Simulation {
     HEX18 = 0;
     TRIARM9 = 1;
     CASSEGRAIN = 2;
+    CIRCULAR = 3;
   }
   optional ApertureType aperture_type = 2 [default = CASSEGRAIN];
 

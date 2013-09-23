@@ -6,10 +6,12 @@ set(LIB_NAME mats_${SUBSYS_NAME})
 set(headers
     aperture.h
     cassegrain.h
+    circular.h
     triarm9.h)
 
 set(sources
     aperture.cpp
+    circular.cpp
     cassegrain.cpp
     triarm9.cpp)
 
