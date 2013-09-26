@@ -31,6 +31,7 @@ message Simulation {
     TRIARM9 = 1;
     CASSEGRAIN = 2;
     CIRCULAR = 3;
+    TWO_CASSEGRAIN = 4;
   }
   optional ApertureType aperture_type = 2 [default = CASSEGRAIN];
 

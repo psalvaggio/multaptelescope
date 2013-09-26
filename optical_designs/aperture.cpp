@@ -10,6 +10,8 @@
 
 #include "optical_designs/cassegrain.h"
 #include "optical_designs/triarm9.h"
+#include "optical_designs/circular.h"
+#include "optical_designs/two_cassegrain.h"
 
 #include <opencv/highgui.h>
 
@@ -144,6 +146,10 @@ Aperture* ApertureFactory::Create(const mats::SimulationConfig& params,
     return new Triarm9(params, sim_index, aperture_params);
   } else if (sim.aperture_type() == Simulation::CASSEGRAIN) {
     return new Cassegrain(params, sim_index, aperture_params);
+  } else if (sim.aperture_type() == Simulation::CIRCULAR) {
+    return new Circular(params, sim_index, aperture_params);
+  } else if (sim.aperture_type() == Simulation::TWO_CASSEGRAIN) {
+    return new TwoCassegrain(params, sim_index, aperture_params);
   }
 
   mainLog() << "ApertureFactory error: Unsupported aperture type." << std::endl;

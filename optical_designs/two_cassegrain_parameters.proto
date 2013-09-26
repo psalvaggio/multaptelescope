@@ -1,0 +1,10 @@
+import "aperture_parameters.proto";
+
+message TwoCassegrainParameters {
+  // The fill factor of each of the subapertures in the Triarm9 aperture.
+  optional double subaperture_fill_factor = 1;
+}
+
+extend ApertureParameters {
+  optional TwoCassegrainParameters two_cassegrain_params = 1001;
+}

@@ -7,13 +7,15 @@ set(headers
     aperture.h
     cassegrain.h
     circular.h
-    triarm9.h)
+    triarm9.h
+    two_cassegrain.h)
 
 set(sources
     aperture.cpp
     circular.cpp
     cassegrain.cpp
-    triarm9.cpp)
+    triarm9.cpp
+    two_cassegrain.cpp)
 
 file(GLOB ProtoFiles "${CMAKE_CURRENT_SOURCE_DIR}/*.proto")
 PROTOBUF_GENERATE_CPP(ProtoSources ProtoHeaders ${ProtoFiles})

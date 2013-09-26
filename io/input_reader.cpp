@@ -58,13 +58,7 @@ void InputReader::parseLine(const std::string& line,
   
   input_params->set_simulation_id(simulation_id);
 
-  if (aperture_type == Simulation::HEX18) {
-    input_params->set_aperture_type(Simulation::HEX18);
-  } else if (aperture_type == Simulation::TRIARM9) {
-    input_params->set_aperture_type(Simulation::TRIARM9);
-  } else {
-    input_params->set_aperture_type(Simulation::CASSEGRAIN);
-  }
+  input_params->set_aperture_type((Simulation::ApertureType)aperture_type);
 
   input_params->set_ptt_opd_rms(ptt_opd_rms);
   input_params->set_ho_opd_rms(ho_opd_rms);
