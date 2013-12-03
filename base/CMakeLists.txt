@@ -9,6 +9,7 @@ set(headers
     endian.h
     macros.h
     math_utils.h
+    mats_init.h
     opencv_utils.h
     photon_noise.h
     pupil_function.h
@@ -21,6 +22,7 @@ set(headers
 set(sources
     circshift.cpp
     detector.cpp
+    mats_init.cpp
     opencv_utils.cpp
     photon_noise.cpp
     pupil_function.cpp
