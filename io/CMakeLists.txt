@@ -6,6 +6,7 @@ set(headers
     detector_writer.h
     detector_reader.h
     envi_image_reader.h
+    stl_writer.h
     input_reader.h)
 
 set(sources
@@ -13,6 +14,7 @@ set(sources
     detector_writer.cpp
     detector_reader.cpp
     envi_image_reader.cpp
+    stl_writer.cpp
     input_reader.cpp)
 
 set(LIB_NAME mats_${SUBSYS_NAME})
