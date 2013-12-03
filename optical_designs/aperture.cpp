@@ -72,10 +72,10 @@ void Aperture::GetPupilFunction(const Mat& wfe,
   double* unaberrated = (double*) scaled_aperture.data;
   double* opd_data = (double*) scaled_wfe.data;
   for (size_t i = 0; i < target_diameter*target_diameter; i++) {
-    aberrated_real[i] = unaberrated[i] * cos(2 * M_PI * opd_data[i]) *
-                        wavelength_scale;
-    aberrated_imag[i] = unaberrated[i] * sin(2 * M_PI * opd_data[i]) *
-                        wavelength_scale;
+    aberrated_real[i] = unaberrated[i] * cos(2 * M_PI * opd_data[i] *
+                        wavelength_scale);
+    aberrated_imag[i] = unaberrated[i] * sin(2 * M_PI * opd_data[i] *
+                        wavelength_scale);
   }
 
   // Copy the aberrated pupil function into the output variables.
