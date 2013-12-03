@@ -55,7 +55,7 @@ Mat PupilFunction::PointSpreadFunction() {
 
   Mat psf(rows, cols, CV_64FC1);
   double* psf_data = (double*) psf.data;
-  double psf_total;
+  double psf_total = 0.0;
   for (size_t i = 0; i < rows; i++) {
     for (size_t j = 0; j < cols; j++) {
       const size_t index = i * cols + j;
