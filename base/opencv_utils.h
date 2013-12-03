@@ -40,6 +40,14 @@ void LogScale(const cv::Mat& input,
 
 cv::Mat LogScale(const cv::Mat& input);
 
+cv::Mat magnitude(const cv::Mat& input);
+void magnitude(const cv::Mat& input, cv::Mat& output);
+
+
+cv::Mat circshift(const cv::Mat& src,
+                  cv::Point2f delta,
+                  int fill=cv::BORDER_CONSTANT,
+                  cv::Scalar value=cv::Scalar(0,0,0,0));
 
 void circshift(const cv::Mat& src,
                cv::Mat& dst,

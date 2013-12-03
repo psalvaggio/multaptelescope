@@ -73,6 +73,18 @@ cv::Mat LogScale(const cv::Mat& input) {
   return output;
 }
 
+cv::Mat magnitude(const cv::Mat& input) {
+  cv::Mat output;
+  magnitude(input, output);
+  return output;
+}
+
+void magnitude(const cv::Mat& input, cv::Mat& output) {
+  std::vector<cv::Mat> input_planes;
+  cv::split(input, input_planes);
+  cv::magnitude(input_planes.at(0), input_planes.at(1), output);
+}
+
 void FFTShift(const cv::Mat& input, cv::Mat& output) {
   circshift(input, output, cv::Point2f(input.cols / 2, input.rows / 2),
             cv::BORDER_WRAP);

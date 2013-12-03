@@ -141,3 +141,12 @@ void circshift(const cv::Mat& src, cv::Mat& dst, cv::Point2f delta, int fill, cv
 	cv::Rect roi = cv::Rect(std::max(-deltai.x,0),std::max(-deltai.y,0),0,0) + src.size();
 	dst = padded(roi);
 }
+
+cv::Mat circshift(const cv::Mat& src,
+                  cv::Point2f delta,
+                  int fill,
+                  cv::Scalar value) {
+  cv::Mat output;
+  circshift(src, output, delta, fill, value);
+  return output;
+}
