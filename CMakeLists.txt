@@ -5,14 +5,14 @@ cmake_minimum_required (VERSION 2.6)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${MATS_SOURCE_DIR}/cmake)
 
 set(LIB_MACROS "")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} std=c++11")
 
 # Find external libraries
-find_package(OpenCV REQUIRED)
+find_package(OpenCV)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
-#find_package(ProtocolBuffers REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIR})
+
+find_package(Boost REQUIRED COMPONENTS iostreams system)
 
 set(PROTOBUF_IMPORT_DIRS ${PROTOBUF_IMPORT_DIRS} ${MATS_SOURCE_DIR})
 
@@ -29,7 +29,7 @@ endif()
 include_directories(${MATS_SOURCE_DIR})
 include_directories(${MATS_BINARY_DIR})
 
-set(CMAKE_CXX_FLAGS "-Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 if (cmake_build_type_tolower STREQUAL "release")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
@@ -47,14 +47,20 @@ set(MODULES base
             deconvolution
             io
             optical_designs
-            third_party)
+            otf_measurement
+            ransac)
 set(MATS_LINK_LIBS "")
 foreach(TMP_LIB ${MODULES})
   add_subdirectory(${TMP_LIB})
 endforeach(TMP_LIB)
 
+set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${Boost_LIBRARIES})
+
 add_executable(mats_main mats_main.cpp)
 target_link_libraries(mats_main ${MATS_LINK_LIBS})
 
-#add_executable(write_my_detector write_my_detector.cpp)
-#target_link_libraries(write_my_detector ${MATS_LINK_LIBS})
+add_executable(create_mask_punchout create_mask_punchout.cpp)
+target_link_libraries(create_mask_punchout ${MATS_LINK_LIBS})
+
+add_executable(slant_edge_test slant_edge_test.cpp)
+target_link_libraries(slant_edge_test ${MATS_LINK_LIBS})
