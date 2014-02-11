@@ -65,6 +65,7 @@ void ByteScale(const cv::Mat& input,
 void LogScale(const cv::Mat& input,
               cv::Mat& output) {
   log(input + 1, output);
+  ByteScale(output, output);
 }
 
 cv::Mat LogScale(const cv::Mat& input) {
