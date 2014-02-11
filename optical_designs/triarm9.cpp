@@ -10,6 +10,7 @@
 #include "optical_designs/triarm9_parameters.pb.h"
 
 #include <algorithm>
+#include <fstream>
 #include <opencv/highgui.h>
 
 using namespace cv;
@@ -83,6 +84,26 @@ Triarm9::Triarm9(const mats::SimulationConfig& params,
 }
 
 Triarm9::~Triarm9() {}
+
+void Triarm9::ExportToZemax(const std::string& aperture_filename,
+                            const std::string& obstruction_filename) const {
+  double scale = this->simulation_params().encircled_diameter() /
+                 this->params().array_size() * 1000;
+  double offset = this->params().array_size() * 0.5;
+
+  std::ofstream ap_ofs(aperture_filename.c_str());
+  std::ofstream ob_ofs(obstruction_filename.c_str());
+  if (!ap_ofs.is_open() || !ob_ofs.is_open()) return;
+
+  for (int ap = 0; ap < kNumApertures; ap++) {
+    ap_ofs << "CIR " << (subaperture_offsets_[2*ap] - offset) * scale << " "
+                     << (subaperture_offsets_[2*ap+1] - offset) * scale << " "
+                     << subap_diameter_ * 0.5 * scale << std::endl;
+    ob_ofs << "CIR " << (subaperture_offsets_[2*ap] - offset) * scale << " "
+                     << (subaperture_offsets_[2*ap+1] - offset) * scale << " "
+                     << subap_secondary_diameter_ * 0.5 * scale << std::endl;
+  }
+}
 
 Mat Triarm9::GetApertureTemplate() {
   if (mask_.rows > 0) return mask_;

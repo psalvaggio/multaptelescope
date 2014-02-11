@@ -21,6 +21,11 @@ class Triarm9 : public Aperture {
 
   virtual ~Triarm9();
 
+  // Exports to a Zemax UDA (User-Defined Aperture) file.
+  // Units are in millimeters.
+  void ExportToZemax(const std::string& aperture_filename,
+                     const std::string& obstruction_filename) const;
+
  // Virtual functions from Aperture
  private:
   virtual cv::Mat GetApertureTemplate();
