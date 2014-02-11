@@ -201,9 +201,9 @@ bool EnviImageReader::ParseHeaderLine(const string& line,
     hdr->set_sensor_type(value);
   } else if (tag_name == "byte order") {
     hdr->set_byte_order(atoi(value.c_str()));
-  } else if (tag_name == "x-start") {
+  } else if (tag_name == "x start") {
     hdr->set_start_x(atoi(value.c_str()));
-  } else if (tag_name == "y-start") {
+  } else if (tag_name == "y start") {
     hdr->set_start_y(atoi(value.c_str()));
   } else if (tag_name == "map info") {
     hdr->set_map_info(value);
