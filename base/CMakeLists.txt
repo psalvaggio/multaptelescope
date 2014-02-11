@@ -1,5 +1,5 @@
 set(SUBSYS_NAME base)
-set(SUBSYS_DEPS optical_designs_proto)
+set(SUBSYS_DEPS optical_designs_proto io_proto)
 
 find_package(FFTW REQUIRED)
 
