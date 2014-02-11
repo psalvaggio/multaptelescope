@@ -25,6 +25,8 @@ class Telescope {
             const ApertureParameters& ap_params,
             const DetectorParameters& det_params);
 
+  virtual ~Telescope();
+
   // Get the focal length of the telescope. [m]
   double FocalLength() const;
 
@@ -39,7 +41,9 @@ class Telescope {
   //   lambda  The wavelength of interest [m]
   double GNumber(double lambda) const;
 
-  const Detector& detector() const { return *detector_; }
+  const Detector* detector() const { return detector_.get(); }
+  Detector* detector() { return detector_.get(); }
+  Aperture* aperture() { return aperture_.get(); }
 
   void Image(const std::vector<cv::Mat>& radiance,
              const std::vector<double>& wavelength,

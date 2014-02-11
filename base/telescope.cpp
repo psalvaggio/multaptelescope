@@ -10,6 +10,8 @@
 #include "io/logging.h"
 #include "optical_designs/aperture.h"
 
+#include <opencv/highgui.h>
+
 #include <algorithm>
 
 using std::vector;
@@ -23,6 +25,8 @@ Telescope::Telescope(const SimulationConfig& sim_config,
                      const DetectorParameters& det_params)
     : aperture_(ApertureFactory::Create(sim_config, sim_index, ap_params)),
       detector_(new Detector(det_params, sim_config, sim_index)) {}
+
+Telescope::~Telescope() {}
 
 // In this model, the user specifies the pixel pitch of the detector, the
 // altitude at which the telescope is flying, and the pixel size on the ground.
@@ -66,7 +70,15 @@ void Telescope::Image(const std::vector<Mat>& radiance,
     dft(radiance[i], img_fft, DFT_COMPLEX_OUTPUT);
 
     Mat blurred_fft;
-    cv::mulSpectrums(img_fft, spectral_otfs[i], blurred_fft, 0);
+    if (img_fft.rows != spectral_otfs[i].rows ||
+        img_fft.cols != spectral_otfs[i].cols) {
+      Mat scaled_spectrum;
+      cv::resize(spectral_otfs[i], scaled_spectrum, img_fft.size());
+
+      cv::mulSpectrums(img_fft, scaled_spectrum, blurred_fft, 0);
+    } else {
+      cv::mulSpectrums(img_fft, spectral_otfs[i], blurred_fft, 0);
+    }
 
     Mat tmp_blurred_irradiance;
     dft(blurred_fft, tmp_blurred_irradiance,
@@ -80,7 +92,6 @@ void Telescope::Image(const std::vector<Mat>& radiance,
   if (otf != NULL) {
     otf->clear();
     detector_->AggregateSignal(spectral_otfs, wavelength, true, otf);
-    std::cout << "Aggregated OTFs" << std::endl;
     for (size_t i = 0; i < otf->size(); i++) {
       vector<Mat> tmp_otf_planes;
       split((*otf)[i], tmp_otf_planes);
@@ -143,6 +154,12 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
 
   Mat aperture_wfe = aperture_->GetWavefrontError();
 
+  /*
+  VideoWriter output_vid;
+  output_vid.open("/Users/philipsalvaggio/Desktop/mtf.avi",
+                  CV_FOURCC('M','J','P','G'), 30, Size(aperture_wfe.rows, aperture_wfe.cols), true);
+  */
+
   // The OTF varies drastically with respect to wavelength. So, we will be
   // calculating an OTF for each spectral band in our input radiance data.
   for (size_t i = 0; i < wavelengths.size(); i++) {
@@ -203,11 +220,25 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
 
       merge(scaled_planes, scaled_otf);
     } else {
+      std::cout << "Scaling up " << (double)kOtfSize /
+          (otf_range.end - otf_range.start) << std::endl;
       resize(unscaled_otf(otf_range, otf_range), scaled_otf,
              Size(kNumRows, kNumCols), 0, 0, INTER_NEAREST);
     }
 
     otf->push_back(FFTShift(scaled_otf));
+    /*
+    Mat mtf = ByteScale(FFTShift(magnitude(otf->at(otf->size() - 1))));
+    vector<Mat> mtf_bands;
+    mtf_bands.push_back(mtf);
+    mtf_bands.push_back(mtf);
+    mtf_bands.push_back(mtf);
+    Mat mtf_rgb;
+    merge(mtf_bands, mtf_rgb);
+    output_vid << mtf_rgb;
+    imshow("MTF", FFTShift(magnitude(otf->at(otf->size() - 1))));
+    waitKey(30);
+    */
   }
 }
 
