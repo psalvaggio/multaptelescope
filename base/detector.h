@@ -31,6 +31,9 @@ class Detector {
 
   int rows() const { return det_params_.array_rows(); }
   int cols() const { return det_params_.array_cols(); }
+  void set_rows(int rows) { det_params_.set_array_rows(rows); }
+  void set_cols(int cols) { det_params_.set_array_cols(cols); }
+
   double pixel_pitch() const { return det_params_.pixel_pitch(); }
   double detector_area() const { return pixel_pitch() * pixel_pitch(); }
 
@@ -107,7 +110,7 @@ class Detector {
   cv::Mat GetJitterOtf(double jitter_std_dev);
 
  private:
-  cv::Mat GetNoisePattern() const;
+  cv::Mat GetNoisePattern(int rows, int cols) const;
 
  private:
   DetectorParameters det_params_;

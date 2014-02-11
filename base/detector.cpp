@@ -67,9 +67,8 @@ void Detector::ResponseElectrons(const vector<Mat>& irradiance,
   if (!electrons) return;
   if (irradiance.size() == 0) return;
   if (irradiance[0].rows != rows() || irradiance[0].cols != cols()) {
-    mainLog() << "The given irradiance images did not have the proper size."
-              << endl;
-    return;
+    mainLog() << "Warning: The given irradiance images were not the same size "
+              << "as the detector." << endl;
   }
 
   const Simulation& simulation(sim_params_.simulation(sim_index_));
@@ -100,7 +99,8 @@ void Detector::ResponseElectrons(const vector<Mat>& irradiance,
   AggregateSignal(high_res_electrons, wavelengths, false, electrons);
 
   for (size_t i = 0; i < det_params_.band_size(); i++) {
-    electrons->at(i) += GetNoisePattern();
+    electrons->at(i) += GetNoisePattern(electrons->at(i).rows,
+                                        electrons->at(i).cols);
   }
 }
 
@@ -360,7 +360,7 @@ Mat Detector::GetJitterOtf(double jitter_std_dev) {
   return otf;
 }
 
-Mat Detector::GetNoisePattern() const {
+Mat Detector::GetNoisePattern(int rows, int cols) const {
   const double kTemperature = det_params_.temperature();
   const double kIntTime =
       sim_params_.simulation(sim_index_).integration_time();
@@ -371,10 +371,10 @@ Mat Detector::GetNoisePattern() const {
 
   double dark_rms = sqrt(kIntTime * kRefRms * kRefRms * kIntTime *
                          pow(2, (kTemperature - kRefTemp) / kDoublingTemp));
-  Mat dark_noise(rows(), cols(), CV_64FC1);
+  Mat dark_noise(rows, cols, CV_64FC1);
   randn(dark_noise, 0, dark_rms);
 
-  Mat read_noise(rows(), cols(), CV_64FC1);
+  Mat read_noise(rows, cols, CV_64FC1);
   randn(read_noise, 0, det_params_.read_rms());
 
   return dark_noise + read_noise;
