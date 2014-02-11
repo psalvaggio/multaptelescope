@@ -13,9 +13,17 @@
 
 #include <fftw3.h>
 
-SlantEdgeMtf::SlantEdgeMtf() {}
+SlantEdgeMtf::SlantEdgeMtf() {
+  gp_ = new Gnuplot();
+  local_gp_ = true;
+}
 
-SlantEdgeMtf::~SlantEdgeMtf() {}
+SlantEdgeMtf::~SlantEdgeMtf() {
+  if (local_gp_ && gp_) {
+    *gp_ << std::endl;
+    delete gp_;
+  }
+}
 
 void SlantEdgeMtf::Analyze(const cv::Mat& image,
                            double* orientation,
@@ -29,18 +37,15 @@ void SlantEdgeMtf::Analyze(const cv::Mat& image,
   if (*orientation >= M_PI / 2) *orientation -= M_PI;
   if (*orientation < -M_PI / 2) *orientation += M_PI;
 
-  imshow("Detected Edge", OverlayLine(image, edge));
-  //std::cerr << "Detected Orientation " << *orientation * 180 / M_PI
-            //<< std::endl;
-
+  //imshow("Detected Edge", OverlayLine(image, edge));
 
   int num_bins = GetSamplesPerPixel(image, edge);
-  //std::cerr << "Using " << num_bins << " samples per pixel." << std::endl;
 
   // Compute and smooth the edge spread function (ESF)
   std::vector<double> esf;
   GenerateEsf(image, edge, num_bins, &esf);
   SmoothEsf(&esf);
+  //PlotEsf(esf);
 
   fftw_complex* lsf = fftw_alloc_complex(esf.size());
   fftw_complex* otf = fftw_alloc_complex(esf.size());
@@ -87,11 +92,14 @@ void SlantEdgeMtf::Analyze(const cv::Mat& image,
 }
 
 cv::Mat SlantEdgeMtf::OverlayLine(const cv::Mat& image, const double* line) {
+  cv::Mat byte_scaled_image;
+  ByteScale(image, byte_scaled_image);
+
   // Replicate into RGB planes.
   std::vector<cv::Mat> rgb_planes;
   for (int i = 0; i < 3; i++) {
     rgb_planes.push_back(cv::Mat());
-    image.copyTo(rgb_planes[i]);
+    byte_scaled_image.copyTo(rgb_planes[i]);
   }
   uint8_t* b = rgb_planes[0].data;
   uint8_t* g = rgb_planes[1].data;
@@ -114,6 +122,16 @@ cv::Mat SlantEdgeMtf::OverlayLine(const cv::Mat& image, const double* line) {
   return rgb;
 }
 
+void SlantEdgeMtf::SetGnuplot(Gnuplot* gp) {
+  if (gp_ == gp) return;
+
+  if (local_gp_ && gp_) {
+    delete gp_;
+  }
+
+  gp_ = gp;
+  local_gp_ = false;
+}
 
 bool SlantEdgeMtf::DetectEdge(const cv::Mat& image, double* edge) {
   if (!edge) return false;
@@ -158,7 +176,6 @@ bool SlantEdgeMtf::DetectEdge(const cv::Mat& image, double* edge) {
     }
   }
 
-  //imshow("line points", line_points);
   /*
   test = ByteScale(test);
   std::vector<cv::Mat> test_planes;
@@ -256,30 +273,51 @@ int SlantEdgeMtf::GetSamplesPerPixel(const cv::Mat& image, const double* edge) {
   return num_bins;
 }
 
+template<typename T>
+void GenerateEsfHelper(const cv::Mat& image,
+                       const double* edge,
+                       int samples_per_pixel,
+                       std::vector<double>* esf,
+                       std::vector<int>* bin_counts) {
+  double max_distance = 60;
+
+  int num_bins = samples_per_pixel * (2 * max_distance);
+  double bin_size = 2 * max_distance / num_bins;
+  bin_counts->resize(num_bins, 0);
+  esf->resize(num_bins, 0);
+
+  // Build up the edge spread function.
+  T* image_data = (T*)image.data;
+  for (int i = 0; i < image.rows; i++) {
+    for (int j = 0; j < image.cols; j++) {
+      double distance = edge[0]*j + edge[1]*i - edge[2];
+      if (distance >= -max_distance && distance < max_distance) {
+        int bin = (distance + max_distance) / bin_size;
+        (*bin_counts)[bin]++;
+        (*esf)[bin] += image_data[i*image.cols + j];
+      }
+    }
+  }
+}
+
+#define GENERATE_ESF_HELPER(type) \
+  GenerateEsfHelper<type>(image, edge, samples_per_pixel, esf, &bin_counts)
+
 void SlantEdgeMtf::GenerateEsf(const cv::Mat& image,
                                const double* edge,
                                int samples_per_pixel,
                                std::vector<double>* esf) {
   if (!esf) return;
 
-  double max_distance = 20;
-
-  int num_bins = samples_per_pixel * (2 * max_distance);
-  double bin_size = 2 * max_distance / num_bins;
-  std::vector<int> bin_counts(num_bins, 0);
-  esf->resize(num_bins, 0);
-
-  // Build up the edge spread function.
-  uint8_t* image_data = (uint8_t*)image.data;
-  for (int i = 0; i < image.rows; i++) {
-    for (int j = 0; j < image.cols; j++) {
-      double distance = edge[0]*j + edge[1]*i - edge[2];
-      if (distance >= -max_distance && distance < max_distance) {
-        int bin = (distance + max_distance) / bin_size;
-        bin_counts[bin]++;
-        (*esf)[bin] += image_data[i*image.cols + j];
-      }
-    }
+  std::vector<int> bin_counts;
+  switch (image.depth()) {
+    case CV_8U: GENERATE_ESF_HELPER(uint8_t); break;
+    case CV_8S: GENERATE_ESF_HELPER(int8_t); break;
+    case CV_16U: GENERATE_ESF_HELPER(uint16_t); break;
+    case CV_16S: GENERATE_ESF_HELPER(int16_t); break;
+    case CV_32S: GENERATE_ESF_HELPER(int32_t); break;
+    case CV_32F: GENERATE_ESF_HELPER(float); break;
+    case CV_64F: GENERATE_ESF_HELPER(double); break;
   }
 
   for (size_t i = 0; i < esf->size(); i++) {
@@ -294,4 +332,11 @@ void SlantEdgeMtf::SmoothEsf(std::vector<double>* esf) {
 
     (*esf)[i] = ((*esf)[i] + (*esf)[next] + (*esf)[prev]) / 3.0;
   }
+}
+
+void SlantEdgeMtf::PlotEsf(const std::vector<double>& esf) {
+  *gp_ << "set xlabel \"Pixels\"\n"
+      << "set ylabel \"ESF\"\n"
+      << "plot '-' w l\n";
+  gp_->send1d(esf);
 }

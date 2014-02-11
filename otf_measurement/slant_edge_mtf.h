@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <opencv/cv.h>
+#include "third_party/gnuplot-iostream/gnuplot-iostream.h"
 
 class SlantEdgeMtf {
  public:
@@ -37,6 +38,12 @@ class SlantEdgeMtf {
   // Returns:
   //  An RGB image with the line overlaid in green.
   cv::Mat OverlayLine(const cv::Mat& image, const double* line);
+
+  // Sets the Gnuplot object to which plots will be sent.
+  //
+  // Arguments:
+  //  gp  A pointer to a gnuplot-iostream object.
+  void SetGnuplot(Gnuplot* gp);
 
  private:
   // Detects the edge in the image.
@@ -76,6 +83,16 @@ class SlantEdgeMtf {
   // Arguments:
   //  esf  Input/Otput: The edge spread function.
   void SmoothEsf(std::vector<double>* esf);
+
+  // Plots the ESF through the Gnuplot-iostream interface.
+  //
+  // Arguments:
+  //  esf  The edge spread function.
+  void PlotEsf(const std::vector<double>& esf);
+
+ private:
+  Gnuplot* gp_;
+  bool local_gp_;
 };
 
 #endif  // SLANT_EDGE_MTF_H
