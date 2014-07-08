@@ -10,9 +10,7 @@
 
 class Circular : public Aperture {
  public:
-  Circular(const mats::SimulationConfig& params,
-             int sim_index,
-             const ApertureParameters& aperture_params);
+  Circular(const mats::SimulationConfig& params, int sim_index);
 
   virtual ~Circular();
 

@@ -3,7 +3,7 @@
 
 #include "circular.h"
 
-#include "optical_designs/aperture_parameters.pb.h"
+#include "base/aperture_parameters.pb.h"
 #include "base/simulation_config.pb.h"
 #include "base/pupil_function.h"
 #include "io/logging.h"
@@ -12,15 +12,14 @@
 #include <cstdlib>
 #include <iostream>
 
+using mats::ApertureParameters;
 using mats::SimulationConfig;
 using mats::Simulation;
 using mats::PupilFunction;
 using namespace cv;
 
-Circular::Circular(const SimulationConfig& params,
-                   int sim_index,
-                   const ApertureParameters& aperture_params)
-    : Aperture(params, sim_index, aperture_params),
+Circular::Circular(const SimulationConfig& params, int sim_index)
+    : Aperture(params, sim_index),
       diameter_(simulation_params().encircled_diameter()), 
       ptt_vals_() {
   Mat ptt_mat(3, 1, CV_64FC1);
@@ -47,8 +46,9 @@ Mat Circular::GetOpticalPathLengthDiff() {
       total_wfe_sq += ptt_data[i] * ptt_data[i];
     }
   }
-  double ptt_rms_scale = simulation_params().ptt_opd_rms() /
-                         sqrt(total_wfe_sq / total_elements);
+  double ptt_rms_scale = 1;
+  //double ptt_rms_scale = simulation_params().ptt_opd_rms() /
+                         //sqrt(total_wfe_sq / total_elements);
   ptt *= ptt_rms_scale;
   for (int i = 0; i < 3; i++) ptt_vals_[i] *= ptt_rms_scale;
 

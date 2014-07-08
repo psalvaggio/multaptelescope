@@ -3,10 +3,10 @@
 
 #include "two_cassegrain.h"
 
+#include "base/aperture_parameters.pb.h"
 #include "base/simulation_config.pb.h"
 #include "io/logging.h"
 #include "optical_designs/cassegrain.h"
-#include "optical_designs/aperture_parameters.pb.h"
 #include "optical_designs/two_cassegrain_parameters.pb.h"
 
 #include <algorithm>
@@ -14,12 +14,12 @@
 
 using namespace cv;
 using namespace std;
+using mats::ApertureParameters;
 using mats::Simulation;
 
 TwoCassegrain::TwoCassegrain(const mats::SimulationConfig& params,
-                             int sim_index,
-                             const ApertureParameters& aperture_params)
-    : Aperture(params, sim_index, aperture_params),
+                             int sim_index)
+    : Aperture(params, sim_index),
       diameter_(simulation_params().encircled_diameter()),
       subap_diameter_(),
       subap_secondary_diameter_(),
@@ -138,7 +138,8 @@ Mat TwoCassegrain::GetOpticalPathLengthDiff() {
     }
   }
   double rms = sqrt(total_wfe_sq / total_elements);
-  double rms_ptt_mul = simulation_params().ptt_opd_rms() / rms;
+  //double rms_ptt_mul = simulation_params().ptt_opd_rms() / rms;
+  double rms_ptt_mul = 1;
 
   for (int i = 0; i < 3 * kNumApertures; i++) {
     ptt_vals_[i] *= rms_ptt_mul;

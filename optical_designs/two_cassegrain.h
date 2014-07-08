@@ -15,9 +15,7 @@ class Cassegrain;
 
 class TwoCassegrain : public Aperture {
  public:
-  TwoCassegrain(const mats::SimulationConfig& params,
-                int sim_index,
-                const ApertureParameters& aperture_params);
+  TwoCassegrain(const mats::SimulationConfig& params, int sim_index);
 
   virtual ~TwoCassegrain();
 
