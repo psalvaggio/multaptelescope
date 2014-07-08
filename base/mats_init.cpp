@@ -20,7 +20,7 @@ bool MatsInit(const std::string& base_directory,
               mats::DetectorParameters* detector_params,
               vector<Mat>* hyp_bands,
               mats_io::EnviImageHeader* hyp_header) {
-  if (!sim_config || !detector_params || !hyp_bands || !hyp_header) {
+  if (!sim_config || !detector_params) {
     cerr << "Invalid Pointer passed to mats::MatsInit()" << endl;
     return false;
   }
@@ -55,9 +55,9 @@ bool MatsInit(const std::string& base_directory,
             << mats_io::PrintConfig(*sim_config) << endl;
 
   // Initialize the detector parameters.
-  string det_file = base_directory + "input/detector.txt";
   mats_io::DetectorReader det_reader;
-  if (!det_reader.Read(det_file, detector_params)) {
+  if (!det_reader.Read(sim_config->detector_params_filename(),
+                       detector_params)) {
     cerr << "Could not read detector file." << endl;
     return false;
   }
@@ -67,18 +67,20 @@ bool MatsInit(const std::string& base_directory,
 
   // Read in the hyperspectral input image that will serve as the input to the
   // telescope.
-  string img_file = base_directory + "input/input.img";
-  mats_io::EnviImageReader envi_reader;
-  if (!envi_reader.Read(img_file, hyp_header, hyp_bands)) {
-    cerr << "Could not read hyperspectral input file." << endl;
-    return false;
-  }
+  if (hyp_bands && hyp_header) {
+    mats_io::EnviImageReader envi_reader;
+    if (!envi_reader.Read(sim_config->input_image_filename(),
+                          hyp_header, hyp_bands)) {
+      cerr << "Could not read hyperspectral input file." << endl;
+      return false;
+    }
 
-  // Set up the array sizes based on the size of the input image.
-  detector_params->set_array_rows(hyp_header->lines());
-  detector_params->set_array_cols(hyp_header->samples());
-  sim_config->set_array_size(std::max(detector_params->array_rows(),
-                                      detector_params->array_cols()));
+    // Set up the array sizes based on the size of the input image.
+    detector_params->set_array_rows(hyp_header->lines());
+    detector_params->set_array_cols(hyp_header->samples());
+    sim_config->set_array_size(std::max(detector_params->array_rows(),
+                                        detector_params->array_cols()));
+  }
 
   return true;
 }
