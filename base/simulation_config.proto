@@ -22,6 +22,12 @@ message SimulationConfig {
   // The reference wavelength of the system. Whenever anything is in units of
   // waves, this is the wavelength that it corresponds to.
   optional double reference_wavelength = 5;
+
+  // The filename of the DetectorParameters protobuf file.
+  optional string detector_params_filename = 6;
+ 
+  // The filename of the input radiance image.
+  optional string input_image_filename = 7;
 }
 
 message Simulation {
