@@ -1,5 +1,4 @@
-//import "base/simulation_config.proto";
-import "aperture_parameters.proto";
+import "base/aperture_parameters.proto";
 
 message Triarm9Parameters {
   // The fill factor of each of the subapertures in the Triarm9 aperture.
@@ -10,10 +9,6 @@ message Triarm9Parameters {
   optional double s_to_d_ratio = 2;
 }
 
-//extend mats.Simulation {
-  //optional Triarm9Parameters triarm9_params = 1000;
-//}
-
-extend ApertureParameters {
+extend mats.ApertureParameters {
   optional Triarm9Parameters triarm9_params = 1000;
 }
