@@ -19,10 +19,6 @@ class InputReader {
 
   bool Read(const std::string& filename,
             mats::SimulationConfig* simulation);
-
- private:
-  void parseLine(const std::string& line,
-                 mats::Simulation* input_params);
 };
 
 }
