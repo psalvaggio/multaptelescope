@@ -4,13 +4,12 @@ message DetectorBandpass {
   // The center wavelength of the band [m]
   optional double center_wavelength = 1;
 
-  // The quantum efficiency of the detector for this bandpass
-  optional double quantum_efficiency = 2;
+  // A list of wavelengths [m]
+  repeated double wavelength = 2;
 
-  // The FWHM of the bandpass. [m]
-  optional double fwhm = 3;
+  // A list of corresponding quantum efficiencies. [unitless]
+  repeated double quantum_efficiency = 3;
 }
-
 
 message DetectorParameters {
   // The spectral bands that will be output by the model.
@@ -19,6 +18,9 @@ message DetectorParameters {
   // The pixel pitch (spacing between the center of the pixels)
   // of the detector [m]
   optional double pixel_pitch = 2;
+
+  // The fill factor of the detector elements [unitless]
+  optional double fill_factor = 12;
 
   // The temperature of the detector [K]
   optional double temperature = 3;
@@ -35,6 +37,15 @@ message DetectorParameters {
 
   // The sensitivity of the detector [uV/electron]
   optional double output_sensitivity = 7;
+
+  // Full well capacity [electrons]
+  optional double full_well_capacity = 16;
+
+  // The bit depth of the A/D converter [bits]
+  optional int32 a_d_bit_depth = 14;
+
+  // The "effective" gain factor for the detector [e- / digital count]
+  optional double electrons_per_adu = 15;
 
   // Read noise RMS [rms electrons]
   optional double read_rms = 8;
