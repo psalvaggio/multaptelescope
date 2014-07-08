@@ -34,10 +34,10 @@ if (cmake_build_type_tolower STREQUAL "release")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
-
 ADD_CUSTOM_COMMAND(
     OUTPUT SOMEFILE.pb.h SOMEFILE.pb.cc
     COMMAND protoc SOMEFILE.proto --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+                   -I${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS
     SOMEFILE.proto
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
@@ -51,6 +51,38 @@ set(MODULES base
             ransac)
 set(MATS_LINK_LIBS "")
 foreach(TMP_LIB ${MODULES})
+  unset(ProtoFiles)
+  file(GLOB_RECURSE ProtoFiles
+       RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+       ${CMAKE_CURRENT_SOURCE_DIR}/${TMP_LIB}/*.proto)
+
+  if (ProtoFiles)
+    SET(ProtoSources)
+    SET(ProtoHeaders)
+    foreach (PROTO_FILE ${ProtoFiles})
+      get_filename_component(ABS_FIL ${PROTO_FILE} ABSOLUTE)
+      get_filename_component(FIL ${PROTO_FILE} NAME_WE)
+      get_filename_component(PROTO_PATH ${PROTO_FILE} PATH)
+      add_custom_command(
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_PATH}/${FIL}.pb.cc"
+               "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_PATH}/${FIL}.pb.h"
+        COMMAND  ${PROTOBUF_PROTOC_EXECUTABLE}
+        ARGS --cpp_out=${CMAKE_BINARY_DIR}#/${PROTO_PATH}
+             --proto_path=${CMAKE_CURRENT_SOURCE_DIR}
+             --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_PATH}
+             ${ABS_FIL}
+        DEPENDS ${ABS_FIL}
+        COMMENT "Running C++ protocol buffer compiler on ${PROTO_FILE}"
+        VERBATIM)
+      list(APPEND ProtoSources
+          "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_PATH}/${FIL}.pb.cc")
+      list(APPEND ProtoHeaders
+          "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_PATH}/${FIL}.pb.h")
+    endforeach()
+    add_library(mats_${TMP_LIB}_proto ${ProtoSources} ${ProtoHeaders})
+    set(MATS_LINK_LIBS ${MATS_LINK_LIBS} mats_${TMP_LIB}_proto)
+  endif()
+
   add_subdirectory(${TMP_LIB})
 endforeach(TMP_LIB)
 
