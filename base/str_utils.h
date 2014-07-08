@@ -7,6 +7,7 @@
 #include <algorithm> 
 #include <functional> 
 #include <cctype>
+#include <cstdarg>
 #include <locale>
 #include <string>
 #include <vector>
