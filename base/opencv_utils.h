@@ -40,6 +40,8 @@ void LogScale(const cv::Mat& input,
 
 cv::Mat LogScale(const cv::Mat& input);
 
+cv::Mat GammaScale(const cv::Mat& input, double gamma);
+
 cv::Mat magnitude(const cv::Mat& input);
 void magnitude(const cv::Mat& input, cv::Mat& output);
 

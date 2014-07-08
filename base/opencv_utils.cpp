@@ -74,6 +74,20 @@ cv::Mat LogScale(const cv::Mat& input) {
   return output;
 }
 
+cv::Mat GammaScale(const cv::Mat& input, double gamma) {
+  double min;
+  double max;
+  cv::minMaxIdx(input, &min, &max);
+
+  cv::Mat scaled;
+  input.convertTo(scaled, CV_64F);
+  scaled = (scaled - min) / (max - min);
+  cv::pow(scaled, gamma, scaled);
+  scaled *= 255;
+  scaled.convertTo(scaled, CV_8U);
+  return scaled;
+}
+
 cv::Mat magnitude(const cv::Mat& input) {
   cv::Mat output;
   magnitude(input, output);
