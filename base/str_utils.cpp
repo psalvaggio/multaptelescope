@@ -3,6 +3,8 @@
 
 #include "str_utils.h"
 
+#include <cstdio>
+
 namespace mats {
 
 // Equivalent of PHP's explode() function. Splits a string on a given delimiter.
