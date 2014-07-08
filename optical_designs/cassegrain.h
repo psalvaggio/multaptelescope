@@ -32,8 +32,8 @@ class Cassegrain : public Aperture {
   // The diameter of the secondary mirror [m]
   double secondary_diameter_;
 
-  // The values for piston/tip/tilt [waves]
-  double ptt_vals_[3];
+  cv::Mat opd_;
+  cv::Mat opd_est_;
 };
 
 #endif  // CASSEGRAIN_H
