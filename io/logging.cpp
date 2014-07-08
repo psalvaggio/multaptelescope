@@ -66,10 +66,7 @@ string PrintSimulation(const Simulation& simulation) {
     output << "CASSEGRAIN";
   }
 
-  output << endl << "Piston/Tip/Tilt OPD RMS: " << simulation.ptt_opd_rms()
-         << " [waves]" << endl
-         << "High-order Aberration OPD RMS: " << simulation.ho_opd_rms()
-         << " [waves]" << endl
+  output << endl 
          << "Wavefront Error Knowledge Used in Reconstruction: ";
 
   int wfe_knowledge = simulation.wfe_knowledge();
@@ -105,22 +102,7 @@ string PrintDetector(const mats::DetectorParameters& detector) {
            << endl
          << "Read Noise RMS: " << detector.read_rms() << " [rms electrons]"
            << endl
-         << "Readout Time: " << detector.readout_time() << " [s]" << endl
-         << "QE Spectrum: (Wavelength [um],     QE)" << endl;
-
-  for (size_t i = 0; i < detector.band_size(); i++) {
-    const mats::DetectorBandpass& bandpass(detector.band(i));
-    
-    output << "             (";
-    output.width(15);
-    output.precision(5);
-    output.fill(' ');
-    output << bandpass.center_wavelength() << ",";
-    output.width(7);
-    output.precision(4);
-    output.fill(' ');
-    output << bandpass.quantum_efficiency() << ")" << endl;
-  }
+         << "Readout Time: " << detector.readout_time() << " [s]" << endl;
 
   return output.str();
 }
