@@ -1,3 +1,0 @@
-message ApertureParameters {
-  extensions 1000 to max;
-}
