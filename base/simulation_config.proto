@@ -1,5 +1,7 @@
 package mats;
 
+import "base/aperture_parameters.proto";
+
 message SimulationConfig {
   // The base directory for this simulation.
   // Log files will be output to base_directory/log_files
@@ -32,14 +34,11 @@ message Simulation {
     CASSEGRAIN = 2;
     CIRCULAR = 3;
     TWO_CASSEGRAIN = 4;
+    TRIARM3 = 5;
   }
   optional ApertureType aperture_type = 2 [default = CASSEGRAIN];
 
-  // Piston/tip/tilt optical path difference RMS [waves]
-  optional double ptt_opd_rms = 3;
-
-  // High-order aberration optical path difference RMS [waves]
-  optional double ho_opd_rms = 4;
+  optional ApertureParameters aperture_params = 3;
 
   // How much knowledge of the wavefront error to use in image reconstruction.
   enum WfeKnowledge {
