@@ -9,12 +9,39 @@
 #include "base/str_utils.h"
 
 #include <fstream>
+#include <sstream>
 #include <cstdlib>
 
 using namespace std;
 using mats::trim;
 
 namespace mats_io {
+
+std::string PrintEnviHeader(const EnviImageHeader& hdr) {
+  stringstream ss;
+
+  ss << "ENVI Image Header" << endl
+     << "  Description: " << hdr.description() << endl
+     << "  Samples: " << hdr.samples() << endl
+     << "  Lines: " << hdr.lines() << endl
+     << "  Bands: " << hdr.bands() << endl
+     << "  Data Type: " << hdr.data_type() << endl
+     << "  Interleave Type: " << hdr.interleave_type() << endl
+     << "  Byte Order: " << hdr.byte_order() << endl
+     << "  Sensor Type: " << hdr.sensor_type() << endl
+     << "  Wavelength Units: " << hdr.wavelength_units() << endl;
+
+  for (int i = 0; i < hdr.band_size(); i++) {
+    if (hdr.band(i).bad_band_multiplier() == 0) continue;
+
+    ss << "  Band " << (i+1) << ":" << endl
+       << "    Name: " << hdr.band(i).name() << endl
+       << "    Center Wavelength: " << hdr.band(i).center_wavelength() << endl
+       << "    FWHM: " << hdr.band(i).fwhm() << endl;
+  }
+
+  return ss.str();
+}
 
 EnviImageReader::EnviImageReader() {}
 
@@ -246,6 +273,9 @@ bool EnviImageReader::ParseHeaderLine(const string& line,
   } else if (tag_name == "wavelength") {
     vector<string> wavelengths;
     mats::explode(value, ',', &wavelengths);
+    if (wavelengths.size() > 0 && wavelengths[0].substr(0, 1) == "{") {
+      wavelengths[0] = wavelengths[0].substr(1);
+    }
 
     if (hdr->band_size() > 0 && hdr->band_size() != wavelengths.size()) {
       mainLog() << "Wavelengths, FWHM, band names and bad bands list all "
@@ -267,6 +297,9 @@ bool EnviImageReader::ParseHeaderLine(const string& line,
   } else if (tag_name == "fwhm") {
     vector<string> fwhms;
     mats::explode(value, ',', &fwhms);
+    if (fwhms.size() > 0 && fwhms[0].substr(0, 1) == "{") {
+      fwhms[0] = fwhms[0].substr(1);
+    }
 
     if (hdr->band_size() > 0 && hdr->band_size() != fwhms.size()) {
       mainLog() << "Wavelengths, FWHM, band names and bad bands list all "
@@ -288,6 +321,9 @@ bool EnviImageReader::ParseHeaderLine(const string& line,
   } else if (tag_name == "bbl") {
     vector<string> bbls;
     mats::explode(value, ',', &bbls);
+    if (bbls.size() > 0 && bbls[0].substr(0, 1) == "{") {
+      bbls[0] = bbls[0].substr(1);
+    }
 
     if (hdr->band_size() > 0 && hdr->band_size() != bbls.size()) {
       mainLog() << "Wavelengths, FWHM, band names and bad bands list all "

@@ -15,6 +15,8 @@
 
 namespace mats_io {
 
+std::string PrintEnviHeader(const EnviImageHeader& hdr);
+
 class EnviImageReader {
  public:
   // Default constructor.
