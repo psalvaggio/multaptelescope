@@ -5,7 +5,7 @@
 #define STL_WRITER_H
 
 #include <cstdio>
-#include <cstdint>
+#include <stdint.h>
 #include <string>
 
 class StlWriter {
