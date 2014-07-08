@@ -21,9 +21,8 @@ namespace mats {
 
 Telescope::Telescope(const SimulationConfig& sim_config,
                      int sim_index,
-                     const ApertureParameters& ap_params,
                      const DetectorParameters& det_params)
-    : aperture_(ApertureFactory::Create(sim_config, sim_index, ap_params)),
+    : aperture_(ApertureFactory::Create(sim_config, sim_index)),
       detector_(new Detector(det_params, sim_config, sim_index)) {}
 
 Telescope::~Telescope() {}
@@ -48,7 +47,7 @@ double Telescope::GNumber(double lambda) const {
   vector<double> wavelengths(1, lambda);
   GetTransmissionSpectrum(wavelengths, &transmission);
 
-  return (1 + f_number * f_number) /
+  return (1 + 4 * f_number * f_number) /
          (M_PI * transmission[0] * detector_->simulation().fill_factor());
 }
 
@@ -104,7 +103,10 @@ void Telescope::Image(const std::vector<Mat>& radiance,
       merge(tmp_otf_planes, (*otf)[i]);
     }
   }
-  detector_->ResponseElectrons(blurred_irradiance, wavelength, image);
+
+  vector<Mat> electrons;
+  detector_->ResponseElectrons(blurred_irradiance, wavelength, &electrons);
+  detector_->Quantize(electrons, image);
 }
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
@@ -115,7 +117,7 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   SystemOtf wave_invar_sys_otf;
   wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf());
   wave_invar_sys_otf.PushOtf(
-      detector_->GetSmearOtf(0, detector_->pixel_pitch() * 1e3));
+      detector_->GetSmearOtf(0, detector_->pixel_pitch() * 2.5e4));
   wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0.1));
   Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
@@ -167,14 +169,16 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
     PupilFunction pupil_func;
     aperture_->GetPupilFunction(aperture_wfe, wavelengths[i], &pupil_func);
 
-    double aperture_scale = pupil_func.meters_per_pixel();
-
     // The coherent OTF is given by p[lamda * f * xi, lamda * f * eta],
     // where xi and eta are in [cyc/m]. The pixel pitch factor converts from
     // [cyc/pixel], which we want for degrading the image, and [cyc/m], which
     // is what is used by the pupil function.
     double pupil_scale = wavelengths[i] * FocalLength() /
                          detector_->pixel_pitch();
+    
+    // Get the scale of the aperture, how many meters does each pixel represent
+    // on the aperture plane [m/pix]
+    double aperture_scale = pupil_func.meters_per_pixel();
 
     // Determine the region of the pupil function OTF that we need. This may
     // be smaller or larger than the original array. If it is smaller, we are
@@ -220,25 +224,13 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
 
       merge(scaled_planes, scaled_otf);
     } else {
-      std::cout << "Scaling up " << (double)kOtfSize /
-          (otf_range.end - otf_range.start) << std::endl;
+      // std::cout << "Scaling up " << (double)kOtfSize /
+          // (otf_range.end - otf_range.start) << std::endl;
       resize(unscaled_otf(otf_range, otf_range), scaled_otf,
              Size(kNumRows, kNumCols), 0, 0, INTER_NEAREST);
     }
 
     otf->push_back(FFTShift(scaled_otf));
-    /*
-    Mat mtf = ByteScale(FFTShift(magnitude(otf->at(otf->size() - 1))));
-    vector<Mat> mtf_bands;
-    mtf_bands.push_back(mtf);
-    mtf_bands.push_back(mtf);
-    mtf_bands.push_back(mtf);
-    Mat mtf_rgb;
-    merge(mtf_bands, mtf_rgb);
-    output_vid << mtf_rgb;
-    imshow("MTF", FFTShift(magnitude(otf->at(otf->size() - 1))));
-    waitKey(30);
-    */
   }
 }
 

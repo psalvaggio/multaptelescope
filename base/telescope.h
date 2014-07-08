@@ -10,19 +10,18 @@
 #include <vector>
 
 class Aperture;
-class ApertureParameters;
 
 namespace mats {
 
 class Detector;
 class DetectorParameters;
 class SimulationConfig;
+class ApertureParameters;
 
 class Telescope {
  public:
   Telescope(const SimulationConfig& sim_config,
             int sim_index,
-            const ApertureParameters& ap_params,
             const DetectorParameters& det_params);
 
   virtual ~Telescope();
