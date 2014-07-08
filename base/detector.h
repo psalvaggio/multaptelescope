@@ -41,8 +41,10 @@ class Detector {
   //
   // Arguments:
   //  wavelengths The wavelengths at which the QE is requested. [m]
+  //  band_index  The index of the spectral band.
   //  qe          Output: The QE corresponding to the wavelengths.
   void GetQESpectrum(const std::vector<double>& wavelengths,
+                     int band_index,
                      std::vector<double>* qe) const;
 
   // Convert the radiance field reaching the system into electrons on the 
@@ -71,6 +73,15 @@ class Detector {
                        const std::vector<double>& wavelengths,
                        bool normalize,
                        std::vector<cv::Mat>* output) const;
+
+  // Quantizes the signal according to the A-to-D parameters in the
+  // DetectorParameters.
+  //
+  // Arguments:
+  //  electrons   The detected signal in electrons
+  //  dig_counts  Output: The quantized signal
+  void Quantize(const std::vector<cv::Mat>& electrons,
+                std::vector<cv::Mat>* dig_counts) const;
 
   // Get the MTF that results from the sampling of the detector. This assumes
   // that the detector elements have a fill factor of 1 and are perfectly
@@ -109,6 +120,12 @@ class Detector {
   //  number of pixels along a dimension.
   cv::Mat GetJitterOtf(double jitter_std_dev);
 
+  // Struct to hold samples of a QE spectrum.
+  struct QESample {
+    double wavelength;
+    double qe;
+  };
+
  private:
   cv::Mat GetNoisePattern(int rows, int cols) const;
 
@@ -116,6 +133,8 @@ class Detector {
   DetectorParameters det_params_;
   SimulationConfig sim_params_;
   int sim_index_;
+
+  std::vector<std::vector<QESample> > qe_spectrums_;
 };
 
 }
