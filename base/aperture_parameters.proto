@@ -1,0 +1,25 @@
+package mats;
+
+// Coefficients for Zernike aberrations.
+message ZernikeCoefficient {
+  enum AberrationType {
+    PISTON = 0;
+    TILT_X = 1;
+    TILT_Y = 2;
+    DEFOCUS = 3;
+    ASTIG_X = 4;
+    ASTIG_Y = 5;
+    COMA_X = 6;
+    COMA_Y = 7;
+    SPHERICAL = 8;
+  };
+
+  optional AberrationType type = 1;
+  optional double value = 2;
+}
+
+message ApertureParameters {
+  repeated ZernikeCoefficient aberration = 1;
+
+  extensions 1000 to max;
+}
