@@ -12,6 +12,7 @@
 #include "optical_designs/triarm9.h"
 #include "optical_designs/circular.h"
 #include "optical_designs/two_cassegrain.h"
+#include "optical_designs/triarm3.h"
 
 #include <opencv/highgui.h>
 
@@ -22,16 +23,28 @@
 using mats::SimulationConfig;
 using mats::Simulation;
 using mats::PupilFunction;
+using mats::ApertureParameters;
 using std::cout;
 using std::endl;
 using namespace cv;
 
-Aperture::Aperture(const SimulationConfig& params,
-                   int sim_index,
-                   const ApertureParameters& aperture_params)
+Aperture::Aperture(const SimulationConfig& params, int sim_index)
     : params_(params),
       sim_params_(params.simulation(sim_index)),
-      aperture_params_(aperture_params) {}
+      aperture_params_(params.simulation(sim_index).aperture_params()),
+      aberrations_() {
+  int size = 0;
+  for (int i = 0; i < aperture_params_.aberration_size(); i++) {
+    size = std::max(size,
+        static_cast<int>(aperture_params_.aberration(i).type()) + 1);
+  }
+
+  aberrations_.resize(size, 0);
+  for (int i = 0; i < aperture_params_.aberration_size(); i++) {
+    aberrations_[aperture_params_.aberration(i).type()] =
+      aperture_params_.aberration(i).value();
+  }
+}
 
 Aperture::~Aperture() {}
 
@@ -133,8 +146,7 @@ Mat Aperture::GetPistonTipTilt(double piston, double tip, double tilt) const {
 
 
 Aperture* ApertureFactory::Create(const mats::SimulationConfig& params, 
-                                  int sim_index,
-                                  const ApertureParameters& aperture_params) {
+                                  int sim_index) {
   if (sim_index > params.simulation_size()) {
     mainLog() << "ApertureFactory error: Given simulation index out of bounds."
               << std::endl;
@@ -143,13 +155,15 @@ Aperture* ApertureFactory::Create(const mats::SimulationConfig& params,
 
   const Simulation& sim(params.simulation(sim_index));
   if (sim.aperture_type() == Simulation::TRIARM9) {
-    return new Triarm9(params, sim_index, aperture_params);
+    return new Triarm9(params, sim_index);
   } else if (sim.aperture_type() == Simulation::CASSEGRAIN) {
-    return new Cassegrain(params, sim_index, aperture_params);
+    return new Cassegrain(params, sim_index);
   } else if (sim.aperture_type() == Simulation::CIRCULAR) {
-    return new Circular(params, sim_index, aperture_params);
+    return new Circular(params, sim_index);
   } else if (sim.aperture_type() == Simulation::TWO_CASSEGRAIN) {
-    return new TwoCassegrain(params, sim_index, aperture_params);
+    return new TwoCassegrain(params, sim_index);
+  } else if (sim.aperture_type() == Simulation::TRIARM3) {
+    return new Triarm3(params, sim_index);
   }
 
   mainLog() << "ApertureFactory error: Unsupported aperture type." << std::endl;

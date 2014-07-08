@@ -7,7 +7,7 @@
 #include <opencv/cv.h>
 
 #include "base/macros.h"
-#include "optical_designs/aperture_parameters.pb.h"
+#include "base/aperture_parameters.pb.h"
 
 namespace mats {
 class SimulationConfig;
@@ -27,9 +27,7 @@ class Aperture {
   //             run of the model.
   //  sim_index  The index in params.simulation() of the simulation for which 
   //             this aperture is being created.
-  Aperture(const mats::SimulationConfig& params,
-           int sim_index,
-           const ApertureParameters& aperture_params);
+  Aperture(const mats::SimulationConfig& params, int sim_index);
 
   // Destructor
   virtual ~Aperture();
@@ -37,8 +35,12 @@ class Aperture {
   // Accessors
   const mats::SimulationConfig& params() const { return params_; }
   const mats::Simulation& simulation_params() const { return sim_params_; }
-  ApertureParameters& aperture_params() { return aperture_params_; }
-  const ApertureParameters& aperture_params() const { return aperture_params_; }
+  mats::ApertureParameters& aperture_params() { return aperture_params_; }
+  const mats::ApertureParameters& aperture_params() const {
+    return aperture_params_;
+  }
+  std::vector<double>& aberrations() { return aberrations_; }
+  const std::vector<double>& aberrations() const { return aberrations_; }
 
   // Get the complex-valued pupil function of this aperture, which can be used
   // to calculate the MTF/PSF due to the diffraction of the aperture and the
@@ -132,7 +134,8 @@ class Aperture {
  private:
   const mats::SimulationConfig& params_;
   const mats::Simulation& sim_params_;
-  ApertureParameters aperture_params_;
+  mats::ApertureParameters aperture_params_;
+  std::vector<double> aberrations_;
 };
 
 
@@ -140,9 +143,8 @@ class Aperture {
 // the aperture_type() in the Simulation protobuf.
 class ApertureFactory {
  public:
-   static Aperture* Create(const mats::SimulationConfig& params,
-                           int sim_index,
-                           const ApertureParameters& aperture_params);
+   static Aperture* Create(const mats::SimulationConfig& params, int sim_index);
+
  NO_CONSTRUCTION(ApertureFactory)
 };
 
