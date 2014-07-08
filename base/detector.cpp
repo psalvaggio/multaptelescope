@@ -16,39 +16,65 @@ using cv::Mat;
 
 namespace mats {
 
+bool sort_qe_sample(const Detector::QESample& a, const Detector::QESample& b) {
+  return a.wavelength < b.wavelength;
+}
+
 Detector::Detector(const DetectorParameters& det_params,
                    const SimulationConfig& sim_params,
                    int sim_index)
     : det_params_(det_params),
       sim_params_(sim_params),
-      sim_index_(sim_index) {}
+      sim_index_(sim_index),
+      qe_spectrums_() {
+  qe_spectrums_.reserve(det_params_.band_size());
+  for (size_t i = 0; i < det_params_.band_size(); i++) {
+    const DetectorBandpass& band(det_params_.band(i));
+
+    size_t qe_size = std::min(band.wavelength_size(),
+                              band.quantum_efficiency_size());
+    qe_spectrums_.push_back(vector<QESample>(qe_size));
+
+    for (size_t j = 0; j < qe_size; j++) {
+      qe_spectrums_[i][j].wavelength = band.wavelength(j);
+      qe_spectrums_[i][j].qe = band.quantum_efficiency(j);
+    }
+
+    sort(qe_spectrums_[i].begin(), qe_spectrums_[i].end(), sort_qe_sample);
+  }
+}
 
 void Detector::GetQESpectrum(const vector<double>& wavelengths,
+                             int band_index,
                              vector<double>* qe) const {
+  if (band_index < 0 || band_index >= det_params_.band_size()) return;
+
+  const vector<QESample>& qe_spectrum(qe_spectrums_[band_index]);
+
   // Interpolate the QE spectrum of the detector to match the input spectral
   // radiance bands.
   for (int i = 0; i < wavelengths.size(); i++) {
     double wave = wavelengths[i];
     
     int j;
-    for (j = 0; j < det_params_.band_size(); j++) {
-      double band_center = det_params_.band(j).center_wavelength();
-      if (band_center >= wave) {
+    for (j = 0; j < qe_spectrum.size(); j++) {
+      double ref_wave = qe_spectrum[j].wavelength;
+      if (ref_wave >= wave) {
         if (j == 0) {
-          qe->push_back(det_params_.band(j).quantum_efficiency());
+          qe->push_back(qe_spectrum[0].qe);
         } else {
-          double last_band_center = det_params_.band(j-1).center_wavelength();
-          double blend = (wave - last_band_center) /
-                         (band_center - last_band_center);
-          qe->push_back(blend * det_params_.band(j).quantum_efficiency() +
-              (1-blend) * det_params_.band(j-1).quantum_efficiency());
+          double last_ref_wave = qe_spectrum[j-1].wavelength;
+          double blend = (wave - last_ref_wave) / (ref_wave - last_ref_wave);
+
+          qe->push_back(blend * qe_spectrum[j].qe +
+              (1-blend) * qe_spectrum[j-1].qe);
         }
         break;
       }
     }
 
-    if (j == det_params_.band_size()) {
-      qe->push_back(det_params_.band(j-1).quantum_efficiency());
+    if (j == qe_spectrum.size()) {
+      qe->push_back(qe_spectrum[j-1].qe);
     }
   }
 }
@@ -74,7 +100,8 @@ void Detector::ResponseElectrons(const vector<Mat>& irradiance,
   const Simulation& simulation(sim_params_.simulation(sim_index_));
 
   // Calculate the key scalar quantities in the governing equation.
-  double det_area = det_params_.pixel_pitch() * det_params_.pixel_pitch();
+  double det_area = det_params_.pixel_pitch() * det_params_.pixel_pitch() *
+                    det_params_.fill_factor();
   double int_time = simulation.integration_time();
   const double h = 6.62606957e-34;  // [J*s]
   const double c = 299792458;  // [m/s]
@@ -82,16 +109,12 @@ void Detector::ResponseElectrons(const vector<Mat>& irradiance,
   // Calculate the leading scalar factor in the governing equation.
   double scalar_factor = det_area * int_time / (h * c);
 
-  vector<double> qe;
-  GetQESpectrum(wavelengths, &qe);
-
   PhotonNoise photon_noise;
   vector<Mat> high_res_electrons;
   for (size_t i = 0; i < wavelengths.size(); i++) {
     high_res_electrons.push_back(
         scalar_factor * irradiance[i] * wavelengths[i]);
     photon_noise.AddPhotonNoise(&high_res_electrons[i]);
-    high_res_electrons[i] *= qe[i];
   }
 
   // Combine the high-spectral resolution electrons into the output bands
@@ -120,22 +143,50 @@ void Detector::AggregateSignal(const vector<cv::Mat>& signal,
   for (size_t i = 0; i < det_params_.band_size(); i++) {
     output->push_back(Mat::zeros(kRows, kCols, kDataType));
 
-    // Convert the FWHM to standard deviation.
-    double band_sigma = det_params_.band(i).fwhm() / 2.3548;
+    vector<double> qe;
+    GetQESpectrum(wavelengths, i, &qe);
     
     for (size_t j = 0; j < wavelengths.size(); j++) {
-      double weight = Gaussian1D(wavelengths[j],
-                                 det_params_.band(i).center_wavelength(),
-                                 band_sigma);
-      if (weight > 1e-4) {
-        output->at(i) += weight * signal[j];
-        total_weight += weight;
+      if (qe[j] > 1e-4) {
+        output->at(i) += qe[j] * signal[j];
+        total_weight += qe[j];
       }
     }
 
     if (normalize) {
       output->at(i) /= total_weight;
     }
+  }
+}
+
+void Detector::Quantize(const vector<Mat>& electrons,
+                        vector<Mat>* dig_counts) const {
+  if (!dig_counts) return;
+  dig_counts->clear();
+
+  int data_type = -9999;
+  int bit_depth = det_params_.a_d_bit_depth();
+  if (bit_depth <= 8) {
+    data_type = CV_8UC1;
+  } else if (bit_depth <= 16) {
+    data_type = CV_16UC1;
+  } else if (bit_depth <= 31) {
+    data_type = CV_32SC1;
+  } else {
+    mainLog() << "Error: Cannot support bit depths above 31.";
+    return;
+  }
+
+  long max_dig_count = ((long) 1) << det_params_.a_d_bit_depth();
+  double gain = 1 / det_params_.electrons_per_adu();
+  cout << "Detector Gain " << gain << endl;
+
+  for (size_t i = 0; i < electrons.size(); i++) {
+    Mat tmp = gain * electrons[i];
+    tmp = cv::min(tmp, max_dig_count);
+    tmp.convertTo(tmp, data_type);
+    tmp.convertTo(tmp, CV_64FC1);
+    dig_counts->push_back(tmp);
   }
 }
 
@@ -182,8 +233,6 @@ Mat Detector::GetSmearOtf(double x_velocity, double y_velocity) {
 
   double xi_coeff = M_PI * x_velocity * kIntTime;
   double eta_coeff = M_PI * y_velocity * kIntTime;
-  //double xi_coeff = M_PI * x_velocity * kIntTime * kPixelPitch;
-  //double eta_coeff = M_PI * y_velocity * kIntTime * kPixelPitch;
 
   vector<Mat> otf_planes;
   otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
@@ -357,6 +406,7 @@ Mat Detector::GetJitterOtf(double jitter_std_dev) {
   otf_planes[0] = mtf / max_mtf;
   otf_planes[1] = Mat::zeros(mtf.rows, mtf.cols, CV_64FC1);
   merge(otf_planes, otf);
+
   return otf;
 }
 
@@ -369,8 +419,8 @@ Mat Detector::GetNoisePattern(int rows, int cols) const {
   const double kRefRms = det_params_.darkcurr_reference_rms();
   const double kDoublingTemp = det_params_.darkcurr_doubling_temp();
 
-  double dark_rms = sqrt(kIntTime * kRefRms * kRefRms * kIntTime *
-                         pow(2, (kTemperature - kRefTemp) / kDoublingTemp));
+  double dark_rms = kRefRms * kIntTime *
+                    pow(2, (kTemperature - kRefTemp) / kDoublingTemp);
   Mat dark_noise(rows, cols, CV_64FC1);
   randn(dark_noise, 0, dark_rms);
 
