@@ -2,7 +2,7 @@ import "base/aperture_parameters.proto";
 
 message CompoundApertureParameters {
   // The parameters for the apertures which compose this compound aperture.
-  repeated ApertureParameters aperture = 1;
+  repeated mats.ApertureParameters aperture = 1;
 }
 
 extend mats.ApertureParameters {
