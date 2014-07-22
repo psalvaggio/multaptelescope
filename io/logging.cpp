@@ -55,18 +55,6 @@ string PrintSimulation(const Simulation& simulation) {
   stringstream output;
   
   output << "Simulation ID: " << simulation.simulation_id() << endl
-         << "Aperture Type: ";
-
-  int ap_type = simulation.aperture_type();
-  if (ap_type == Simulation::HEX18) {
-    output << "HEX18";
-  } else if (ap_type == Simulation::TRIARM9) {
-    output << "TRIARM9";
-  } else if (ap_type == Simulation::CASSEGRAIN) {
-    output << "CASSEGRAIN";
-  }
-
-  output << endl 
          << "Wavefront Error Knowledge Used in Reconstruction: ";
 
   int wfe_knowledge = simulation.wfe_knowledge();

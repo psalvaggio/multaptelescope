@@ -33,17 +33,6 @@ message SimulationConfig {
 message Simulation {
   optional int32 simulation_id = 1;
   
-  // The type of aperture to be modeled in this simulation.
-  enum ApertureType {
-    HEX18 = 0;
-    TRIARM9 = 1;
-    CASSEGRAIN = 2;
-    CIRCULAR = 3;
-    TWO_CASSEGRAIN = 4;
-    TRIARM3 = 5;
-  }
-  optional ApertureType aperture_type = 2 [default = CASSEGRAIN];
-
   optional ApertureParameters aperture_params = 3;
 
   // How much knowledge of the wavefront error to use in image reconstruction.

@@ -13,6 +13,7 @@
 #include "optical_designs/circular.h"
 #include "optical_designs/two_cassegrain.h"
 #include "optical_designs/triarm3.h"
+#include "optical_designs/hdf5_wfe.h"
 
 #include <opencv/highgui.h>
 
@@ -154,16 +155,20 @@ Aperture* ApertureFactory::Create(const mats::SimulationConfig& params,
   }
 
   const Simulation& sim(params.simulation(sim_index));
-  if (sim.aperture_type() == Simulation::TRIARM9) {
+  const ApertureParameters& ap_params(sim.aperture_params());
+  ApertureParameters::ApertureType ap_type = ap_params.type();
+  if (ap_type == ApertureParameters::TRIARM9) {
     return new Triarm9(params, sim_index);
-  } else if (sim.aperture_type() == Simulation::CASSEGRAIN) {
+  } else if (ap_type == ApertureParameters::CASSEGRAIN) {
     return new Cassegrain(params, sim_index);
-  } else if (sim.aperture_type() == Simulation::CIRCULAR) {
+  } else if (ap_type == ApertureParameters::CIRCULAR) {
     return new Circular(params, sim_index);
-  } else if (sim.aperture_type() == Simulation::TWO_CASSEGRAIN) {
+  } else if (ap_type == ApertureParameters::TWO_CASSEGRAIN) {
     return new TwoCassegrain(params, sim_index);
-  } else if (sim.aperture_type() == Simulation::TRIARM3) {
+  } else if (ap_type == ApertureParameters::TRIARM3) {
     return new Triarm3(params, sim_index);
+  } else if (ap_type == ApertureParameters::HDF5_WFE) {
+    return new Hdf5Wfe(params, sim_index);
   }
 
   mainLog() << "ApertureFactory error: Unsupported aperture type." << std::endl;

@@ -21,5 +21,17 @@ message ZernikeCoefficient {
 message ApertureParameters {
   repeated ZernikeCoefficient aberration = 1;
 
+  // The type of aperture to be modeled in this simulation.
+  enum ApertureType {
+    HEX18 = 0;
+    TRIARM9 = 1;
+    CASSEGRAIN = 2;
+    CIRCULAR = 3;
+    TWO_CASSEGRAIN = 4;
+    TRIARM3 = 5;
+    HDF5_WFE = 6;
+  }
+  optional ApertureType type = 2;
+
   extensions 1000 to max;
 }
