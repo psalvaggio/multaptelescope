@@ -34,32 +34,25 @@ if (cmake_build_type_tolower STREQUAL "release")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
-ADD_CUSTOM_COMMAND(
-    OUTPUT SOMEFILE.pb.h SOMEFILE.pb.cc
-    COMMAND protoc SOMEFILE.proto --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
-                   -I${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS
-    SOMEFILE.proto
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-
-
 set(MODULES base
             deconvolution
             io
             optical_designs
             otf_measurement
             ransac)
+
 set(MATS_LINK_LIBS "")
 foreach(TMP_LIB ${MODULES})
   unset(ProtoFiles)
   file(GLOB_RECURSE ProtoFiles
        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
        ${CMAKE_CURRENT_SOURCE_DIR}/${TMP_LIB}/*.proto)
+  set(${TMP_LIB}_ProtoFiles ${ProtoFiles} CACHE STRING ${TMP_LIB}_ProtoFiles)
+  set(${TMP_LIB}_ProtoSources CACHE STRING ${TMP_LIB}_ProtoFiles)
+  set(${TMP_LIB}_ProtoHeaders CACHE STRING ${TMP_LIB}_ProtoHeaders)
 
-  if (ProtoFiles)
-    SET(ProtoSources)
-    SET(ProtoHeaders)
-    foreach (PROTO_FILE ${ProtoFiles})
+  if (${TMP_LIB}_ProtoFiles)
+    foreach (PROTO_FILE ${${TMP_LIB}_ProtoFiles})
       get_filename_component(ABS_FIL ${PROTO_FILE} ABSOLUTE)
       get_filename_component(FIL ${PROTO_FILE} NAME_WE)
       get_filename_component(PROTO_PATH ${PROTO_FILE} PATH)
@@ -74,19 +67,26 @@ foreach(TMP_LIB ${MODULES})
         DEPENDS ${ABS_FIL}
         COMMENT "Running C++ protocol buffer compiler on ${PROTO_FILE}"
         VERBATIM)
-      list(APPEND ProtoSources
+      list(APPEND ${TMP_LIB}_ProtoSources
           "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_PATH}/${FIL}.pb.cc")
-      list(APPEND ProtoHeaders
+      list(APPEND ${TMP_LIB}_ProtoHeaders
           "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_PATH}/${FIL}.pb.h")
     endforeach()
-    add_library(mats_${TMP_LIB}_proto ${ProtoSources} ${ProtoHeaders})
-    set(MATS_LINK_LIBS ${MATS_LINK_LIBS} mats_${TMP_LIB}_proto)
+  endif()
+endforeach(TMP_LIB)
+
+foreach(TMP_LIB ${MODULES})
+  if (${TMP_LIB}_ProtoFiles)
+    add_library(mats_${TMP_LIB}_proto SHARED ${${TMP_LIB}_ProtoSources}
+                                             ${${TMP_LIB}_ProtoHeaders})
+    target_link_libraries(mats_${TMP_LIB}_proto ${PROTOBUF_LIBRARIES})
   endif()
 
   add_subdirectory(${TMP_LIB})
 endforeach(TMP_LIB)
+target_link_libraries(mats_optical_designs_proto mats_base_proto)
 
-set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${Boost_LIBRARIES})
+list(APPEND MATS_LINK_LIBS ${Boost_LIBRARIES})
 
 add_executable(mats_main mats_main.cpp)
 target_link_libraries(mats_main ${MATS_LINK_LIBS})
@@ -96,3 +96,6 @@ target_link_libraries(create_mask_punchout ${MATS_LINK_LIBS})
 
 add_executable(slant_edge_test slant_edge_test.cpp)
 target_link_libraries(slant_edge_test ${MATS_LINK_LIBS})
+
+add_executable(aberrated_otf aberrated_otf.cpp)
+target_link_libraries(aberrated_otf ${MATS_LINK_LIBS})
