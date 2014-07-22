@@ -1,0 +1,18 @@
+import "base/aperture_parameters.proto";
+
+message Hdf5WfeParameters {
+  // The file in which the custom wavefront error is stored. (HDF5)
+  optional string wfe_filename = 1;
+
+  // The dataset in the file that holds the wavefront error.
+  optional string dataset = 2;
+
+  // The background threshold value in the WFE image. All wavefront errors
+  // greater than or equal to this value (in magnitude) will be set to zero and
+  // assumed to be background.
+  optional double background_value = 3;
+}
+
+extend mats.ApertureParameters {
+  optional Hdf5WfeParameters hdf5_wfe_params = 11395;
+}
