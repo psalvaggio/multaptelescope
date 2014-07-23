@@ -27,9 +27,8 @@ message ApertureParameters {
     TRIARM9 = 1;
     CASSEGRAIN = 2;
     CIRCULAR = 3;
-    TWO_CASSEGRAIN = 4;
-    TRIARM3 = 5;
-    HDF5_WFE = 6;
+    TRIARM3 = 4;
+    HDF5_WFE = 5;
   }
   optional ApertureType type = 2;
 
