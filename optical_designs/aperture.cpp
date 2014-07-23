@@ -61,7 +61,7 @@ void Aperture::GetPupilFunction(const Mat& wfe,
 
   // Set the scale of the pupil function, so the user can rescale the
   // function with physical units if they need to.
-  pupil->set_meters_per_pixel(sim_params_.encircled_diameter() /
+  pupil->set_meters_per_pixel(aperture_params_.encircled_diameter() /
                               target_diameter);
 
   // Resize the wavefront error and aperture template to the desired
@@ -85,7 +85,7 @@ void Aperture::GetPupilFunction(const Mat& wfe,
   double* aberrated_imag = (double*) scaled_aberrated_imag.data;
   double* unaberrated = (double*) scaled_aperture.data;
   double* opd_data = (double*) scaled_wfe.data;
-  for (size_t i = 0; i < target_diameter*target_diameter; i++) {
+  for (int i = 0; i < target_diameter*target_diameter; i++) {
     aberrated_real[i] = unaberrated[i] * cos(2 * M_PI * opd_data[i] *
                         wavelength_scale);
     aberrated_imag[i] = unaberrated[i] * sin(2 * M_PI * opd_data[i] *

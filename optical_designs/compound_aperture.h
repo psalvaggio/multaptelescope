@@ -25,6 +25,8 @@ class CompoundAperture : public Aperture {
  private:
   CompoundApertureParameters compound_params_;
 
+  std::vector<Aperture*> apertures_;
+
   cv::Mat mask_;
   cv::Mat opd_;
   cv::Mat opd_est_;

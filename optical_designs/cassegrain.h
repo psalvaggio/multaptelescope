@@ -14,9 +14,6 @@ class Cassegrain : public Aperture {
 
   virtual ~Cassegrain();
 
-  double diameter() const { return diameter_; }
-  double secondary_diameter() const { return secondary_diameter_; }
-
  // Virtual functions from Aperture
  private:
   virtual cv::Mat GetApertureTemplate();
@@ -26,12 +23,7 @@ class Cassegrain : public Aperture {
   virtual cv::Mat GetOpticalPathLengthDiffEstimate();
 
  private:
-  // The diameter of the primary mirror [m]
-  double diameter_;
-
-  // The diameter of the secondary mirror [m]
-  double secondary_diameter_;
-
+  cv::Mat mask_;
   cv::Mat opd_;
   cv::Mat opd_est_;
 };

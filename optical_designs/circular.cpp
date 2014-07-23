@@ -20,7 +20,7 @@ using namespace cv;
 
 Circular::Circular(const SimulationConfig& params, int sim_index)
     : Aperture(params, sim_index),
-      diameter_(simulation_params().encircled_diameter()), 
+      diameter_(aperture_params().encircled_diameter()), 
       ptt_vals_() {
   Mat ptt_mat(3, 1, CV_64FC1);
   randn(ptt_mat, 0, 1);

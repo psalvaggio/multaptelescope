@@ -20,7 +20,7 @@ using mats::Simulation;
 
 Triarm3::Triarm3(const mats::SimulationConfig& params, int sim_index)
     : Aperture(params, sim_index),
-      diameter_(simulation_params().encircled_diameter()),
+      diameter_(aperture_params().encircled_diameter()),
       subap_diameter_(),
       subap_secondary_diameter_(),
       subaperture_offsets_(),
@@ -35,7 +35,7 @@ Triarm3::Triarm3(const mats::SimulationConfig& params, int sim_index)
 
   // The fill factor of the overall aperture and each of the individual
   // Cassegrain subapertures.
-  double fill_factor = simulation_params().fill_factor();
+  double fill_factor = aperture_params().fill_factor();
   double subap_fill_factor = triarm3_params_.subaperture_fill_factor();
 
   const double kTargetRadius = kHalfSize;  // [pixels]
@@ -75,7 +75,7 @@ Triarm3::~Triarm3() {}
 
 void Triarm3::ExportToZemax(const std::string& aperture_filename,
                             const std::string& obstruction_filename) const {
-  double scale = this->simulation_params().encircled_diameter() /
+  double scale = this->aperture_params().encircled_diameter() /
                  this->params().array_size() * 1000;
   double offset = this->params().array_size() * 0.5;
 
@@ -134,7 +134,7 @@ Mat Triarm3::GetApertureTemplate() {
 Mat Triarm3::GetOpticalPathLengthDiff() {
   if (opd_.rows > 0) return opd_;
 
-  for (int i = 0; i < aberrations().size(); i++) {
+  for (size_t i = 0; i < aberrations().size(); i++) {
     cout << aberrations().at(i) << endl;
   }
 
@@ -174,49 +174,3 @@ Mat Triarm3::GetOpticalPathLengthDiffEstimate() {
 
   return opd_est_;
 }
-
-/*
-Mat Triarm3::OpticalPathLengthDiffPtt(const vector<double>& ptt_vals) {
-  const int kSize = params().array_size();
-  const int kPttSize = ceil(subap_diameter_);
-  const int kPttHalfSize = kPttSize / 2;
-
-  Mat opd(kSize, kSize, CV_64FC1);
-  double* opd_data = (double*) opd.data;
-
-  vector<Mat> ptts;
-  for (int i = 0; i < kNumApertures; i++) {
-    ptts.push_back(GetPistonTipTilt(ptt_vals[3*i],
-                                    ptt_vals[3*i + 1],
-                                    ptt_vals[3*i + 2],
-                                    kPttSize,
-                                    kPttSize));
-  }
-
-  double subap_r2 = subap_diameter_ * subap_diameter_ / 4.0;
-  double subap_sec_r2 = subap_secondary_diameter_ * subap_secondary_diameter_
-                        / 4.0;
-
-  for (int y = 0; y < kSize; y++) {
-    for (int x = 0; x < kSize; x++) {
-      for (int ap = 0; ap < kNumApertures; ap++) {
-        int x_diff = x - subaperture_offsets_[2*ap];
-        int y_diff = y - subaperture_offsets_[2*ap + 1];
-        double dist2 = x_diff*x_diff + y_diff*y_diff;
-
-        if (dist2 < subap_r2 && dist2 >= subap_sec_r2) {
-          int ptt_x = std::min(kPttSize - 1,
-                          std::max(0, x_diff + kPttHalfSize));
-          int ptt_y = std::min(kPttSize - 1,
-                          std::max(0, y_diff + kPttHalfSize));
-
-
-          opd_data[y*kSize + x] = ptts[ap].at<double>(ptt_y, ptt_x);
-        }
-      }
-    }
-  }
-
-  return opd;
-}
-*/

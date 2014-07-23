@@ -9,8 +9,7 @@ set(headers
     circular.h
     hdf5_wfe.h
     triarm3.h
-    triarm9.h
-    two_cassegrain.h)
+    triarm9.h)
 
 set(sources
     aperture.cpp
@@ -18,8 +17,7 @@ set(sources
     cassegrain.cpp
     hdf5_wfe.cpp
     triarm3.cpp
-    triarm9.cpp
-    two_cassegrain.cpp)
+    triarm9.cpp)
 
 foreach(TMPLIB ${SUBSYS_DEPS})
   set(LINK_LIBS ${LINK_LIBS} mats_${TMPLIB})

@@ -20,7 +20,7 @@ using mats::ApertureParameters;
 
 Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
     : Aperture(params, sim_index),
-      diameter_(simulation_params().encircled_diameter()),
+      diameter_(aperture_params().encircled_diameter()),
       subap_diameter_(),
       subap_secondary_diameter_(),
       subaperture_offsets_(),
@@ -36,7 +36,7 @@ Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
 
   // The fill factor of the overall aperture and each of the individual
   // Cassegrain subapertures.
-  double fill_factor = simulation_params().fill_factor();
+  double fill_factor = aperture_params().fill_factor();
   double subap_fill_factor = triarm9_params_.subaperture_fill_factor();
 
   const double kTargetRadius = kHalfSize;  // [pixels]
@@ -86,7 +86,7 @@ Triarm9::~Triarm9() {}
 
 void Triarm9::ExportToZemax(const std::string& aperture_filename,
                             const std::string& obstruction_filename) const {
-  double scale = this->simulation_params().encircled_diameter() /
+  double scale = this->aperture_params().encircled_diameter() /
                  this->params().array_size() * 1000;
   double offset = this->params().array_size() * 0.5;
 
@@ -158,7 +158,6 @@ Mat Triarm9::GetOpticalPathLengthDiff() {
       total_wfe_sq += opd_data[i] * opd_data[i];
     }
   }
-  double rms = sqrt(total_wfe_sq / total_elements);
   //double rms_ptt_mul = simulation_params().ptt_opd_rms() / rms;
   double rms_ptt_mul = 1;
 
