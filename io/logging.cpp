@@ -64,7 +64,7 @@ string PrintSimulation(const Simulation& simulation) {
   return output.str();
 }
 
-string PrintApertureParameters(const ApertureParameters& ap_params) {
+string PrintAperture(const ApertureParameters& ap_params) {
   stringstream output;
 
   output << "Type: " << ApertureParameters::ApertureType_Name(ap_params.type())
