@@ -14,14 +14,14 @@ void AberrationFactory::ZernikeAberrations(const vector<double>& weights,
                                            Mat* output) {
   if (!output) return;
 
-  const int kSize = output_size * output_size;
+  const size_t kSize = output_size * output_size;
   const double kCenter = 0.5 * (output_size - 1);
 
   output->create(output_size, output_size, CV_64F);
 
   double* output_data = reinterpret_cast<double*>(output->data);
 
-  for (int i = 0; i < kSize; i++) {
+  for (size_t i = 0; i < kSize; i++) {
     double x = (i % output_size) - kCenter;
     double y = (i / output_size) - kCenter;
     double rho = sqrt(x*x + y*y) / kCenter;
@@ -36,7 +36,7 @@ void AberrationFactory::ZernikeAberrations(const vector<double>& weights,
     double sin_theta = sin(theta);
 
     double wfe = 0;
-    for (int j = 0; j < weights.size(); j++) {
+    for (size_t j = 0; j < weights.size(); j++) {
       switch(j) {
         case 0:
           wfe += weights[0]; break;

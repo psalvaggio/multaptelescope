@@ -28,7 +28,7 @@ Detector::Detector(const DetectorParameters& det_params,
       sim_index_(sim_index),
       qe_spectrums_() {
   qe_spectrums_.reserve(det_params_.band_size());
-  for (size_t i = 0; i < det_params_.band_size(); i++) {
+  for (int i = 0; i < det_params_.band_size(); i++) {
     const DetectorBandpass& band(det_params_.band(i));
 
     size_t qe_size = std::min(band.wavelength_size(),
@@ -53,10 +53,10 @@ void Detector::GetQESpectrum(const vector<double>& wavelengths,
 
   // Interpolate the QE spectrum of the detector to match the input spectral
   // radiance bands.
-  for (int i = 0; i < wavelengths.size(); i++) {
+  for (size_t i = 0; i < wavelengths.size(); i++) {
     double wave = wavelengths[i];
     
-    int j;
+    size_t j;
     for (j = 0; j < qe_spectrum.size(); j++) {
       double ref_wave = qe_spectrum[j].wavelength;
       if (ref_wave >= wave) {
@@ -121,7 +121,7 @@ void Detector::ResponseElectrons(const vector<Mat>& irradiance,
   // defined by the detector.
   AggregateSignal(high_res_electrons, wavelengths, false, electrons);
 
-  for (size_t i = 0; i < det_params_.band_size(); i++) {
+  for (int i = 0; i < det_params_.band_size(); i++) {
     electrons->at(i) += GetNoisePattern(electrons->at(i).rows,
                                         electrons->at(i).cols);
   }
@@ -140,7 +140,7 @@ void Detector::AggregateSignal(const vector<cv::Mat>& signal,
   double total_weight = 0;
 
   output->clear();
-  for (size_t i = 0; i < det_params_.band_size(); i++) {
+  for (int i = 0; i < det_params_.band_size(); i++) {
     output->push_back(Mat::zeros(kRows, kCols, kDataType));
 
     vector<double> qe;

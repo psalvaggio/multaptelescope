@@ -164,8 +164,7 @@ class superclass##Registry { \
     ctors()[class_name] = ctor; \
   } \
 \
-  static void Unregister(const std::string& class_name, \
-                         superclass##Creator* ctor) { \
+  static void Unregister(const std::string& class_name) { \
     ctors().erase(class_name); \
   } 
 
