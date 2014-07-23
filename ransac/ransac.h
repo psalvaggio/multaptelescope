@@ -173,12 +173,12 @@ Error_t Ransac(const Impl& impl,
   double p = 0.99;
 
   // Keep track of the iteration number and best result.
-  int trial_count = 0;
+  size_t trial_count = 0;
   size_t best_num_inliers = 0;
 
   // N is the upper bound on iterations to ensure the condition of p. This
   // is determined by the current value of best_num_inliers;
-  int N = 1;
+  size_t N = 1;
 
   // Used if a termination condition is reached.
   bool status = true;
@@ -187,7 +187,7 @@ Error_t Ransac(const Impl& impl,
 
   while (N > trial_count) {
     bool degenerate = true;
-    int data_trial = 0;
+    size_t data_trial = 0;
     current_models.clear();
     current_inliers.clear();
 

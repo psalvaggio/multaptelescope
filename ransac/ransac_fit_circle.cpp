@@ -14,6 +14,8 @@ RansacFitOriginCircle::~RansacFitOriginCircle() {}
 bool RansacFitOriginCircle::RansacDegeneracyScreen(
     const data_t& data,
     const std::vector<int>& random_sample) const {
+  (void)data;
+  (void)random_sample;
   return false;
 }
 
@@ -34,7 +36,7 @@ int RansacFitOriginCircle::RansacGetInliers(
 
   double model_r2 = (*(models[0]))[0] * (*(models[0]))[0];
   double sq_threshold = threshold_ * threshold_;
-  for (int i = 0; i < data.size() / 2; i++) {
+  for (size_t i = 0; i < data.size() / 2; i++) {
     double r2 = data[2*i]*data[2*i] + data[2*i+1]*data[2*i+1];
     if (fabs(r2 - model_r2) <= sq_threshold) {
       inliers->push_back(i);

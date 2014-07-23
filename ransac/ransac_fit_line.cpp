@@ -13,6 +13,8 @@ RansacFitLine::~RansacFitLine() {}
 bool RansacFitLine::RansacDegeneracyScreen(
     const data_t& data,
     const std::vector<int>& random_sample) const {
+  (void)data;
+  (void)random_sample;
   return false;
 }
 
@@ -39,7 +41,7 @@ void RansacFitLine::RansacFitModel(const data_t& data,
 int RansacFitLine::RansacGetInliers(const data_t& data,
                                     const std::vector<model_t*>& models,
                                     std::list<int>* inliers) const {
-  for (int i = 0; i < data.size() / 2; i++) {
+  for (size_t i = 0; i < data.size() / 2; i++) {
     double distance = fabs(data[2*i] * models[0]->at(0) +
                            data[2*i+1] * models[0]->at(1) -
                            models[0]->at(2));
@@ -72,7 +74,7 @@ void RansacFitLine::FitLeastSquaresLine(const data_t& data,
   mean_x /= sample.size();
   mean_y /= sample.size();
 
-  for (int i = 0; i < sample.size(); i++) {
+  for (size_t i = 0; i < sample.size(); i++) {
     obs_data[2*i + 0] -= mean_x;
     obs_data[2*i + 1] -= mean_y;
   }
