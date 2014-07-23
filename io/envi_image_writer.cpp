@@ -41,7 +41,7 @@ bool EnviImageWriter::Write(const std::string& image_filename,
   if (envi_type == -1) return false;
   hdr->set_data_type(envi_type);
 
-  const int kSize = hdr->lines() * hdr->samples() * hdr->bands() * depth;
+  const size_t kSize = hdr->lines() * hdr->samples() * hdr->bands() * depth;
 
   if (hdr->bands() <= 0 || hdr->samples() <= 0 || hdr->lines() <= 0) {
     mainLog() << "Error: Invalid image dimensions in ENVI header." << endl;

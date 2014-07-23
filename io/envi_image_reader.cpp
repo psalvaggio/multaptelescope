@@ -80,7 +80,7 @@ bool EnviImageReader::Read(const string& image_filename,
   if (cv_type == -1) return false;
 
   // Size of the data.
-  const int kSize = hdr->lines() * hdr->samples() * hdr->bands() * depth;
+  const size_t kSize = hdr->lines() * hdr->samples() * hdr->bands() * depth;
 
   if (!hdr->has_bands() || !hdr->has_samples() || !hdr->has_lines() ||
       hdr->bands() <= 0 || hdr->samples() <= 0 || hdr->lines() <= 0) {
@@ -186,7 +186,7 @@ bool EnviImageReader::ReadHeader(const string& header_filename,
 
 bool EnviImageReader::ParseHeaderLine(const string& line,
                                       EnviImageHeader* hdr) {
-  int equal_index = line.find_first_of("=");
+  size_t equal_index = line.find_first_of("=");
   if (equal_index == string::npos) {
     mainLog() << "No \"=\" found in the line." << endl;
     return false;
@@ -254,7 +254,8 @@ bool EnviImageReader::ParseHeaderLine(const string& line,
     vector<string> band_names;
     mats::explode(value, ',', &band_names);
 
-    if (hdr->band_size() > 0 && hdr->band_size() != band_names.size()) {
+    if (hdr->band_size() > 0 &&
+        ((size_t)hdr->band_size() != band_names.size())) {
       mainLog() << "Wavelengths, FWHM, band names and bad bands list all "
                 << "need to be the same length." << endl;
       return false;
@@ -277,7 +278,8 @@ bool EnviImageReader::ParseHeaderLine(const string& line,
       wavelengths[0] = wavelengths[0].substr(1);
     }
 
-    if (hdr->band_size() > 0 && hdr->band_size() != wavelengths.size()) {
+    if (hdr->band_size() > 0 && 
+        ((size_t)hdr->band_size() != wavelengths.size())) {
       mainLog() << "Wavelengths, FWHM, band names and bad bands list all "
                 << "need to be the same length." << endl;
       return false;
@@ -301,7 +303,7 @@ bool EnviImageReader::ParseHeaderLine(const string& line,
       fwhms[0] = fwhms[0].substr(1);
     }
 
-    if (hdr->band_size() > 0 && hdr->band_size() != fwhms.size()) {
+    if (hdr->band_size() > 0 && ((size_t)hdr->band_size() != fwhms.size())) {
       mainLog() << "Wavelengths, FWHM, band names and bad bands list all "
                 << "need to be the same length." << endl;
       return false;
@@ -325,7 +327,7 @@ bool EnviImageReader::ParseHeaderLine(const string& line,
       bbls[0] = bbls[0].substr(1);
     }
 
-    if (hdr->band_size() > 0 && hdr->band_size() != bbls.size()) {
+    if (hdr->band_size() > 0 && ((size_t)hdr->band_size() != bbls.size())) {
       mainLog() << "Wavelengths, FWHM, band names and bad bands list all "
                 << "need to be the same length." << endl;
       return false;
