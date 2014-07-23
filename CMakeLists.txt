@@ -33,7 +33,7 @@ endif()
 include_directories(${MATS_SOURCE_DIR})
 include_directories(${MATS_BINARY_DIR})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 if (cmake_build_type_tolower STREQUAL "release")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
@@ -94,12 +94,6 @@ list(APPEND MATS_LINK_LIBS ${Boost_LIBRARIES})
 
 add_executable(mats_main mats_main.cpp)
 target_link_libraries(mats_main ${MATS_LINK_LIBS})
-
-add_executable(create_mask_punchout create_mask_punchout.cpp)
-target_link_libraries(create_mask_punchout ${MATS_LINK_LIBS})
-
-add_executable(slant_edge_test slant_edge_test.cpp)
-target_link_libraries(slant_edge_test ${MATS_LINK_LIBS})
 
 add_executable(aberrated_otf aberrated_otf.cpp)
 target_link_libraries(aberrated_otf ${MATS_LINK_LIBS})

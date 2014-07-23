@@ -1,25 +1,27 @@
 // File Description
 // Author: Philip Salvaggio
 
+#include "base/aberration_factory.h"
+#include "base/aperture_parameters.pb.h"
 #include "base/detector.h"
 #include "base/detector_parameters.pb.h"
+#include "base/mats_init.h"
 #include "base/opencv_utils.h"
 #include "base/photon_noise.h"
+#include "base/pupil_function.h"
 #include "base/simulation_config.pb.h"
 #include "base/str_utils.h"
 #include "base/telescope.h"
 #include "deconvolution/constrained_least_squares.h"
-#include "io/detector_reader.h"
-#include "io/envi_image_reader.h"
-#include "io/envi_image_header.pb.h"
-#include "io/input_reader.h"
 #include "io/logging.h"
-#include "optical_designs/aperture_parameters.pb.h"
+#include "io/envi_image_header.pb.h"
+#include "io/envi_image_reader.h"
+#include "io/hdf5_reader.h"
 #include "optical_designs/cassegrain.h"
 #include "optical_designs/triarm9.h"
 #include "optical_designs/triarm9_parameters.pb.h"
-#include "third_party/gnuplot-cpp/gnuplot_i.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <google/protobuf/text_format.h>
@@ -32,8 +34,6 @@ using namespace cv;
 using mats_io::Logging;
 
 int main(int argc, char** argv) {
-  string version = "1.0.0";
-
   if (argc < 2) {
     cerr << "Usage: ./mats_main base_dir" << endl;
     return 1;
@@ -45,71 +45,17 @@ int main(int argc, char** argv) {
     base_dir.append("/");
   }
 
-  // Initialize random number generators
-  cv::theRNG().state = 74572548;
-  srand(4279419);
-
-  // Initialize logging.
-  if (!Logging::Init(base_dir)) {
-    cerr << "Could not open log files." << endl;
-    return 1;
-  }
-
-  // Write the header to the log file
-  mainLog() << "Multi-Aperture Telescope Simulation (MATS "
-            << version << ") Main Log File" << endl << endl;
-
-  // Initialize the simulation parameters.
   mats::SimulationConfig sim_config;
-  sim_config.set_base_directory(base_dir);
-  sim_config.set_altitude(1662546.0);
-  sim_config.set_reference_wavelength(550e-9);
-
-  string sim_file = base_dir + "input/simulations.txt";
-  mats_io::InputReader reader;
-  if (!reader.Read(sim_file, &sim_config)) {
-    cerr << "Could not read simulations file." << endl;
-    return 1;
-  }
-
-  mainLog() << "Configuration Parameters:" << endl
-            << mats_io::PrintConfig(sim_config) << endl;
-
-  // Initialize the detector parameters.
-  string det_file = base_dir + "input/detector.txt";
-  mats_io::DetectorReader det_reader;
   mats::DetectorParameters detector_params;
-  if (!det_reader.Read(det_file, &detector_params)) {
-    cerr << "Could not read detector file." << endl;
-    return 1;
-  }
-
-  mainLog() << "Detector:" << endl << mats_io::PrintDetector(detector_params)
-            << endl;
-
-  // Read in the hyperspectral input image that will serve as the input to the
-  // telescope.
-  string img_file = base_dir + "input/input.img";
-  mats_io::EnviImageReader envi_reader;
   vector<Mat> hyp_planes;
   mats_io::EnviImageHeader hyp_header;
-  if (!envi_reader.Read(img_file, &hyp_header, &hyp_planes)) {
-    cerr << "Could not read hyperspectral input file." << endl;
+  if (!mats::MatsInit(base_dir,
+                      &sim_config,
+                      &detector_params,
+                      &hyp_planes,
+                      &hyp_header)) {
     return 1;
   }
-
-  namedWindow("Input Image");
-  namedWindow("Output Image");
-  moveWindow("Input Image", 0, 0);
-  moveWindow("Output Image", 500, 0);
-
-  // Set up the array sizes based on the size of the input image.
-  detector_params.set_array_rows(hyp_header.lines());
-  detector_params.set_array_cols(hyp_header.samples());
-  sim_config.set_array_size(std::max(detector_params.array_rows(),
-                                     detector_params.array_cols()));
-  
-
 
   // Convert the center wavelengths and FWHMs into meters.
   string wave_units;
@@ -131,10 +77,12 @@ int main(int argc, char** argv) {
               << "an unrecognized unit. Assuming microns..." << endl;
   }
 
-  const double kGain = 1e4;
+  const double kGain = 10;
 
   vector<double> hyp_band_wavelengths;
-  for (size_t i = 0; i < hyp_header.band_size(); i++) {
+  for (int i = 0; i < hyp_header.band_size(); i++) {
+    hyp_planes[i].convertTo(hyp_planes[i], CV_64F);
+
     hyp_planes[i] *= 1e4;  // [W/m^2/sr micron^-1]
     hyp_planes[i] *= kGain;  // [W/m^2/sr micron^-1]
 
@@ -145,55 +93,65 @@ int main(int argc, char** argv) {
     hyp_band_wavelengths.push_back(wave_val);
   }
 
+  mainLog() << "Read input hyperspectral image with "
+            << hyp_planes.size() << " bands." << endl;
+  mainLog() << mats_io::PrintEnviHeader(hyp_header);
+
   cout << "Ready to process " << sim_config.simulation_size()
        << " simulations" << endl;
-
-  ApertureParameters ap;
-  Triarm9Parameters* t9_params = ap.MutableExtension(triarm9_params);
-  t9_params->set_subaperture_fill_factor(0.9);
-  t9_params->set_s_to_d_ratio(1.03);
 
   for (size_t i = 0; i < 1; i++) {
     mainLog() << "Simulation " << (i+1) << " of "
               << sim_config.simulation_size() << endl
-              << mats_io::PrintSimulation(sim_config.simulation(i)) << endl;
+              << mats_io::PrintSimulation(sim_config.simulation(i))
+              << mats_io::PrintAperture(
+                  sim_config.simulation(i).aperture_params());
 
-    mats::Telescope telescope(sim_config, i, ap, detector_params);
-    mats::Telescope reference(sim_config, i+1, ap, detector_params);
+    mats::Telescope telescope(sim_config, i, detector_params);
 
-    vector<double> wavelengths;
-    for (int i = 0; i < 51; i++) {
-      wavelengths.push_back(400e-9 + 10e-9*i);
-    }
+    mainLog() << "Focal Length: " << telescope.FocalLength() << " [m]" << endl;
+
+    Aperture* ap = telescope.aperture();
+    
+    cv::imwrite(base_dir + "mask.png", ByteScale(ap->GetApertureMask()));
+
+    Mat wfe = telescope.aperture()->GetWavefrontError();
+    cv::imwrite(base_dir + "wfe.png", ByteScale(wfe));
+    
+    Mat wfe_est = telescope.aperture()->GetWavefrontErrorEstimate();
+    cv::imwrite(base_dir + "wfe_est.png", ByteScale(wfe_est));
 
     cout << "Imaging..." << endl;
     vector<Mat> output_image, otfs, output_ref, ref_otfs;
     telescope.Image(hyp_planes, hyp_band_wavelengths, &output_image, &otfs);
-    cout << "Imaging Reference..." << endl;
-    reference.Image(hyp_planes, hyp_band_wavelengths, &output_ref, &ref_otfs);
 
     vector<Mat> low_res_hyp;
-    telescope.detector().AggregateSignal(hyp_planes, hyp_band_wavelengths,
-                                         false, &low_res_hyp);
+    telescope.detector()->AggregateSignal(hyp_planes, hyp_band_wavelengths,
+                                          false, &low_res_hyp);
 
     ConstrainedLeastSquares cls;
-    namedWindow("Input Image");
-    namedWindow("Output Image");
-    moveWindow("Input Image", 0, 0);
-    moveWindow("Output Image", 500, 0);
+    //namedWindow("Input Image");
+    //namedWindow("Output Image");
+    //moveWindow("Input Image", 0, 0);
+    //moveWindow("Output Image", 500, 0);
 
+    cout << "Restoring..." << endl;
     const double kSmoothness = 1e-3;
-    for (size_t i = 0; i < 1; i++) {
-      double min, max;
-      for (double s = 1e-5; s < 2; s *= 1.05) {
-        Mat deconvolved;
-        cls.Deconvolve(output_image[i], otfs[i], s, &deconvolved);
-        //imshow("Output Image", ByteScale(deconvolved, &min, &max));
-        imshow("Output Image", ByteScale(deconvolved));
-        imshow("Input Image", ByteScale(low_res_hyp[i]));
-        cout << "Smoothness = " << s << endl;
-        waitKey(50);
-      }
+    for (size_t band = 0; band < output_image.size(); band++) {
+      Mat deconvolved;
+      cls.Deconvolve(output_image[band], otfs[band], kSmoothness, &deconvolved);
+      imwrite(mats::StringPrintf(
+            "%soutput_band_%d.png", base_dir.c_str(), band),
+            ByteScale(output_image[band]));
+      imwrite(mats::StringPrintf(
+            "%sprocessed_band_%d.png", base_dir.c_str(), band),
+            ByteScale(deconvolved));
+      imwrite(mats::StringPrintf(
+            "%sinput_band_%d.png", base_dir.c_str(), band), 
+            ByteScale(low_res_hyp[band]));
+      imwrite(mats::StringPrintf(
+            "%smtf_%d.png", base_dir.c_str(), (int)(detector_params.band(band).center_wavelength() * 1e9)), 
+            GammaScale(FFTShift(magnitude(otfs[band])), 1/2.2));
     }
   }
 
