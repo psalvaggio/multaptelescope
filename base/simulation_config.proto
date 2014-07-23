@@ -47,12 +47,6 @@ message Simulation {
   // Integration time [seconds]
   optional double integration_time = 6;
 
-  // Encircled diameter of the aperture [m]
-  optional double encircled_diameter = 7;
-
-  // Fill factor of the aperture [0-1]
-  optional double fill_factor = 8;
-
   // Ground Sample Distance (GSD) of the telescope [meters/pixel]
   optional double gsd = 9;
 

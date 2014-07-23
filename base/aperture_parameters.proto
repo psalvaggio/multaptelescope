@@ -33,5 +33,11 @@ message ApertureParameters {
   }
   optional ApertureType type = 2;
 
+  // Encircled diameter of the aperture [m]
+  optional double encircled_diameter = 3;
+
+  // Fill factor of the aperture [unitless]
+  optional double fill_factor = 4;
+
   extensions 1000 to max;
 }
