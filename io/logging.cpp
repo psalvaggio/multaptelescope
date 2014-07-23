@@ -7,8 +7,7 @@
 #include <sstream>
 
 using namespace std;
-using mats::Simulation;
-using mats::SimulationConfig;
+using namespace mats;
 
 std::ofstream& mainLog() {
   return mats_io::Logging::Main();
@@ -55,26 +54,31 @@ string PrintSimulation(const Simulation& simulation) {
   stringstream output;
   
   output << "Simulation ID: " << simulation.simulation_id() << endl
-         << "Wavefront Error Knowledge Used in Reconstruction: ";
-
-  int wfe_knowledge = simulation.wfe_knowledge();
-  if (wfe_knowledge == Simulation::HIGH) {
-    output << "High";
-  } else if (wfe_knowledge == Simulation::MEDIUM) {
-    output << "Medium";
-  } else if (wfe_knowledge == Simulation::LOW) {
-    output << "Low";
-  } else if (wfe_knowledge == Simulation::NONE) {
-    output << "None";
-  }
-
-  output << endl << "Integration Time: " << simulation.integration_time()
+         << "Wavefront Error Knowledge Used in Reconstruction: "
+         << Simulation::WfeKnowledge_Name(simulation.wfe_knowledge()) << endl
+         << "Integration Time: " << simulation.integration_time()
          << " [s]" << endl
-         << "Encircled Diameter of Aperture: "
-         << simulation.encircled_diameter() << " [m]" << endl
-         << "Fill Factor: " << simulation.fill_factor() * 100 << "%" << endl
          << "Ground Sample Distance: " << simulation.gsd()
          << " [m/pixel]" << endl;
+
+  return output.str();
+}
+
+string PrintApertureParameters(const ApertureParameters& ap_params) {
+  stringstream output;
+
+  output << "Type: " << ApertureParameters::ApertureType_Name(ap_params.type())
+         << endl
+         << "Encircled Diameter: " << ap_params.encircled_diameter() << endl
+         << "Fill Factor: " << ap_params.fill_factor() << endl
+         << "Aberrations: " << endl;
+
+  for (int i = 0; i < ap_params.aberration_size(); i++) {
+    const ZernikeCoefficient& ab(ap_params.aberration(i));
+
+    output << "  " << ZernikeCoefficient::AberrationType_Name(ab.type())
+           << ": " << ab.value() << endl;
+  }
 
   return output.str();
 }
