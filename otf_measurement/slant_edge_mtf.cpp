@@ -32,12 +32,12 @@ void SlantEdgeMtf::Analyze(const cv::Mat& image,
 
   // Detect the edge in the image.
   double edge[3];
-  bool found_edge = DetectEdge(image, edge);
+  DetectEdge(image, edge);
   *orientation = atan2(-edge[0], edge[1]);
   if (*orientation >= M_PI / 2) *orientation -= M_PI;
   if (*orientation < -M_PI / 2) *orientation += M_PI;
 
-  //imshow("Detected Edge", OverlayLine(image, edge));
+  imshow("Detected Edge", OverlayLine(image, edge));
 
   int num_bins = GetSamplesPerPixel(image, edge);
 
@@ -45,7 +45,7 @@ void SlantEdgeMtf::Analyze(const cv::Mat& image,
   std::vector<double> esf;
   GenerateEsf(image, edge, num_bins, &esf);
   SmoothEsf(&esf);
-  //PlotEsf(esf);
+  PlotEsf(esf);
 
   fftw_complex* lsf = fftw_alloc_complex(esf.size());
   fftw_complex* otf = fftw_alloc_complex(esf.size());
@@ -77,7 +77,7 @@ void SlantEdgeMtf::Analyze(const cv::Mat& image,
   fftw_free(lsf);
 
 
-  int nyquist_idx = esf.size() / (2*num_bins);
+  size_t nyquist_idx = esf.size() / (2*num_bins);
 
   double peak_mtf = sqrt(otf[0][0]*otf[0][0] + otf[0][1]*otf[0][1]);
   mtf->push_back(1);

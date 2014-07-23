@@ -111,7 +111,7 @@ void MtfInterpolator::GetMtf(double* samples,
 
     circles.push_back(std::vector<int>());
     std::vector<int>& circle_indices(circles[circles.size() - 1]);
-    for (int i = 0; i < inliers_vec.size(); i++) {
+    for (size_t i = 0; i < inliers_vec.size(); i++) {
       circle_indices.push_back(indices[inliers_vec[i]]);
     }
 
@@ -122,13 +122,13 @@ void MtfInterpolator::GetMtf(double* samples,
     }
   }
 
-  for (int i = 0; i < circles.size(); i++) {
+  for (size_t i = 0; i < circles.size(); i++) {
     std::sort(circles[i].begin(), circles[i].end(), CompareAngles(angles));
   }
 
   std::vector<MtfSampleCircle> sample_circles;
   sample_circles.reserve(circles.size());
-  for (int i = 0; i < circles.size(); i++) {
+  for (size_t i = 0; i < circles.size(); i++) {
     sample_circles.push_back(MtfSampleCircle(circle_radii[i], &(circles[i])));
   }
   std::sort(sample_circles.begin(), sample_circles.end());
@@ -138,9 +138,6 @@ void MtfInterpolator::GetMtf(double* samples,
 
   size_t half_x = cols / 2;
   size_t half_y = rows / 2;
-
-  const int kDistancePower = 4;
-  const int kAngularNeighborhood = 2;
 
   for (int i = 0; i < rows; i++) {
     double eta = ((double)i - half_y) / rows;
@@ -153,8 +150,9 @@ void MtfInterpolator::GetMtf(double* samples,
       double r = sqrt(xi * xi + eta * eta);
       double theta = atan2(eta, xi);
 
-      int next_circle;
-      for (next_circle = 0; next_circle < sample_circles.size(); next_circle++) {
+      size_t next_circle;
+      for (next_circle = 0; next_circle < sample_circles.size();
+           next_circle++) {
         if (r < sample_circles[next_circle].radius) break;
       }
 
@@ -180,10 +178,10 @@ void MtfInterpolator::GetMtf(double* samples,
       std::vector<int> nn_distances;
 
       double mtf_val = 0;
-      for (int k = 0; k < nearest_circles.size(); k++) {
+      for (size_t k = 0; k < nearest_circles.size(); k++) {
         int circle = nearest_circles[k];
         const std::vector<int>& circle_pts(*(sample_circles[circle].indices));
-        int next_angle;
+        size_t next_angle;
         for (next_angle = 0; next_angle < circle_pts.size(); next_angle++) {
           if (theta < angles[circle_pts[next_angle]]) {
             break;
