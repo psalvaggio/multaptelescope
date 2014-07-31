@@ -45,6 +45,8 @@ string PrintConfig(const SimulationConfig& config) {
   stringstream output;
   output << "Base directory: " << config.base_directory() << endl
          << "Altitude: " << config.altitude() << " [m]" << endl
+         << "Reference Wavelength: " << config.reference_wavelength() << endl
+         << "Array Size: " << config.array_size() << endl
          << "Number of simulations: " << config.simulation_size() << endl;
 
   return output.str();
