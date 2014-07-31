@@ -7,14 +7,16 @@ set(headers
     aperture.h
     cassegrain.h
     circular.h
+    compound_aperture.h
     hdf5_wfe.h
     triarm3.h
     triarm9.h)
 
 set(sources
     aperture.cpp
-    circular.cpp
     cassegrain.cpp
+    circular.cpp
+    compound_aperture.cpp
     hdf5_wfe.cpp
     triarm3.cpp
     triarm9.cpp)
