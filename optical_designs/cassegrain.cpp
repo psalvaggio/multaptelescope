@@ -26,10 +26,6 @@ Cassegrain::~Cassegrain() {}
 Mat Cassegrain::GetOpticalPathLengthDiff() {
   if (opd_.rows > 0) return opd_;
 
-  for (size_t i = 0; i < aberrations().size(); i++) {
-    std::cout << aberrations().at(i) << std::endl;
-  }
-
   AberrationFactory::ZernikeAberrations(aberrations(),
       params().array_size(), &opd_);
 
