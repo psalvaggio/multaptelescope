@@ -14,8 +14,6 @@ class Circular : public Aperture {
 
   virtual ~Circular();
 
-  double diameter() const { return diameter_; }
-
  // Virtual functions from Aperture
  private:
   virtual cv::Mat GetApertureTemplate();
@@ -25,11 +23,9 @@ class Circular : public Aperture {
   virtual cv::Mat GetOpticalPathLengthDiffEstimate();
 
  private:
-  // The diameter of the primary mirror [m]
-  double diameter_;
-
-  // The values for piston/tip/tilt [waves]
-  double ptt_vals_[3];
+  cv::Mat mask_;
+  cv::Mat opd_;
+  cv::Mat opd_est_;
 };
 
 #endif  // CIRCULAR_H

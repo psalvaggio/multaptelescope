@@ -19,44 +19,17 @@ using mats::PupilFunction;
 using namespace cv;
 
 Circular::Circular(const SimulationConfig& params, int sim_index)
-    : Aperture(params, sim_index),
-      diameter_(aperture_params().encircled_diameter()), 
-      ptt_vals_() {
-  Mat ptt_mat(3, 1, CV_64FC1);
-  randn(ptt_mat, 0, 1);
-
-  double* ptt_vals = (double*) ptt_mat.data;
-  memcpy(ptt_vals_, ptt_vals, 3*sizeof(double));
-}
+    : Aperture(params, sim_index), mask_(), opd_(), opd_est_() {}
 
 Circular::~Circular() {}
 
 Mat Circular::GetOpticalPathLengthDiff() {
-  Mat mask = GetApertureTemplate();
-  Mat ptt = GetPistonTipTilt(ptt_vals_[0], ptt_vals_[1], ptt_vals_[2]);
+  if (opd_.rows > 0) return opd_;
 
-  ptt = ptt.mul(mask);
-  double* ptt_data = (double*) ptt.data;
+  AberrationFactory::ZernikeAberrations(aberrations(),
+      params().array_size(), &opd_);
 
-  int total_elements = 0;
-  double total_wfe_sq = 0;
-  for (int i = 0; i < ptt.rows * ptt.cols; i++) {
-    if (fabs(ptt_data[i]) > 1e-13) {
-      total_elements++;
-      total_wfe_sq += ptt_data[i] * ptt_data[i];
-    }
-  }
-  double ptt_rms_scale = 1;
-  //double ptt_rms_scale = simulation_params().ptt_opd_rms() /
-                         //sqrt(total_wfe_sq / total_elements);
-  ptt *= ptt_rms_scale;
-  for (int i = 0; i < 3; i++) ptt_vals_[i] *= ptt_rms_scale;
-
-  mainLog() << "Piston: " << ptt_vals_[0] << " [waves]" << std::endl;
-  mainLog() << "Tip: " << ptt_vals_[1] << " [waves]" << std::endl;
-  mainLog() << "Tilt: " << ptt_vals_[2] << " [waves]" << std::endl;
-
-  return ptt;
+  return opd_;
 }
 
 Mat Circular::GetOpticalPathLengthDiffEstimate() {
@@ -64,9 +37,8 @@ Mat Circular::GetOpticalPathLengthDiffEstimate() {
     return Mat(params().array_size(), params().array_size(), CV_64FC1);
   }
 
-  int piston_adj = 2 * (rand() % 2) - 1;
-  int tip_adj = 2 * (rand() % 2) - 1;
-  int tilt_adj = 2 * (rand() % 2) - 1;
+  if (opd_.rows == 0) GetOpticalPathLengthDiff();
+  if (opd_est_.rows > 0) return opd_est_;
 
   double knowledge_level = 0;
   switch (simulation_params().wfe_knowledge()) {
@@ -78,28 +50,17 @@ Mat Circular::GetOpticalPathLengthDiffEstimate() {
   mainLog() << "Error in the estimates of piston/tip/tilt: "
             << knowledge_level << " [waves]" << std::endl;
 
-  double piston_est = ptt_vals_[0] + piston_adj * knowledge_level;
-  double tip_est = ptt_vals_[1] + tip_adj * knowledge_level;
-  double tilt_est = ptt_vals_[2] + tilt_adj * knowledge_level;
-
-  Mat mask = GetApertureTemplate();
-  Mat ptt = GetPistonTipTilt(piston_est, tip_est, tilt_est);
-
-  ptt = ptt.mul(mask);
-  double* ptt_data = (double*) ptt.data;
-
-  int total_elements = 0;
-  double total_wfe_sq = 0;
-  for (int i = 0; i < ptt.rows * ptt.cols; i++) {
-    if (fabs(ptt_data[i]) > 1e-13) {
-      total_elements++;
-      total_wfe_sq += ptt_data[i] * ptt_data[i];
-    }
+  vector<double>& real_weights = aberrations();
+  vector<double> wrong_weights;
+  for (size_t i = 0; i < real_weights.size(); i++) {
+    wrong_weights.push_back(real_weights[i] +
+        (2 * (rand() % 2) - 1) * knowledge_level);
   }
-  mainLog() << "RMS OPD of estimated wavefront error: "
-            << sqrt(total_wfe_sq / total_elements) << std::endl;
 
-  return ptt;
+  AberrationFactory::ZernikeAberrations(aberrations(),
+      params().array_size(), &opd_est_);
+
+  return opd_est_;
 }
 
 Mat Circular::GetApertureTemplate() {
