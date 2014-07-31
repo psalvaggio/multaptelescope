@@ -18,6 +18,7 @@ void AberrationFactory::ZernikeAberrations(const vector<double>& weights,
   const double kCenter = 0.5 * (output_size - 1);
 
   output->create(output_size, output_size, CV_64F);
+  *output = Scalar(0);
 
   double* output_data = reinterpret_cast<double*>(output->data);
 
@@ -27,7 +28,6 @@ void AberrationFactory::ZernikeAberrations(const vector<double>& weights,
     double rho = sqrt(x*x + y*y) / kCenter;
 
     if (rho > 1) {
-      output_data[i] = 0;
       continue;
     }
 
