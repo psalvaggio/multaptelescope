@@ -5,6 +5,7 @@
 
 #include "base/aberration_factory.h"
 #include "base/aperture_parameters.pb.h"
+#include "base/opencv_utils.h"
 #include "base/simulation_config.pb.h"
 #include "io/logging.h"
 #include "optical_designs/cassegrain.h"
@@ -99,7 +100,7 @@ Mat Triarm3::GetApertureTemplate() {
   const int kSize = params().array_size();
 
   // Allocate the output array.
-  Mat output(kSize, kSize, CV_64FC1);
+  Mat output = Mat::zeros(kSize, kSize, CV_64FC1);
   double* output_data = (double*)output.data;
 
   double subap_r2 = subap_diameter_ * subap_diameter_ / 4.0;
@@ -133,10 +134,6 @@ Mat Triarm3::GetApertureTemplate() {
 
 Mat Triarm3::GetOpticalPathLengthDiff() {
   if (opd_.rows > 0) return opd_;
-
-  for (size_t i = 0; i < aberrations().size(); i++) {
-    cout << aberrations().at(i) << endl;
-  }
 
   AberrationFactory::ZernikeAberrations(aberrations(),
       params().array_size(), &opd_);
