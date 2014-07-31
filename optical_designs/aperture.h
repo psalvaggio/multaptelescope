@@ -7,6 +7,7 @@
 #include <opencv/cv.h>
 
 #include "base/macros.h"
+#include "base/simulation_config.pb.h"
 #include "base/aperture_parameters.pb.h"
 
 namespace mats {
@@ -34,13 +35,18 @@ class Aperture {
 
   // Accessors
   const mats::SimulationConfig& params() const { return params_; }
-  const mats::Simulation& simulation_params() const { return sim_params_; }
+  const mats::Simulation& simulation_params() const {
+    return params_.simulation(0);
+  }
   mats::ApertureParameters& aperture_params() { return aperture_params_; }
   const mats::ApertureParameters& aperture_params() const {
     return aperture_params_;
   }
   std::vector<double>& aberrations() { return aberrations_; }
   const std::vector<double>& aberrations() const { return aberrations_; }
+
+  virtual double fill_factor();
+  virtual double encircled_diameter();
 
   // Get the complex-valued pupil function of this aperture, which can be used
   // to calculate the MTF/PSF due to the diffraction of the aperture and the
@@ -132,8 +138,7 @@ class Aperture {
   cv::Mat GetPistonTipTilt(double piston, double tip, double tilt) const;
 
  private:
-  const mats::SimulationConfig& params_;
-  const mats::Simulation& sim_params_;
+  mats::SimulationConfig params_;
   mats::ApertureParameters aperture_params_;
   std::vector<double> aberrations_;
 };

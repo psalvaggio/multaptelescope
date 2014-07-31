@@ -3,7 +3,6 @@
 
 #include "aperture.h"
 
-#include "base/simulation_config.pb.h"
 #include "base/pupil_function.h"
 #include "base/opencv_utils.h"
 #include "io/logging.h"
@@ -13,6 +12,7 @@
 #include "optical_designs/circular.h"
 #include "optical_designs/triarm3.h"
 #include "optical_designs/hdf5_wfe.h"
+#include "optical_designs/compound_aperture.h"
 
 #include <opencv/highgui.h>
 
@@ -29,10 +29,14 @@ using std::endl;
 using namespace cv;
 
 Aperture::Aperture(const SimulationConfig& params, int sim_index)
-    : params_(params),
-      sim_params_(params.simulation(sim_index)),
+    : params_(),
       aperture_params_(params.simulation(sim_index).aperture_params()),
       aberrations_() {
+
+  params_.CopyFrom(params);
+  params_.clear_simulation();
+  params_.add_simulation()->CopyFrom(params.simulation(sim_index));
+
   int size = 0;
   for (int i = 0; i < aperture_params_.aberration_size(); i++) {
     size = std::max(size,
@@ -48,6 +52,20 @@ Aperture::Aperture(const SimulationConfig& params, int sim_index)
 
 Aperture::~Aperture() {}
 
+double Aperture::fill_factor() {
+  if (!aperture_params_.has_fill_factor()) {
+    Mat mask = GetApertureMask();
+    Scalar sum = cv::sum(mask);
+    double fill_factor = sum[0] / (M_PI * pow(params().array_size() / 2, 2));
+    aperture_params_.set_fill_factor(fill_factor);
+  }
+  return aperture_params_.fill_factor();
+}
+
+double Aperture::encircled_diameter() {
+  return aperture_params_.encircled_diameter();
+}
+
 void Aperture::GetPupilFunction(const Mat& wfe,
                                 double wavelength,
                                 PupilFunction* pupil) {
@@ -60,15 +78,15 @@ void Aperture::GetPupilFunction(const Mat& wfe,
 
   // Set the scale of the pupil function, so the user can rescale the
   // function with physical units if they need to.
-  pupil->set_meters_per_pixel(aperture_params_.encircled_diameter() /
-                              target_diameter);
+  pupil->set_meters_per_pixel(encircled_diameter() / target_diameter);
 
   // Resize the wavefront error and aperture template to the desired
   // resolution.
   Mat scaled_aperture, scaled_wfe;
   resize(GetApertureTemplate(), scaled_aperture,
          Size(target_diameter, target_diameter));
-  resize(wfe, scaled_wfe, Size(target_diameter, target_diameter));
+  resize(wfe, scaled_wfe, Size(target_diameter, target_diameter),
+      0, 0, INTER_NEAREST);
 
   // The wavefront error is in units of the reference wavelength. So, we will
   // need to scale it to be in terms of the requested wavelength, with this
@@ -166,6 +184,8 @@ Aperture* ApertureFactory::Create(const mats::SimulationConfig& params,
     return new Triarm3(params, sim_index);
   } else if (ap_type == ApertureParameters::HDF5_WFE) {
     return new Hdf5Wfe(params, sim_index);
+  } else if (ap_type == ApertureParameters::COMPOUND) {
+    return new CompoundAperture(params, sim_index);
   }
 
   mainLog() << "ApertureFactory error: Unsupported aperture type." << std::endl;
