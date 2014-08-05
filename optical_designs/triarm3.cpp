@@ -10,6 +10,7 @@
 #include "io/logging.h"
 #include "optical_designs/cassegrain.h"
 #include "optical_designs/triarm3_parameters.pb.h"
+#include "optical_designs/compound_aperture_parameters.pb.h"
 
 #include <algorithm>
 #include <fstream>
@@ -18,62 +19,94 @@
 using namespace cv;
 using namespace std;
 using mats::Simulation;
+using mats::ApertureParameters;
 
 Triarm3::Triarm3(const mats::SimulationConfig& params, int sim_index)
     : Aperture(params, sim_index),
-      diameter_(aperture_params().encircled_diameter()),
-      subap_diameter_(),
-      subap_secondary_diameter_(),
-      subaperture_offsets_(),
-      mask_(),
-      opd_(),
-      opd_est_() {
+      compound_aperture_() {
   // Copy over the Triarm3-specific parameters.
   triarm3_params_ = this->aperture_params().GetExtension(triarm3_params);
 
-  const int kSize = this->params().array_size();
-  const int kHalfSize = kSize / 2;
+  // Aperture construction parameters.
+  const int kNumArms = 3;
+  const int kNumApertures = 3;
+  const double kInitialAngle = -M_PI / 6;
 
   // The fill factor of the overall aperture and each of the individual
   // Cassegrain subapertures.
   double fill_factor = aperture_params().fill_factor();
   double subap_fill_factor = triarm3_params_.subaperture_fill_factor();
 
-  const double kTargetRadius = kHalfSize;  // [pixels]
-
   // Compute the enclosed area and the area of each subapertures [pixels^2]
-  double area_enclosed = M_PI * kTargetRadius * kTargetRadius;
+  double diameter = aperture_params().encircled_diameter();
+  double radius = diameter / 2;
+  double area_enclosed = M_PI * diameter * diameter / 4;
   double area_subap = area_enclosed * fill_factor / kNumApertures;
 
   // Solve for the radius of the subapertures [pixels]
-  subap_diameter_ = 2 * sqrt(area_subap / (subap_fill_factor * M_PI));
-  subap_secondary_diameter_ = subap_diameter_ * sqrt(1 - subap_fill_factor);
-  double subap_r = subap_diameter_ / 2;
+  double subap_diameter = 2 * sqrt(area_subap / (subap_fill_factor * M_PI));
+  double subap_r = subap_diameter / 2;
 
-  // Compute the angle of each of the arms of the Triarm3.
-  const double kInitialAngle = -M_PI / 6;
-  vector<double> arm_angles;
+  // Compute the center pixel for each of the subapertures.
+  vector<double> subaperture_offsets;
   for (int i = 0; i < kNumArms; i++) {
-    arm_angles.push_back(kInitialAngle + i * 2 * M_PI / kNumArms);
+    double angle = kInitialAngle + i * 2 * M_PI / kNumArms;
+
+    double dist_from_center = radius - subap_r;
+    double x = dist_from_center * cos(angle);
+    double y = dist_from_center * sin(angle);
+    subaperture_offsets.push_back(x);
+    subaperture_offsets.push_back(y);
   }
 
-  // Compute the center pixel for each of the subapertures. The s-to-d ratio
-  // is a parameter that tells us what the center-to-center distance, s,
-  // relative to the subaperture diameter, d.
-  int apertures_per_arm = kNumApertures / kNumArms;
-  for (int arm = 0; arm < kNumArms; arm++) {
-    for (int ap = 0; ap < apertures_per_arm; ap++) {
-      double dist_from_center = kTargetRadius - subap_r;
-      int x = (int) (kHalfSize + dist_from_center * cos(arm_angles[arm]));
-      int y = (int) (kHalfSize + dist_from_center * sin(arm_angles[arm]));
-      subaperture_offsets_.push_back(x);
-      subaperture_offsets_.push_back(y);
-    }
+  // Make a copy of our SimulationConfig to give to the subapertures.
+  mats::SimulationConfig conf;
+  conf.CopyFrom(params);
+  conf.clear_simulation();
+  mats::Simulation* sim = conf.add_simulation();
+  sim->CopyFrom(params.simulation(sim_index));
+
+  // Add the top-level compound aperture. This is the AND of the cassegrain
+  // subapertures (compound) and a circular aperture containing the shared
+  // wavefront error.
+  ApertureParameters* compound_params = sim->mutable_aperture_params();
+  compound_params->set_type(ApertureParameters::COMPOUND);
+  CompoundApertureParameters* compound_ext = 
+      compound_params->MutableExtension(compound_aperture_params);
+  compound_ext->set_combine_operation(CompoundApertureParameters::AND);
+  compound_ext->set_wfe_index(0);
+
+  // Add the circular aperture with the wavefront error.
+  ApertureParameters* circular_mask = compound_ext->add_aperture();
+  circular_mask->set_type(ApertureParameters::CIRCULAR);
+  circular_mask->set_encircled_diameter(encircled_diameter());
+  for (int i = 0; i < aperture_params().aberration_size(); i++) {
+    mats::ZernikeCoefficient* tmp_ab = circular_mask->add_aberration();
+    tmp_ab->CopyFrom(aperture_params().aberration(i));
   }
+
+  // Add the Cassegrain array.
+  ApertureParameters* cassegrain_array = compound_ext->add_aperture();
+  cassegrain_array->set_type(ApertureParameters::COMPOUND);
+  CompoundApertureParameters* cassegrain_array_ext =
+      cassegrain_array->MutableExtension(compound_aperture_params);
+  cassegrain_array_ext->set_combine_operation(CompoundApertureParameters::OR);
+  for (size_t i = 0; i < subaperture_offsets.size(); i += 2) {
+    ApertureParameters* cassegrain = cassegrain_array_ext->add_aperture();
+    cassegrain->set_type(ApertureParameters::CASSEGRAIN);
+    cassegrain->set_encircled_diameter(subap_diameter);
+    cassegrain->set_fill_factor(subap_fill_factor);
+    cassegrain->set_offset_x(subaperture_offsets[i]);
+    cassegrain->set_offset_y(subaperture_offsets[i+1]);
+  }
+
+  // Construct the aperture.
+  compound_aperture_.Reset(ApertureFactory::Create(conf, 0));
 }
 
 Triarm3::~Triarm3() {}
 
+/*
 void Triarm3::ExportToZemax(const std::string& aperture_filename,
                             const std::string& obstruction_filename) const {
   double scale = this->aperture_params().encircled_diameter() /
@@ -93,81 +126,16 @@ void Triarm3::ExportToZemax(const std::string& aperture_filename,
                      << subap_secondary_diameter_ * 0.5 * scale << std::endl;
   }
 }
+*/
 
 Mat Triarm3::GetApertureTemplate() {
-  if (mask_.rows > 0) return mask_;
-
-  const int kSize = params().array_size();
-
-  // Allocate the output array.
-  Mat output = Mat::zeros(kSize, kSize, CV_64FC1);
-  double* output_data = (double*)output.data;
-
-  double subap_r2 = subap_diameter_ * subap_diameter_ / 4.0;
-  double subap_sec_r2 = subap_secondary_diameter_ * subap_secondary_diameter_
-                        / 4.0;
-
-  for (int y = 0; y < kSize; y++) {
-    for (int x = 0; x < kSize; x++) {
-      for (int ap = 0; ap < kNumApertures; ap++) {
-        double x_diff = x - subaperture_offsets_[2*ap];
-        double y_diff = y - subaperture_offsets_[2*ap + 1];
-        double dist2 = x_diff*x_diff + y_diff*y_diff;
-
-        if (dist2 < subap_r2 && dist2 >= subap_sec_r2) {
-          output_data[y*kSize + x] += 1;
-        }
-      }
-    }
-  }
-
-  double max_val;
-  minMaxIdx(output, NULL, &max_val);
-  if (max_val > 1) {
-    mainLog() << "Error: Triarm3 subapertures are overlapping!" << endl;
-  }
-
-  mask_ = output;
-
-  return output;
+  return compound_aperture_->GetApertureMask();
 }
 
 Mat Triarm3::GetOpticalPathLengthDiff() {
-  if (opd_.rows > 0) return opd_;
-
-  AberrationFactory::ZernikeAberrations(aberrations(),
-      params().array_size(), &opd_);
-
-  return opd_;
+  return compound_aperture_->GetWavefrontError();
 }
 
 Mat Triarm3::GetOpticalPathLengthDiffEstimate() {
-  if (simulation_params().wfe_knowledge() == Simulation::NONE) {
-    return Mat(params().array_size(), params().array_size(), CV_64FC1);
-  }
-
-  if (opd_.rows == 0) GetOpticalPathLengthDiff();
-  if (opd_est_.rows > 0) return opd_est_;
-
-  double knowledge_level = 0;
-  switch (simulation_params().wfe_knowledge()) {
-    case Simulation::HIGH: knowledge_level = 0.05; break;
-    case Simulation::MEDIUM: knowledge_level = 0.1; break;
-    default: knowledge_level = 0.2; break;
-  }
-
-  mainLog() << "Error in the estimates of piston/tip/tilt: "
-            << knowledge_level << " [waves]" << std::endl;
-
-  vector<double>& real_weights = aberrations();
-  vector<double> wrong_weights;
-  for (size_t i = 0; i < real_weights.size(); i++) {
-    wrong_weights.push_back(real_weights[i] +
-        (2 * (rand() % 2) - 1) * knowledge_level);
-  }
-
-  AberrationFactory::ZernikeAberrations(aberrations(),
-      params().array_size(), &opd_est_);
-
-  return opd_est_;
+  return compound_aperture_->GetWavefrontErrorEstimate();
 }
