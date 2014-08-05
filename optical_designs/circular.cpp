@@ -3,6 +3,7 @@
 
 #include "circular.h"
 
+#include "base/aberration_factory.h"
 #include "base/aperture_parameters.pb.h"
 #include "base/simulation_config.pb.h"
 #include "base/pupil_function.h"
