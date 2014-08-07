@@ -10,7 +10,7 @@
 #include "optical_designs/cassegrain.h"
 #include "optical_designs/triarm9.h"
 #include "optical_designs/circular.h"
-#include "optical_designs/triarm3.h"
+#include "optical_designs/cassegrain_ring.h"
 #include "optical_designs/hdf5_wfe.h"
 #include "optical_designs/compound_aperture.h"
 
@@ -180,8 +180,8 @@ Aperture* ApertureFactory::Create(const mats::SimulationConfig& params,
     return new Cassegrain(params, sim_index);
   } else if (ap_type == ApertureParameters::CIRCULAR) {
     return new Circular(params, sim_index);
-  } else if (ap_type == ApertureParameters::TRIARM3) {
-    return new Triarm3(params, sim_index);
+  } else if (ap_type == ApertureParameters::CASSEGRAIN_RING) {
+    return new CassegrainRing(params, sim_index);
   } else if (ap_type == ApertureParameters::HDF5_WFE) {
     return new Hdf5Wfe(params, sim_index);
   } else if (ap_type == ApertureParameters::COMPOUND) {

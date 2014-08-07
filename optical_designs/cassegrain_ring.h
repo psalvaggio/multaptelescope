@@ -1,26 +1,24 @@
-// The Tri-arm3 design is a truncated version of the Tri-arm9 design.
-// To match with my experimental conditions (not a good reason, I know),
-// this design will be treated as a masked primary mirror. Piston/tip/tilt
-// errors can be independent for each supaperture, but high-order aberrations
-// will be treated globally.
+// This design is a ring of apertures. The number of apertures and their fill
+// factors are adjustable. To match with my experimental conditions (not a good
+// reason, I know), this design will be treated as a masked primary mirror.
 //
 // Author: Philip Salvaggio
 
-#ifndef TRIARM3_H
-#define TRIARM3_H
+#ifndef CASSEGRAIN_RING_H
+#define CASSEGRAIN_RING_H
 
 #include "aperture.h"
 #include "base/scoped_ptr.h"
-#include "optical_designs/triarm3_parameters.pb.h"
+#include "optical_designs/cassegrain_ring_parameters.pb.h"
 
 #include <opencv/cv.h>
 #include <vector>
 
-class Triarm3 : public Aperture {
+class CassegrainRing : public Aperture {
  public:
-  Triarm3(const mats::SimulationConfig& params, int sim_index);
+  CassegrainRing(const mats::SimulationConfig& params, int sim_index);
 
-  virtual ~Triarm3();
+  virtual ~CassegrainRing();
 
   // Exports to a Zemax UDA (User-Defined Aperture) file.
   // Units are in millimeters.
@@ -36,9 +34,9 @@ class Triarm3 : public Aperture {
   virtual cv::Mat GetOpticalPathLengthDiffEstimate();
 
  private:
-  Triarm3Parameters triarm3_params_;
+  CassegrainRingParameters ring_params_;
 
   scoped_ptr<Aperture> compound_aperture_;
 };
 
-#endif  // TRIARM3_H
+#endif  // CASSEGRAIN_RING_H

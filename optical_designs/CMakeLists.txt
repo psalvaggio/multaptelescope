@@ -6,19 +6,19 @@ set(LIB_NAME mats_${SUBSYS_NAME})
 set(headers
     aperture.h
     cassegrain.h
+    cassegrain_ring.h
     circular.h
     compound_aperture.h
     hdf5_wfe.h
-    triarm3.h
     triarm9.h)
 
 set(sources
     aperture.cpp
     cassegrain.cpp
+    cassegrain_ring.cpp
     circular.cpp
     compound_aperture.cpp
     hdf5_wfe.cpp
-    triarm3.cpp
     triarm9.cpp)
 
 foreach(TMPLIB ${SUBSYS_DEPS})

@@ -1,7 +1,7 @@
 // File Description
 // Author: Philip Salvaggio
 
-#include "triarm3.h"
+#include "cassegrain_ring.h"
 
 #include "base/aberration_factory.h"
 #include "base/aperture_parameters.pb.h"
@@ -9,7 +9,7 @@
 #include "base/simulation_config.pb.h"
 #include "io/logging.h"
 #include "optical_designs/cassegrain.h"
-#include "optical_designs/triarm3_parameters.pb.h"
+#include "optical_designs/cassegrain_ring_parameters.pb.h"
 #include "optical_designs/compound_aperture_parameters.pb.h"
 
 #include <algorithm>
@@ -21,21 +21,21 @@ using namespace std;
 using mats::Simulation;
 using mats::ApertureParameters;
 
-Triarm3::Triarm3(const mats::SimulationConfig& params, int sim_index)
+CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
+                               int sim_index)
     : Aperture(params, sim_index),
       compound_aperture_() {
-  // Copy over the Triarm3-specific parameters.
-  triarm3_params_ = this->aperture_params().GetExtension(triarm3_params);
+  // Copy over the CassegrainRing-specific parameters.
+  ring_params_ = this->aperture_params().GetExtension(cassegrain_ring_params);
 
   // Aperture construction parameters.
-  const int kNumArms = 3;
-  const int kNumApertures = 3;
-  const double kInitialAngle = -M_PI / 6;
+  const int kNumApertures = ring_params_.num_apertures();
+  const double kInitialAngle = ring_params_.angle_offset();
 
   // The fill factor of the overall aperture and each of the individual
   // Cassegrain subapertures.
   double fill_factor = aperture_params().fill_factor();
-  double subap_fill_factor = triarm3_params_.subaperture_fill_factor();
+  double subap_fill_factor = ring_params_.subaperture_fill_factor();
 
   // Compute the enclosed area and the area of each subapertures [pixels^2]
   double diameter = aperture_params().encircled_diameter();
@@ -46,11 +46,12 @@ Triarm3::Triarm3(const mats::SimulationConfig& params, int sim_index)
   // Solve for the radius of the subapertures [pixels]
   double subap_diameter = 2 * sqrt(area_subap / (subap_fill_factor * M_PI));
   double subap_r = subap_diameter / 2;
+  cout << "Subaperture Diameter: " << subap_diameter << endl;
 
   // Compute the center pixel for each of the subapertures.
   vector<double> subaperture_offsets;
-  for (int i = 0; i < kNumArms; i++) {
-    double angle = kInitialAngle + i * 2 * M_PI / kNumArms;
+  for (int i = 0; i < kNumApertures; i++) {
+    double angle = kInitialAngle + i * 2 * M_PI / kNumApertures;
 
     double dist_from_center = radius - subap_r;
     double x = dist_from_center * cos(angle);
@@ -104,7 +105,7 @@ Triarm3::Triarm3(const mats::SimulationConfig& params, int sim_index)
   compound_aperture_.Reset(ApertureFactory::Create(conf, 0));
 }
 
-Triarm3::~Triarm3() {}
+CassegrainRing::~CassegrainRing() {}
 
 /*
 void Triarm3::ExportToZemax(const std::string& aperture_filename,
@@ -128,14 +129,14 @@ void Triarm3::ExportToZemax(const std::string& aperture_filename,
 }
 */
 
-Mat Triarm3::GetApertureTemplate() {
+Mat CassegrainRing::GetApertureTemplate() {
   return compound_aperture_->GetApertureMask();
 }
 
-Mat Triarm3::GetOpticalPathLengthDiff() {
+Mat CassegrainRing::GetOpticalPathLengthDiff() {
   return compound_aperture_->GetWavefrontError();
 }
 
-Mat Triarm3::GetOpticalPathLengthDiffEstimate() {
+Mat CassegrainRing::GetOpticalPathLengthDiffEstimate() {
   return compound_aperture_->GetWavefrontErrorEstimate();
 }

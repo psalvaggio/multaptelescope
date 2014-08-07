@@ -1,0 +1,25 @@
+import "base/aperture_parameters.proto";
+
+// The radius of subapertures is controlled by the fill factor and encircled
+// diameter in the Simulation protobuf. If F is the global fill factor, R is
+// encircled diameter, n is the number of apertures and f is
+// subaperture_fill_factor, then the radius of the subaperture, r, is
+//
+// r = R * sqrt(F / (n * f))
+//
+// Thus, if you know the encircled diameter, subaperture fill factor and want
+// the subapertures to be centered at a distance (R-r) away from the center,
+// set the fill factor to
+//
+// F = (n * r^2  * f) / R^2
+message CassegrainRingParameters {
+  optional int32 num_apertures = 1;
+  optional double subaperture_fill_factor = 2;
+
+  // The angle of the first aperture, CCW from the x-axis
+  optional double angle_offset = 3 [default = 0];
+}
+
+extend mats.ApertureParameters {
+  optional CassegrainRingParameters cassegrain_ring_params = 18375;
+}
