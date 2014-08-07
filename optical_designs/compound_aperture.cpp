@@ -108,7 +108,6 @@ cv::Mat CompoundAperture::GetApertureTemplate() {
 
     // We need all of the apertures to be the same size. This means that we
     // need to add zero padding to the periphery of the subapertures.
-    CHECK(scaled[0].rows <= kSize);
     if (scaled[0].rows < kSize) { 
       for (size_t j = 0; j < scaled.size(); j++) {
         cv::Mat tmp_scaled = cv::Mat::zeros(kSize, kSize, CV_64FC1);
@@ -122,6 +121,26 @@ cv::Mat CompoundAperture::GetApertureTemplate() {
           for (int x = 0; x < scaled[j].cols; x++) {
             large_data[(pad + y)*kSize + (pad + x)] =
                 small_data[y*scaled[j].rows + x];
+          }
+        }
+
+        scaled[j] = tmp_scaled;
+      }
+    } else if (scaled[0].rows > kSize) {
+      for (size_t j = 0; j < scaled.size(); j++) {
+        cv::Mat tmp_scaled = cv::Mat::zeros(kSize, kSize, CV_64FC1);
+        double* large_data = reinterpret_cast<double*>(scaled[j].data);
+        double* small_data = reinterpret_cast<double*>(tmp_scaled.data);
+
+        int pixels_to_trim = new_size - kSize;
+        int pad = pixels_to_trim / 2;
+
+        int large_rows = scaled[j].rows;
+
+        for (int y = 0; y < kSize; y++) {
+          for (int x = 0; x < kSize; x++) {
+            small_data[y*kSize  + x] =
+                large_data[(pad + y)*large_rows + (pad + x)];
           }
         }
 
