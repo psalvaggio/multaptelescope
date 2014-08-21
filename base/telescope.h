@@ -30,7 +30,7 @@ class Telescope {
   double FocalLength() const;
 
   // Get the F# of the system. [unitless]
-  double FNumber() const;
+  double FNumber();
 
   // Get the G# of the telescope [sr^-1]. This describes the relationship
   // between the radiance reaching the optics and the irradiance onto the
@@ -38,7 +38,7 @@ class Telescope {
   //
   // Arguments:
   //   lambda  The wavelength of interest [m]
-  double GNumber(double lambda) const;
+  double GNumber(double lambda);
 
   const Detector* detector() const { return detector_.get(); }
   Detector* detector() { return detector_.get(); }

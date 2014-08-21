@@ -36,11 +36,11 @@ double Telescope::FocalLength() const {
          detector_->simulation().gsd();  // [m]
 }
 
-double Telescope::FNumber() const {
-  return FocalLength() / aperture_->aperture_params().encircled_diameter();
+double Telescope::FNumber() {
+  return FocalLength() / aperture_->encircled_diameter();
 }
 
-double Telescope::GNumber(double lambda) const {
+double Telescope::GNumber(double lambda) {
   double f_number = FNumber();
 
   vector<double> transmission;
@@ -48,7 +48,7 @@ double Telescope::GNumber(double lambda) const {
   GetTransmissionSpectrum(wavelengths, &transmission);
 
   return (1 + 4 * f_number * f_number) /
-         (M_PI * transmission[0] * aperture_->aperture_params().fill_factor());
+         (M_PI * transmission[0] * aperture_->fill_factor());
 }
 
 void Telescope::Image(const std::vector<Mat>& radiance,
