@@ -3,7 +3,6 @@
 
 #include "cassegrain_ring.h"
 
-#include "base/aberration_factory.h"
 #include "base/aperture_parameters.pb.h"
 #include "base/opencv_utils.h"
 #include "base/simulation_config.pb.h"

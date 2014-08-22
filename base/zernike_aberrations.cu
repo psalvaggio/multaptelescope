@@ -1,20 +1,68 @@
 // File Description
 // Author: Philip Salvaggio
 
-#include "aberration_factory.h"
+#include "zernike_aberrations.h"
+#include "zernike_cuda.h"
 
 #include <cmath>
 #include <iostream>
+#include <cuda.h>
 
 using namespace cv;
 using std::vector;
 
-void AberrationFactory::ZernikeAberrations(const vector<double>& weights,
-                                           size_t output_size,
-                                           Mat* output) {
+ZernikeAberrations::ZernikeAberrations() 
+    : gpu_weights_(NULL), gpu_wfe_(NULL), gpu_wfe_size_(0) {
+  cudaMalloc(&gpu_weights_, 9 * sizeof(float));
+}
+
+ZernikeAberrations::~ZernikeAberrations() {
+  if (gpu_weights_) cudaFree(gpu_weights_);
+  if (gpu_wfe_) cudaFree(gpu_wfe_);
+}
+
+void ZernikeAberrations::aberrations(const vector<double>& weights,
+                                     size_t output_size,
+                                     Mat* output) {
   if (!output) return;
 
   const size_t kSize = output_size * output_size;
+  
+  if (true) {
+  const int kBlockSize = 1024;
+
+  int num_blocks = (kSize % kBlockSize == 0)
+      ? kSize / kBlockSize : kSize / kBlockSize + 1;
+
+  float cpu_weights[9];
+  for (int i = 0; i < 9; i++) {
+    cpu_weights[i] = (i < weights.size()) ? weights[i] : 0;
+  }
+
+  if (gpu_weights_ == NULL) {
+    cudaMalloc(&gpu_weights_, 9 * sizeof(float));
+  }
+  cudaMemcpy(gpu_weights_, cpu_weights, 9 * sizeof(float),
+      cudaMemcpyHostToDevice);
+
+  if (output_size != gpu_wfe_size_ && gpu_wfe_) {
+    cudaFree(gpu_wfe_);
+    gpu_wfe_ = NULL;
+  }
+  if (gpu_wfe_ == NULL) {
+    cudaMalloc(&gpu_wfe_, kSize * sizeof(float));
+  }
+
+  dim3 block, grid;
+  block.x = kBlockSize; block.y = 1; block.z = 1;
+  grid.x = num_blocks; grid.y = 1; grid.z = 1;
+  zernike_kernel_4th<<<grid, block>>>(gpu_weights_, gpu_wfe_, output_size);
+
+  output->create(output_size, output_size, CV_32FC1);
+  cudaMemcpy(output->data, gpu_wfe_, kSize * sizeof(float),
+      cudaMemcpyDeviceToHost);
+  output->convertTo(*output, CV_64F);
+  } else {
   const double kCenter = 0.5 * (output_size - 1);
 
   output->create(output_size, output_size, CV_64F);
@@ -111,5 +159,41 @@ void AberrationFactory::ZernikeAberrations(const vector<double>& weights,
       }
     }
     output_data[i] = wfe;
+  }
+  }
+}
+
+__global__
+void zernike_kernel_4th(float* weights,
+                        float* output,
+			int size) {
+  const int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+  float center = 0.5 * (size - 1);
+
+  float x = (index % size) - center;
+  float y = (index / size) - center;
+  float rho = sqrt(x*x + y*y) / center;
+  float rho2 = rho * rho;
+
+  float theta = atan2(y, x);
+  float cos_theta = cos(theta);
+  float sin_theta = sin(theta);
+
+  float wfe =
+      weights[0] +
+      weights[1] * rho * cos_theta +
+      weights[2] * rho * sin_theta +
+      weights[3] * (rho2 - 1) +
+      weights[4] * rho2 * cos(2 * theta) +
+      weights[5] * rho2 * sin(2 * theta) +
+      weights[6] * rho * (3 * rho2 - 2) * cos_theta +
+      weights[7] * rho * (3 * rho2 - 2) * sin_theta +
+      weights[8] * (1 - 6 * rho2 + 6 * rho2 * rho2);
+
+  if (rho <= 1 && index < size * size) {
+    output[index] = wfe;
+  } else {
+    output[index] = 0;
   }
 }

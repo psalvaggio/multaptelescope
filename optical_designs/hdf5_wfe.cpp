@@ -3,7 +3,7 @@
 
 #include "hdf5_wfe.h"
 
-#include "base/aberration_factory.h"
+#include "base/zernike_aberrations.h"
 #include "base/assertions.h"
 #include "io/hdf5_reader.h"
 #include "io/logging.h"
@@ -96,8 +96,9 @@ cv::Mat Hdf5Wfe::GetOpticalPathLengthDiffEstimate() {
     aberrations.push_back(coeffs_mat.at<double>(i, 0));
   }
 
-  AberrationFactory::ZernikeAberrations(aberrations,
-      params().array_size(), &opd_est_);
+  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+  ab_factory.aberrations(aberrations, params().array_size(), &opd_est_);
+
   opd_est_ = opd_est_.mul(GetApertureMask());
   opd_est_ = opd_est_ + opd_;
 

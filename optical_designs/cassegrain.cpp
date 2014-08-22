@@ -2,8 +2,7 @@
 // Author: Philip Salvaggio
 
 #include "cassegrain.h"
-#include "base/aberration_factory.h"
-#include "base/aperture_parameters.pb.h"
+#include "base/zernike_aberrations.h"
 #include "base/simulation_config.pb.h"
 #include "base/pupil_function.h"
 #include "io/logging.h"
@@ -26,8 +25,8 @@ Cassegrain::~Cassegrain() {}
 Mat Cassegrain::GetOpticalPathLengthDiff() {
   if (opd_.rows > 0) return opd_;
 
-  AberrationFactory::ZernikeAberrations(aberrations(),
-      params().array_size(), &opd_);
+  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+  ab_factory.aberrations(aberrations(), params().array_size(), &opd_);
 
   return opd_;
 }
@@ -57,8 +56,8 @@ Mat Cassegrain::GetOpticalPathLengthDiffEstimate() {
         (2 * (rand() % 2) - 1) * knowledge_level);
   }
 
-  AberrationFactory::ZernikeAberrations(aberrations(),
-      params().array_size(), &opd_est_);
+  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+  ab_factory.aberrations(wrong_weights, params().array_size(), &opd_est_);
 
   return opd_est_;
 }

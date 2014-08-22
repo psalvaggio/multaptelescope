@@ -1,7 +1,6 @@
 // File Description
 // Author: Philip Salvaggio
 
-#include "base/aberration_factory.h"
 #include "base/aperture_parameters.pb.h"
 #include "base/detector.h"
 #include "base/detector_parameters.pb.h"

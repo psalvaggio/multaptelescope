@@ -1,16 +1,20 @@
 // File Description
 // Author: Philip Salvaggio
 
-#ifndef ABERRATION_FACTORY_H
-#define ABERRATION_FACTORY_H
+#ifndef ZERNIKE_ABERRATIONS_H
+#define ZERNIKE_ABERRATIONS_H
 
 #include <opencv/cv.h>
 #include <vector>
 
 #include "base/macros.h"
 
-class AberrationFactory {
+class ZernikeAberrations {
+ SINGLETON(ZernikeAberrations)
+
  public:
+  ~ZernikeAberrations();
+
   // Generate an aberration WFE array using Zernike polynomials.
   //
   // Arguments:
@@ -29,13 +33,15 @@ class AberrationFactory {
   //           7 - Coma Y
   //           8 - Spherical
   //  output  Output: the wavefront error map.
-  static void ZernikeAberrations(const std::vector<double>& weights,
-                                 size_t output_size,
-                                 cv::Mat* output);
+  void aberrations(const std::vector<double>& weights,
+                   size_t output_size,
+                   cv::Mat* output);
 
 
  private:
-  NO_CONSTRUCTION(AberrationFactory);
+  float* gpu_weights_;
+  float* gpu_wfe_;
+  int gpu_wfe_size_;
 };
 
-#endif  // ABERRATION_FACTORY_H
+#endif  // ZERNIKE_ABERRATIONS_H

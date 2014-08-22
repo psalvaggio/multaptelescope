@@ -15,4 +15,15 @@
   class_name(const class_name& other); \
   class_name& operator=(const class_name& other);
 
+#define SINGLETON(class_name) \
+ public: \
+  static class_name& getInstance() { \
+    static class_name instance; \
+    return instance; \
+  } \
+ private: \
+  class_name(); \
+  class_name(const class_name& other); \
+  class_name& operator=(const class_name& other);
+
 #endif  // MACROS_H
