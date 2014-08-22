@@ -4,8 +4,6 @@
 #include "mtf_interpolator.h"
 #include "ransac/ransac.h"
 #include "ransac/ransac_fit_circle.h"
-#include <flann/flann.hpp>
-#include <flann/defines.h>
 #include <list>
 
 
