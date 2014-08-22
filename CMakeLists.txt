@@ -10,7 +10,14 @@ set(LIB_MACROS "")
 find_package(OpenCV)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
+find_package(CUDA)
 include_directories(${PROTOBUF_INCLUDE_DIR})
+include_directories(${CUDA_INCLUDE_DIRS})
+
+#set(CUDA_NVCC_FLAGS "-g -G")
+set(CUDA_NVCC_FLAGS
+    "${CUDA_NVCC_FLAGS} -gencode arch=compute_35,code=sm_35")
+
 
 find_package(Boost REQUIRED COMPONENTS iostreams system)
 
