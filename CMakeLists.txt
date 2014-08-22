@@ -10,14 +10,16 @@ set(LIB_MACROS "")
 find_package(OpenCV)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
-find_package(CUDA)
 include_directories(${PROTOBUF_INCLUDE_DIR})
-include_directories(${CUDA_INCLUDE_DIRS})
 
-#set(CUDA_NVCC_FLAGS "-g -G")
-set(CUDA_NVCC_FLAGS
-    "${CUDA_NVCC_FLAGS} -gencode arch=compute_35,code=sm_35")
-
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  find_package(CUDA)
+  include_directories(${CUDA_INCLUDE_DIRS})
+ 
+  #set(CUDA_NVCC_FLAGS "-g -G")
+  set(CUDA_NVCC_FLAGS
+      "${CUDA_NVCC_FLAGS} -gencode arch=compute_35,code=sm_35")
+endif()
 
 find_package(Boost REQUIRED COMPONENTS iostreams system)
 

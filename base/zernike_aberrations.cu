@@ -6,19 +6,26 @@
 
 #include <cmath>
 #include <iostream>
+
+#ifdef __CUDACC__
 #include <cuda.h>
+#endif
 
 using namespace cv;
 using std::vector;
 
 ZernikeAberrations::ZernikeAberrations() 
     : gpu_weights_(NULL), gpu_wfe_(NULL), gpu_wfe_size_(0) {
+  #ifdef __CUDACC__
   cudaMalloc(&gpu_weights_, 9 * sizeof(float));
+  #endif
 }
 
 ZernikeAberrations::~ZernikeAberrations() {
+  #ifdef __CUDACC__
   if (gpu_weights_) cudaFree(gpu_weights_);
   if (gpu_wfe_) cudaFree(gpu_wfe_);
+  #endif
 }
 
 void ZernikeAberrations::aberrations(const vector<double>& weights,
@@ -28,7 +35,8 @@ void ZernikeAberrations::aberrations(const vector<double>& weights,
 
   const size_t kSize = output_size * output_size;
   
-  if (true) {
+  #ifdef __CUDACC__
+
   const int kBlockSize = 1024;
 
   int num_blocks = (kSize % kBlockSize == 0)
@@ -62,7 +70,9 @@ void ZernikeAberrations::aberrations(const vector<double>& weights,
   cudaMemcpy(output->data, gpu_wfe_, kSize * sizeof(float),
       cudaMemcpyDeviceToHost);
   output->convertTo(*output, CV_64F);
-  } else {
+
+  #else
+
   const double kCenter = 0.5 * (output_size - 1);
 
   output->create(output_size, output_size, CV_64F);
@@ -160,9 +170,11 @@ void ZernikeAberrations::aberrations(const vector<double>& weights,
     }
     output_data[i] = wfe;
   }
-  }
+  
+  #endif
 }
 
+#ifdef __CUDACC__
 __global__
 void zernike_kernel_4th(float* weights,
                         float* output,
@@ -197,3 +209,5 @@ void zernike_kernel_4th(float* weights,
     output[index] = 0;
   }
 }
+
+#endif
