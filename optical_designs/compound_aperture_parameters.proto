@@ -6,7 +6,8 @@ message CompoundApertureParameters {
 
   enum Operation {
     AND = 0;  // Overlap of the subaperture (WFE determined by wfe_index)
-    OR = 1;   // Logical or of subaperture areas (uses absolute max WFE)
+    OR = 1;   // Logical or of subaperture areas (WFE is sum of components)
+    AND_WFE_ADD = 2;  // Same as AND (WFE is sum of components)
   };
 
   optional Operation combine_operation = 2;

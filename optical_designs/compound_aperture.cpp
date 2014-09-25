@@ -19,7 +19,6 @@ CompoundAperture::CompoundAperture(const mats::SimulationConfig& params,
           this->aperture_params().GetExtension(compound_aperture_params)),
       apertures_(),
       sim_configs_(),
-      mask_(),
       opd_(),
       opd_est_() {
 
@@ -42,17 +41,14 @@ CompoundAperture::CompoundAperture(const mats::SimulationConfig& params,
         tmp_conf.mutable_simulation(0)->mutable_aperture_params();
     ap_params->CopyFrom(compound_params_.aperture(i));
 
-    apertures_.push_back(ApertureFactory::Create(tmp_conf, 0));
+    apertures_.push_back(std::move(std::unique_ptr<Aperture>(
+        ApertureFactory::Create(tmp_conf, 0))));
   }
 }
 
-CompoundAperture::~CompoundAperture() {
-  for (size_t i = 0; i < apertures_.size(); i++) {
-    delete apertures_[i];
-  }
-}
+CompoundAperture::~CompoundAperture() {}
 
-double CompoundAperture::encircled_diameter() {
+double CompoundAperture::GetEncircledDiameter() const {
   if (aperture_params().has_encircled_diameter()) {
     return aperture_params().encircled_diameter();
   }
@@ -66,13 +62,10 @@ double CompoundAperture::encircled_diameter() {
 
     max_diameter = std::max(max_diameter, 2*tmp_radius);
   }
-  aperture_params().set_encircled_diameter(max_diameter);
-  return aperture_params().encircled_diameter();
+  return max_diameter;
 }
 
-cv::Mat CompoundAperture::GetApertureTemplate() {
-  if (mask_.rows > 0) return mask_;
-
+cv::Mat CompoundAperture::GetApertureTemplate() const {
   // Determine how we will be combining the masks
   int combine_op = compound_params_.combine_operation();
 
@@ -86,12 +79,11 @@ cv::Mat CompoundAperture::GetApertureTemplate() {
     // Get the subaperture mask.
     std::vector<cv::Mat> ap_data;
     ap_data.push_back(apertures_[i]->GetApertureMask());
-
+    
     // Determine if we need the WFE and get it if so.
-    bool need_wfe = (combine_op == CompoundApertureParameters::OR) ||
-        (combine_op == CompoundApertureParameters::AND &&
-            i == (size_t)compound_params_.wfe_index());
-    if (need_wfe) {
+    bool dont_need_wfe = combine_op == CompoundApertureParameters::AND &&
+        i != (size_t)compound_params_.wfe_index();
+    if (!dont_need_wfe) {
       ap_data.push_back(apertures_[i]->GetWavefrontError());
       ap_data.push_back(apertures_[i]->GetWavefrontErrorEstimate());
     }
@@ -177,6 +169,18 @@ cv::Mat CompoundAperture::GetApertureTemplate() {
     }
     opd_ = wfes[0];
     opd_est_ = wfe_ests[0];
+  } else if (combine_op == CompoundApertureParameters::AND_WFE_ADD) {
+    result = cv::Mat::ones(kSize, kSize, CV_64F);
+    for (size_t i = 0; i < masks.size(); i++) {
+      cv::multiply(result, masks[i], result);
+    }
+
+    opd_ = cv::Mat::zeros(kSize, kSize, CV_64FC1);
+    opd_est_ = cv::Mat::zeros(kSize, kSize, CV_64FC1);
+    for (size_t i = 0; i < masks.size(); i++) {
+      opd_ += wfes[i];
+      opd_est_ += wfe_ests[i];
+    }
   } else if (combine_op == CompoundApertureParameters::OR) {
     result = cv::Mat::zeros(kSize, kSize, CV_64F);
     for (size_t i = 0; i < masks.size(); i++) {
@@ -185,29 +189,21 @@ cv::Mat CompoundAperture::GetApertureTemplate() {
 
     opd_ = cv::Mat::zeros(kSize, kSize, CV_64FC1);
     opd_est_ = cv::Mat::zeros(kSize, kSize, CV_64FC1);
-
     for (size_t i = 0; i < masks.size(); i++) {
       opd_ += wfes[i];
       opd_est_ += wfe_ests[i];
     }
   }
 
-  mask_ = result;
-  return mask_;
+  return result;
 }
 
-cv::Mat CompoundAperture::GetOpticalPathLengthDiff() {
-  if (opd_.rows > 0) return opd_;
-
-  GetApertureTemplate();
-
+cv::Mat CompoundAperture::GetOpticalPathLengthDiff() const {
+  GetApertureMask();  // Will recompute opd_ is needed.
   return opd_;
 }
 
-cv::Mat CompoundAperture::GetOpticalPathLengthDiffEstimate() {
-  if (opd_est_.rows > 0) return opd_est_;
-
-  GetApertureTemplate();
-
+cv::Mat CompoundAperture::GetOpticalPathLengthDiffEstimate() const {
+  GetApertureMask();  // Will recompute opd_est_ if needed.
   return opd_est_;
 }
