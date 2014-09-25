@@ -45,7 +45,6 @@ CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
   // Solve for the radius of the subapertures [pixels]
   double subap_diameter = 2 * sqrt(area_subap / (subap_fill_factor * M_PI));
   double subap_r = subap_diameter / 2;
-  cout << "Subaperture Diameter: " << subap_diameter << endl;
 
   // Compute the center pixel for each of the subapertures.
   vector<double> subaperture_offsets;
@@ -73,7 +72,7 @@ CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
   compound_params->set_type(ApertureParameters::COMPOUND);
   CompoundApertureParameters* compound_ext = 
       compound_params->MutableExtension(compound_aperture_params);
-  compound_ext->set_combine_operation(CompoundApertureParameters::AND);
+  compound_ext->set_combine_operation(CompoundApertureParameters::AND_WFE_ADD);
   compound_ext->set_wfe_index(0);
 
   // Add the circular aperture with the wavefront error.
@@ -98,44 +97,39 @@ CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
     cassegrain->set_fill_factor(subap_fill_factor);
     cassegrain->set_offset_x(subaperture_offsets[i]);
     cassegrain->set_offset_y(subaperture_offsets[i+1]);
+
+    int ab_index = -1;
+    for (int j = 0; j < ring_params_.aperture_aberrations_size(); j++) {
+      if ((i/2) == (size_t)ring_params_.aperture_aberrations(j).ap_index()) {
+        ab_index = j;
+        break;
+      }
+    }
+
+    if (ab_index != -1) {
+      const CassegrainRingParameters::ApertureAberrations& ap_aberrations(
+          ring_params_.aperture_aberrations(ab_index));
+      for (int j = 0; j < ap_aberrations.aberration_size(); j++) {
+        mats::ZernikeCoefficient* tmp_aberration = cassegrain->add_aberration();
+        tmp_aberration->CopyFrom(ap_aberrations.aberration(j));
+      }
+    }
   }
 
   // Construct the aperture.
-  compound_aperture_.Reset(ApertureFactory::Create(conf, 0));
+  compound_aperture_.reset(ApertureFactory::Create(conf, 0));
 }
 
 CassegrainRing::~CassegrainRing() {}
 
-/*
-void Triarm3::ExportToZemax(const std::string& aperture_filename,
-                            const std::string& obstruction_filename) const {
-  double scale = this->aperture_params().encircled_diameter() /
-                 this->params().array_size() * 1000;
-  double offset = this->params().array_size() * 0.5;
-
-  std::ofstream ap_ofs(aperture_filename.c_str());
-  std::ofstream ob_ofs(obstruction_filename.c_str());
-  if (!ap_ofs.is_open() || !ob_ofs.is_open()) return;
-
-  for (int ap = 0; ap < kNumApertures; ap++) {
-    ap_ofs << "CIR " << (subaperture_offsets_[2*ap] - offset) * scale << " "
-                     << (subaperture_offsets_[2*ap+1] - offset) * scale << " "
-                     << subap_diameter_ * 0.5 * scale << std::endl;
-    ob_ofs << "CIR " << (subaperture_offsets_[2*ap] - offset) * scale << " "
-                     << (subaperture_offsets_[2*ap+1] - offset) * scale << " "
-                     << subap_secondary_diameter_ * 0.5 * scale << std::endl;
-  }
-}
-*/
-
-Mat CassegrainRing::GetApertureTemplate() {
+Mat CassegrainRing::GetApertureTemplate() const {
   return compound_aperture_->GetApertureMask();
 }
 
-Mat CassegrainRing::GetOpticalPathLengthDiff() {
+Mat CassegrainRing::GetOpticalPathLengthDiff() const {
   return compound_aperture_->GetWavefrontError();
 }
 
-Mat CassegrainRing::GetOpticalPathLengthDiffEstimate() {
+Mat CassegrainRing::GetOpticalPathLengthDiffEstimate() const {
   return compound_aperture_->GetWavefrontErrorEstimate();
 }

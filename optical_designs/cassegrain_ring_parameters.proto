@@ -18,6 +18,12 @@ message CassegrainRingParameters {
 
   // The angle of the first aperture, CCW from the x-axis
   optional double angle_offset = 3 [default = 0];
+
+  message ApertureAberrations {
+    optional int32 ap_index = 1;
+    repeated mats.ZernikeCoefficient aberration = 2;
+  };
+  repeated ApertureAberrations aperture_aberrations = 4;
 }
 
 extend mats.ApertureParameters {

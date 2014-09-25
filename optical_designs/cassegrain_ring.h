@@ -8,10 +8,10 @@
 #define CASSEGRAIN_RING_H
 
 #include "aperture.h"
-#include "base/scoped_ptr.h"
 #include "optical_designs/cassegrain_ring_parameters.pb.h"
 
 #include <opencv/cv.h>
+#include <memory>
 #include <vector>
 
 class CassegrainRing : public Aperture {
@@ -27,16 +27,16 @@ class CassegrainRing : public Aperture {
 
  // Virtual functions from Aperture
  private:
-  virtual cv::Mat GetApertureTemplate();
+  virtual cv::Mat GetApertureTemplate() const;
 
-  virtual cv::Mat GetOpticalPathLengthDiff();
+  virtual cv::Mat GetOpticalPathLengthDiff() const;
 
-  virtual cv::Mat GetOpticalPathLengthDiffEstimate();
+  virtual cv::Mat GetOpticalPathLengthDiffEstimate() const;
 
  private:
   CassegrainRingParameters ring_params_;
 
-  scoped_ptr<Aperture> compound_aperture_;
+  std::unique_ptr<Aperture> compound_aperture_;
 };
 
 #endif  // CASSEGRAIN_RING_H
