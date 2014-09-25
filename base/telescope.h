@@ -4,9 +4,9 @@
 #ifndef TELESCOPE_H
 #define TELESCOPE_H
 
-#include "base/scoped_ptr.h"
 #include <opencv/cv.h>
 
+#include <memory>
 #include <vector>
 
 class Aperture;
@@ -59,8 +59,8 @@ class Telescope {
   void ComputeApertureOtf(const std::vector<double>& wavelengths,
                           std::vector<cv::Mat>* otf);
  private:
-  scoped_ptr<Aperture> aperture_;
-  scoped_ptr<Detector> detector_;
+  std::unique_ptr<Aperture> aperture_;
+  std::unique_ptr<Detector> detector_;
 };
 
 }
