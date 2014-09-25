@@ -8,34 +8,55 @@
 #include "io/hdf5_reader.h"
 #include "io/logging.h"
 
-Hdf5Wfe::Hdf5Wfe(const mats::SimulationConfig& params, int sim_index)
-    : Aperture(params, sim_index),
-      mask_(),
-      opd_(),
-      opd_est_() {
-  // Copy over the Triarm3-specific parameters.
-  hdf5_wfe_params_ = this->aperture_params().GetExtension(hdf5_wfe_params);
+using cv::Mat;
 
+Hdf5Wfe::Hdf5Wfe(const mats::SimulationConfig& params, int sim_index)
+    : Aperture(params, sim_index) {
+  hdf5_wfe_params_ =
+      this->aperture_params().GetExtension(hdf5_wfe_params);
+}
+
+Hdf5Wfe::~Hdf5Wfe() {}
+
+Mat Hdf5Wfe::GetApertureTemplate() const {
+  const int kSize = params().array_size();
+
+  Mat output(kSize, kSize, CV_64FC1);
+  Mat opd = GetWavefrontError();
+
+  double* opd_data = reinterpret_cast<double*>(opd.data);
+  double* mask_data = reinterpret_cast<double*>(output.data);
+  
+  int num_pixels = kSize * kSize;
+  for (int i = 0; i < num_pixels; i++) {
+    mask_data[i] = (opd_data[i] != 0) ? 1 : 0;
+  }
+
+  return output;
+}
+
+Mat Hdf5Wfe::GetOpticalPathLengthDiff() const {
+  Mat opd;
   CHECK(mats_io::HDF5Reader::Read(hdf5_wfe_params_.wfe_filename(),
                                   hdf5_wfe_params_.dataset(),
-                                  &opd_));
+                                  &opd));
 
-  cv::threshold(opd_, opd_, hdf5_wfe_params_.background_value(), 0,
+  cv::threshold(opd, opd, hdf5_wfe_params_.background_value(), 0,
                 cv::THRESH_TOZERO_INV);
-  opd_.convertTo(opd_, CV_64F);
+  opd.convertTo(opd, CV_64F);
 
-  cv::Mat col_sums;
-  cv::reduce(opd_, col_sums, 0, CV_REDUCE_SUM);
+  Mat col_sums;
+  cv::reduce(opd, col_sums, 0, CV_REDUCE_SUM);
   double* sum_data = reinterpret_cast<double*>(col_sums.data);
-  int first_col = 0, last_col = opd_.cols - 1;
-  for (; sum_data[first_col] == 0 && first_col < opd_.cols; first_col++) {}
+  int first_col = 0, last_col = opd.cols - 1;
+  for (; sum_data[first_col] == 0 && first_col < opd.cols; first_col++) {}
   for (; sum_data[last_col] == 0 && last_col >= 0; last_col--) {}
 
-  cv::Mat row_sums;
-  cv::reduce(opd_, row_sums, 1, CV_REDUCE_SUM);
+  Mat row_sums;
+  cv::reduce(opd, row_sums, 1, CV_REDUCE_SUM);
   sum_data = reinterpret_cast<double*>(row_sums.data);
-  int first_row = 0, last_row = opd_.rows - 1;
-  for (; sum_data[first_row] == 0 && first_row < opd_.rows; first_row++) {}
+  int first_row = 0, last_row = opd.rows - 1;
+  for (; sum_data[first_row] == 0 && first_row < opd.rows; first_row++) {}
   for (; sum_data[last_row] == 0 && last_row >= 0; last_row--) {}
 
   if (last_col < first_col || last_row < first_row) {
@@ -46,40 +67,14 @@ Hdf5Wfe::Hdf5Wfe(const mats::SimulationConfig& params, int sim_index)
   const int kSize = this->params().array_size();
   cv::Range row_range(first_row, last_row + 1),
             col_range(first_col, last_col + 1);
-  cv::resize(opd_(row_range, col_range), opd_, cv::Size(kSize, kSize));
+  cv::resize(opd(row_range, col_range), opd, cv::Size(kSize, kSize));
+
+  return opd;
 }
 
-Hdf5Wfe::~Hdf5Wfe() {}
-
-cv::Mat Hdf5Wfe::GetApertureTemplate() {
-  if (mask_.rows > 0) return mask_;
-
-  const int kSize = params().array_size();
-
-  cv::Mat output(kSize, kSize, CV_64FC1);
-
-  double* opd_data = reinterpret_cast<double*>(opd_.data);
-  double* mask_data = reinterpret_cast<double*>(output.data);
-  
-  int num_pixels = kSize * kSize;
-  for (int i = 0; i < num_pixels; i++) {
-    mask_data[i] = (opd_data[i] != 0) ? 1 : 0;
-  }
-
-  mask_ = output;
-  return mask_;
-}
-
-cv::Mat Hdf5Wfe::GetOpticalPathLengthDiff() {
-  return opd_;
-}
-
-cv::Mat Hdf5Wfe::GetOpticalPathLengthDiffEstimate() {
-  if (opd_est_.rows > 0) return opd_est_;
-
+Mat Hdf5Wfe::GetOpticalPathLengthDiffEstimate() const {
   if (simulation_params().wfe_knowledge() == mats::Simulation::NONE) {
-    opd_est_ = cv::Mat(params().array_size(), params().array_size(), CV_64FC1);
-    return opd_est_;
+    return Mat::zeros(params().array_size(), params().array_size(), CV_64FC1);
   }
 
   double knowledge_level = 0;
@@ -89,18 +84,18 @@ cv::Mat Hdf5Wfe::GetOpticalPathLengthDiffEstimate() {
     default: knowledge_level = 0.2; break;
   }
 
-  cv::Mat coeffs_mat(9, 1, CV_64FC1);
+  Mat coeffs_mat(9, 1, CV_64FC1);
   cv::randn(coeffs_mat, 0, knowledge_level);
   std::vector<double> aberrations;
   for (int i = 0; i < 9; i++) {
     aberrations.push_back(coeffs_mat.at<double>(i, 0));
   }
 
+  Mat opd_est;
   ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(aberrations, params().array_size(), &opd_est_);
+  ab_factory.aberrations(aberrations, params().array_size(), &opd_est);
 
-  opd_est_ = opd_est_.mul(GetApertureMask());
-  opd_est_ = opd_est_ + opd_;
+  opd_est = opd_est.mul(GetApertureMask()) + GetWavefrontError();
 
-  return opd_est_;
+  return opd_est;
 }

@@ -16,16 +16,11 @@ class Cassegrain : public Aperture {
 
  // Virtual functions from Aperture
  private:
-  virtual cv::Mat GetApertureTemplate();
+  virtual cv::Mat GetApertureTemplate() const;
 
-  virtual cv::Mat GetOpticalPathLengthDiff();
+  virtual cv::Mat GetOpticalPathLengthDiff() const;
 
-  virtual cv::Mat GetOpticalPathLengthDiffEstimate();
-
- private:
-  cv::Mat mask_;
-  cv::Mat opd_;
-  cv::Mat opd_est_;
+  virtual cv::Mat GetOpticalPathLengthDiffEstimate() const;
 };
 
 #endif  // CASSEGRAIN_H

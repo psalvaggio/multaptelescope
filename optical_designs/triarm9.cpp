@@ -24,10 +24,7 @@ Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
       subap_diameter_(),
       subap_secondary_diameter_(),
       subaperture_offsets_(),
-      ptt_vals_(),
-      mask_(),
-      opd_(),
-      opd_est_() {
+      ptt_vals_() {
   // Copy over the Triarm9-specific parameters.
   triarm9_params_ = this->aperture_params().GetExtension(triarm9_params);
 
@@ -104,9 +101,7 @@ void Triarm9::ExportToZemax(const std::string& aperture_filename,
   }
 }
 
-Mat Triarm9::GetApertureTemplate() {
-  if (mask_.rows > 0) return mask_;
-
+Mat Triarm9::GetApertureTemplate() const {
   const int kSize = params().array_size();
 
   // Allocate the output array.
@@ -137,14 +132,10 @@ Mat Triarm9::GetApertureTemplate() {
     mainLog() << "Error: Triarm9 subapertures are overlapping!" << endl;
   }
 
-  mask_ = output;
-
   return output;
 }
 
-Mat Triarm9::GetOpticalPathLengthDiff() {
-  if (opd_.rows > 0) return opd_;
-
+Mat Triarm9::GetOpticalPathLengthDiff() const {
   const int kSize = params().array_size();
 
   Mat opd = OpticalPathLengthDiffPtt(ptt_vals_);
@@ -167,18 +158,13 @@ Mat Triarm9::GetOpticalPathLengthDiff() {
 
   opd *= rms_ptt_mul;
 
-  opd_ = opd;
-
   return opd;
 }
 
-Mat Triarm9::GetOpticalPathLengthDiffEstimate() {
+Mat Triarm9::GetOpticalPathLengthDiffEstimate() const {
   if (simulation_params().wfe_knowledge() == Simulation::NONE) {
     return Mat(params().array_size(), params().array_size(), CV_64FC1);
   }
-
-  if (opd_.rows == 0) GetOpticalPathLengthDiff();
-  if (opd_est_.rows > 0) return opd_est_;
 
   double knowledge_level = 0;
   switch (simulation_params().wfe_knowledge()) {
@@ -195,11 +181,10 @@ Mat Triarm9::GetOpticalPathLengthDiffEstimate() {
     ptt_est.push_back(ptt_vals_[i] + (2 * (rand() % 2) - 1) * knowledge_level);
   }
 
-  opd_est_ = OpticalPathLengthDiffPtt(ptt_est);
-  return opd_est_;
+  return OpticalPathLengthDiffPtt(ptt_est);
 }
 
-Mat Triarm9::OpticalPathLengthDiffPtt(const vector<double>& ptt_vals) {
+Mat Triarm9::OpticalPathLengthDiffPtt(const vector<double>& ptt_vals) const {
   const int kSize = params().array_size();
   const int kPttSize = ceil(subap_diameter_);
   const int kPttHalfSize = kPttSize / 2;

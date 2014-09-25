@@ -31,7 +31,12 @@ using namespace cv;
 Aperture::Aperture(const SimulationConfig& params, int sim_index)
     : params_(),
       aperture_params_(params.simulation(sim_index).aperture_params()),
-      aberrations_() {
+      aberrations_(),
+      mask_(), mask_dirty_(false),
+      opd_(), opd_dirty_(false),
+      opd_est_(), opd_est_dirty_(false),
+      encircled_diameter_(), encircled_diameter_dirty_(true),
+      fill_factor_(0), fill_factor_dirty_(true) {
 
   params_.CopyFrom(params);
   params_.clear_simulation();
@@ -52,28 +57,42 @@ Aperture::Aperture(const SimulationConfig& params, int sim_index)
 
 Aperture::~Aperture() {}
 
-double Aperture::fill_factor() {
-  if (!aperture_params_.has_fill_factor()) {
-    Mat mask = GetApertureMask();
-    Scalar sum = cv::sum(mask);
-    double fill_factor = sum[0] / (M_PI * pow(params().array_size() / 2, 2));
-    aperture_params_.set_fill_factor(fill_factor);
-  }
-  return aperture_params_.fill_factor();
+mats::ApertureParameters& Aperture::aperture_params() {
+  mask_dirty_ = true;
+  opd_dirty_ = true;
+  opd_est_dirty_ = true;
+  fill_factor_dirty_ = true;
+  encircled_diameter_dirty_ = true;
+  return aperture_params_;
 }
 
-double Aperture::encircled_diameter() {
-  return aperture_params_.encircled_diameter();
+double Aperture::fill_factor() const {
+  if (fill_factor_dirty_) {
+    if (aperture_params_.has_fill_factor()) {
+      fill_factor_ = aperture_params_.fill_factor();
+    } else {
+      Mat mask = GetApertureMask();
+      Scalar sum = cv::sum(mask);
+      fill_factor_ = sum[0] / (M_PI * pow(params().array_size() / 2, 2));
+    }
+  }
+  return fill_factor_;
+}
+
+double Aperture::encircled_diameter() const {
+  if (encircled_diameter_dirty_) {
+    encircled_diameter_ = GetEncircledDiameter();
+  }
+  return encircled_diameter_;
 }
 
 void Aperture::GetPupilFunction(const Mat& wfe,
                                 double wavelength,
                                 PupilFunction* pupil) {
-  const size_t kSize = params_.array_size();
-  
   // We want to pupil function to take up the center half of the array. This
   // is a decent tradeoff so the user has enough resolution to upsample and a
   // decent range (2x) over which to upsample.
+  const size_t kSize = params_.array_size();
   int target_diameter = kSize / 2;
 
   // Set the scale of the pupil function, so the user can rescale the
@@ -83,7 +102,7 @@ void Aperture::GetPupilFunction(const Mat& wfe,
   // Resize the wavefront error and aperture template to the desired
   // resolution.
   Mat scaled_aperture, scaled_wfe;
-  resize(GetApertureTemplate(), scaled_aperture,
+  resize(GetApertureMask(), scaled_aperture,
          Size(target_diameter, target_diameter));
   resize(wfe, scaled_wfe, Size(target_diameter, target_diameter),
       0, 0, INTER_NEAREST);
@@ -124,16 +143,32 @@ void Aperture::GetPupilFunction(const Mat& wfe,
   scaled_aberrated_imag.copyTo(pupil_imag(crop_range, crop_range));
 }
 
-Mat Aperture::GetWavefrontError() {
-  return GetOpticalPathLengthDiff();
+double Aperture::GetEncircledDiameter() const {
+  return aperture_params_.encircled_diameter();
 }
 
-Mat Aperture::GetWavefrontErrorEstimate() {
-  return GetOpticalPathLengthDiffEstimate();
+Mat Aperture::GetWavefrontError() const {
+  if (opd_dirty_ || opd_.rows == 0) {
+    opd_ = GetOpticalPathLengthDiff();
+    opd_dirty_ = false;
+  }
+  return opd_;
 }
 
-Mat Aperture::GetApertureMask() {
-  return GetApertureTemplate();
+Mat Aperture::GetWavefrontErrorEstimate() const {
+  if (opd_est_dirty_ || opd_est_.rows == 0) {
+    opd_est_ = GetOpticalPathLengthDiffEstimate();
+    opd_est_dirty_ = false;
+  }
+  return opd_est_;
+}
+
+Mat Aperture::GetApertureMask() const {
+  if (mask_dirty_ || mask_.rows == 0) {
+    mask_ = GetApertureTemplate();
+    mask_dirty_ = false;
+  }
+  return mask_;
 }
 
 Mat Aperture::GetPistonTipTilt(double piston, double tip, double tilt,

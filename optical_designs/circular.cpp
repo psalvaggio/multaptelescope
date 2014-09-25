@@ -21,31 +21,21 @@ using mats::PupilFunction;
 using namespace cv;
 
 Circular::Circular(const SimulationConfig& params, int sim_index)
-    : Aperture(params, sim_index), mask_(), opd_(), opd_est_() {}
+    : Aperture(params, sim_index) {}
 
 Circular::~Circular() {}
 
-Mat Circular::GetOpticalPathLengthDiff() {
-  if (opd_.rows > 0) return opd_;
-
-  clock_t start = clock();
-
+Mat Circular::GetOpticalPathLengthDiff() const {
+  Mat opd;
   ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(aberrations(), params().array_size(), &opd_);
-
-  double duration = (clock() - start) / (double) CLOCKS_PER_SEC;
-  std::cout << "Compute Time: " << duration << " [s]" << std::endl;
-
-  return opd_;
+  ab_factory.aberrations(aberrations(), params().array_size(), &opd);
+  return opd;
 }
 
-Mat Circular::GetOpticalPathLengthDiffEstimate() {
+Mat Circular::GetOpticalPathLengthDiffEstimate() const {
   if (simulation_params().wfe_knowledge() == Simulation::NONE) {
     return Mat(params().array_size(), params().array_size(), CV_64FC1);
   }
-
-  if (opd_.rows == 0) GetOpticalPathLengthDiff();
-  if (opd_est_.rows > 0) return opd_est_;
 
   double knowledge_level = 0;
   switch (simulation_params().wfe_knowledge()) {
@@ -57,28 +47,27 @@ Mat Circular::GetOpticalPathLengthDiffEstimate() {
   mainLog() << "Error in the estimates of piston/tip/tilt: "
             << knowledge_level << " [waves]" << std::endl;
 
-  vector<double>& real_weights = aberrations();
+  const vector<double>& real_weights = aberrations();
   vector<double> wrong_weights;
   for (size_t i = 0; i < real_weights.size(); i++) {
     wrong_weights.push_back(real_weights[i] +
         (2 * (rand() % 2) - 1) * knowledge_level);
   }
 
+  Mat opd_est;
   ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(wrong_weights, params().array_size(), &opd_est_);
-
-  return opd_est_;
+  ab_factory.aberrations(wrong_weights, params().array_size(), &opd_est);
+  return opd_est;
 }
 
-Mat Circular::GetApertureTemplate() {
+Mat Circular::GetApertureTemplate() const {
   const size_t size = params().array_size();
   const double half_size = size / 2.0;
   const double half_size2 = half_size * half_size;
+  double primary_r2 = 1;
 
   Mat output(size, size, CV_64FC1);
   double* output_data = (double*) output.data;
-
-  double primary_r2 = 1;
 
   for (size_t i = 0; i < size; i++) {
     double y = i - half_size;
