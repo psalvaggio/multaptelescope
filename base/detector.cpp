@@ -8,8 +8,9 @@
 #include "base/photon_noise.h"
 #include "io/logging.h"
 
+#include <iostream>
 #include <fftw3.h>
-#include <opencv/highgui.h>
+#include <opencv2/highgui/highgui.hpp>
 
 using namespace std;
 using cv::Mat;

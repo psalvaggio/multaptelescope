@@ -8,6 +8,8 @@
 #include "io/hdf5_reader.h"
 #include "io/logging.h"
 
+#include <opencv2/opencv.hpp>
+
 using cv::Mat;
 
 Hdf5Wfe::Hdf5Wfe(const mats::SimulationConfig& params, int sim_index)

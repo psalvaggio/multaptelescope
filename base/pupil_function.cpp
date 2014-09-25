@@ -3,6 +3,7 @@
 
 #include "pupil_function.h"
 #include <fftw3.h>
+#include <vector>
 
 using namespace cv;
 
@@ -87,7 +88,7 @@ Mat PupilFunction::ModulationTransferFunction() {
 
   dft(psf, otf, DFT_COMPLEX_OUTPUT);
 
-  vector<Mat> otf_planes;
+  std::vector<Mat> otf_planes;
   split(otf, otf_planes);
 
   Mat mtf;

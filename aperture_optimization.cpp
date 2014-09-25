@@ -9,8 +9,10 @@
 #include <opencv2/opencv.hpp>
 #include "base/opencv_utils.h"
 
+#include <csignal>
 #include <cmath>
 #include <fstream>
+#include <vector>
 
 static const int kNumPoints = 6;
 static const double kEncircledDiameter = 3;

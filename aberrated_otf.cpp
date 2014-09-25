@@ -12,10 +12,13 @@
 #include "optical_designs/aperture.h"
 
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 #include <string>
+
+#include "base/zernike_aberrations.h"
 
 using namespace std;
 using namespace cv;
@@ -26,6 +29,8 @@ int main(int argc, char** argv) {
     cerr << "Usage: ./mats_main base_dir" << endl;
     return 1;
   }
+
+  ZernikeAberrations& tmp(ZernikeAberrations::getInstance());
 
   // Parse the base directory from the command line.
   string base_dir(argv[1]);
@@ -45,16 +50,15 @@ int main(int argc, char** argv) {
   for (size_t i = 0; i < 1; i++) {
     mats::Telescope telescope(sim_config, i, detector_params);
 
-    mainLog() << "Focal Length: " << telescope.FocalLength() << " [m]" << endl;
-
     Mat wfe = telescope.aperture()->GetWavefrontError();
 
     mats::PupilFunction pupil;
     telescope.aperture()->GetPupilFunction(wfe, 550e-9, &pupil);
 
-    cv::imwrite(base_dir + "wfe.png", ByteScale(pupil.real_part()));
-    cv::imwrite(base_dir + "mtf.png",
-        GammaScale(FFTShift(pupil.ModulationTransferFunction()), 1/2.2));
+    Mat mtf = pupil.ModulationTransferFunction();
+
+    //cv::imwrite(base_dir + "wfe.png", ByteScale(pupil.real_part()));
+    //cv::imwrite(base_dir + "mtf.png", GammaScale(FFTShift(mtf), 1/2.2));
   }
 
   return 0;

@@ -4,9 +4,13 @@
 #include "constrained_least_squares.h"
 #include "base/opencv_utils.h"
 
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+#include <vector>
 
 using namespace cv;
+using std::vector;
 
 ConstrainedLeastSquares::ConstrainedLeastSquares() {}
 

@@ -4,6 +4,7 @@
 #include "mtf_interpolator.h"
 #include "ransac/ransac.h"
 #include "ransac/ransac_fit_circle.h"
+#include <iostream>
 #include <list>
 
 

@@ -14,7 +14,8 @@
 #include "optical_designs/hdf5_wfe.h"
 #include "optical_designs/compound_aperture.h"
 
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <cmath>
 #include <cstdlib>

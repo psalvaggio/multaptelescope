@@ -13,6 +13,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 using mats::ApertureParameters;
 using mats::SimulationConfig;
@@ -47,8 +48,8 @@ Mat Circular::GetOpticalPathLengthDiffEstimate() const {
   mainLog() << "Error in the estimates of piston/tip/tilt: "
             << knowledge_level << " [waves]" << std::endl;
 
-  const vector<double>& real_weights = aberrations();
-  vector<double> wrong_weights;
+  const std::vector<double>& real_weights = aberrations();
+  std::vector<double> wrong_weights;
   for (size_t i = 0; i < real_weights.size(); i++) {
     wrong_weights.push_back(real_weights[i] +
         (2 * (rand() % 2) - 1) * knowledge_level);

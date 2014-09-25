@@ -10,7 +10,8 @@
 #include "base/simulation_config.pb.h"
 #include "io/logging.h"
 
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 CompoundAperture::CompoundAperture(const mats::SimulationConfig& params,
                                    int sim_index)
