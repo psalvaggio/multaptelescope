@@ -4,7 +4,7 @@
 // GeneticAlgorithmImpl is templated with the model class. The typedef model_t
 // will be available for use by subclasses. If the desired model type is a 
 // pointer, than you MUST use a smart pointer, or the memory will be leaked.
-// For efficiencies sake, the model type needs to be move-constructible and
+// For efficiencies sake, the model type needs to be move-constructable and
 // move-assignable.
 //
 // Author: Philip Salvaggio

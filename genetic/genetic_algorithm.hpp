@@ -44,7 +44,7 @@ void GeneticAlgorithm(Impl& impl,
         auto min_member = std::max_element(
             std::begin(population), std::end(population), fitness_sort);
         double min_fitness = min_member->fitness();
-        
+
         int index = 0;
         for (const PopulationMember<Model>& tmp : population) {
           fitness_cdf[index] = (index == 0) ?  tmp.fitness() - min_fitness
@@ -68,8 +68,6 @@ void GeneticAlgorithm(Impl& impl,
       population_size + breeds_per_generation, 0);
   std::vector<size_t> selection_indices(population_size, 0);
 
-  std::cout << std::endl << "Generation 0, Fitness = "
-            << population[0].fitness();
   size_t generation_num = 0;
 
   // Main loop of the genetic algorithm.
@@ -77,19 +75,6 @@ void GeneticAlgorithm(Impl& impl,
     generation_num++;
 
     compute_fitness_cdf(population, cumulative_fitness);
-    /*
-      std::cout << std::endl;
-      std::cout << "Fitness: [";
-      for (auto& tmp : population) {
-        std::cout << tmp.fitness() << " ";
-      }
-      std::cout << "]" << std::endl;
-      std::cout << "CDF: [";
-      for (auto& tmp : cumulative_fitness) {
-        std::cout << tmp << " ";
-      }
-      std::cout << "]" << std::endl;
-      */
 
     // Construct the new population members from the existing ones.
     for (size_t i = 0; i < breeds_per_generation; i++) {
@@ -117,20 +102,13 @@ void GeneticAlgorithm(Impl& impl,
     // to weight selection.
     if (population.size() > population_size) {
       compute_fitness_cdf(population, new_cumulative_fitness);
-      std::cout << std::endl << "Bred CDF: [";
-      for (auto& tmp : new_cumulative_fitness) {
-        std::cout << tmp << " ";
-      }
-      std::cout << "]" << std::endl;
 
       selection_indices[0] = 0;
       for (size_t i = 1; i < population_size; i++) {
         bool unique = false;
         size_t index = 0;
-        int iter = 0;
 
         while (!unique) {
-          iter++;
           index = select_index(new_cumulative_fitness);
           unique = true;
           for (int j = i - 1; j >= 0; j--) {
@@ -163,8 +141,6 @@ void GeneticAlgorithm(Impl& impl,
     std::cout.flush();
     impl.Visualize(population[0].model());
   } while (impl.ShouldContinue(population, generation_num));
-
-  std::cout << std::endl;
 
   best_model = Model(population[0].model());
 }
