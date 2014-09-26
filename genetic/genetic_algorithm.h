@@ -1,10 +1,10 @@
 // A generic interface for running genetic algorithms. To customize for your
 // specific needs, you will need to inherit from the GeneticAlgorithmImpl base
-// class. To be able to customize the data types used for models,
-// GeneticAlgorithmImpl is templated with the model class. The typedef model_t
-// will be available for use by subclasses. If the desired model type is a 
+// class. To be able to customize the data types used for models, the model
+// class is a template parameter of GeneticAlgorithmImpl. The typedef model_t
+// will be available for use by subclasses. If the desired model type is a
 // pointer, than you MUST use a smart pointer, or the memory will be leaked.
-// For efficiencies sake, the model type needs to be move-constructable and
+// For efficiency's sake, the model type needs to be move-constructable and
 // move-assignable.
 //
 // Author: Philip Salvaggio
@@ -42,7 +42,7 @@ class PopulationMember {
 
   Model& model() { return model_; }
   const Model& model() const { return model_; }
-  
+
   double fitness() const { return fitness_; }
   void set_fitness(double fitness) { fitness_ = fitness; }
 
@@ -65,9 +65,9 @@ class GeneticAlgorithmImpl {
   //
   // Returns:
   //   A boolean indicating whether the model is valid. If false, the fitness
-  //   stroed using set_fitness is ignored and the model is dropped from the
+  //   stored using set_fitness is ignored and the model is dropped from the
   //   population.
-  virtual bool Evaluate(PopulationMember<Model>& member) = 0;
+  virtual bool Evaluate(PopulationMember<model_t>& member) = 0;
 
   // Introduce a new model into the population. It is assumed that the model is
   // valid, i.e. Evalute() would return true.
@@ -84,8 +84,8 @@ class GeneticAlgorithmImpl {
   //
   // Returns:
   //   The model that resulted from the crossover operation.
-  virtual model_t Crossover(const PopulationMember<Model>& member1,
-                            const PopulationMember<Model>& member2) = 0;
+  virtual model_t Crossover(const PopulationMember<model_t>& member1,
+                            const PopulationMember<model_t>& member2) = 0;
 
   // Performs the mutation operation on the given model. This is called on
   // every new population member produced by Crossover, so any non-determinism
@@ -94,19 +94,19 @@ class GeneticAlgorithmImpl {
   //
   // Parameters:
   //   member  Input/Output: The model to be modified in-place.
-  virtual void Mutate(PopulationMember<Model>& member) = 0;
+  virtual void Mutate(PopulationMember<model_t>& member) = 0;
 
   // A convergence test.
   //
   // Parameters:
-  //   population      The collection of models currently in the population. 
+  //   population      The collection of models currently in the population.
   //                   Their fitnesses will have been computed with Evaluate.
   //   generation_num  The generation number we are on.
   //
   // Returns:
   //   Whether the iteration should continue.
   virtual bool ShouldContinue(
-      const std::vector<PopulationMember<Model>>& population,
+      const std::vector<PopulationMember<model_t>>& population,
       size_t generation_num) = 0;
 };
 
