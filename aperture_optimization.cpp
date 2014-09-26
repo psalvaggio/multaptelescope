@@ -17,13 +17,11 @@
 static const int kNumPoints = 6;
 static const double kEncircledDiameter = 3;
 static const double kSubapertureDiameter = 0.625;
-static const double kSamplesInDiameter = 512;
 
 static const int kPopulationSize = 8;
 static const double kCrossoverProbability = 0;
 static const double kMutateProbability = 1;
 static const int kBreedsPerGeneration = 4;
-static const double kIntroduceProbability = 0.01;
 
 static mats::SimulationConfig conf;
 
@@ -35,13 +33,11 @@ class MomentOfInertiaImpl : public GeneticAlgorithmImpl<vector<double>> {
   MomentOfInertiaImpl(int num_subapertures,
               double max_center_radius,
               double subaperture_diameter,
-              double sample_step,
               double mutate_probability,
               double crossover_probability)
       : num_subapertures_(num_subapertures),
         max_center_radius2_(max_center_radius*max_center_radius),
         subaperture_diameter2_(subaperture_diameter*subaperture_diameter),
-        sample_step_(sample_step),
         should_continue_(true),
         mutate_probability_(mutate_probability),
         crossover_probability_(crossover_probability) {}
@@ -62,6 +58,8 @@ class MomentOfInertiaImpl : public GeneticAlgorithmImpl<vector<double>> {
   bool ShouldContinue(const vector<PopulationMember<model_t>>& population,
                       size_t generation_num) {
     (void) population; (void) generation_num;
+    std::cout << "\rGeneration " << generation_num <<
+        ", Fitness = " << population[0].fitness();
     return should_continue_;
   }
 
@@ -77,7 +75,6 @@ class MomentOfInertiaImpl : public GeneticAlgorithmImpl<vector<double>> {
   int num_subapertures_;
   double max_center_radius2_;
   double subaperture_diameter2_;
-  double sample_step_;
   bool should_continue_;
   double mutate_probability_;
   double crossover_probability_;
@@ -115,7 +112,7 @@ bool MomentOfInertiaImpl::Evaluate(PopulationMember<model_t>& member) {
   unique_ptr<Aperture> aperture(new CompoundAperture(conf, 0));
   aperture->GetPupilFunction(aperture->GetWavefrontError(), 550e-9, &pupil);
   cv::Mat mtf = FFTShift(pupil.ModulationTransferFunction());
-  double enc_diameter = aperture->encircled_diameter();
+  //double enc_diameter = aperture->encircled_diameter();
 
   /*
   double fitness = 0;
@@ -131,7 +128,7 @@ bool MomentOfInertiaImpl::Evaluate(PopulationMember<model_t>& member) {
         break;
       }
     }
-    double diameter = enc_diameter * 
+    double diameter = enc_diameter *
                       (double)last_significant_index / profile.size();
 
     double smoothness = 0;
@@ -224,15 +221,6 @@ void MomentOfInertiaImpl::Mutate(PopulationMember<model_t>& member) {
   for (size_t i = 0; i < locations.size(); i += 2) {
     double p = (double)rand() / RAND_MAX;
     if (p < mutate_probability_) {
-      /*
-      int r_dir = (rand() % 11) - 5;
-      int theta_dir = (rand() % 11) - 5;
-
-      double new_r = sqrt(pow(locations[i], 2) + pow(locations[i+1], 2)) +
-                     r_dir * sample_step_;
-      double new_theta = atan2(locations[i+1], locations[i]) +
-                        theta_dir * sample_step_;
-                        */
       double new_r = sqrt(max_center_radius2_) * (double)rand() / RAND_MAX;
       double new_theta = 2 * M_PI * (double)rand() / RAND_MAX;
       double new_x = new_r * cos(new_theta);
@@ -288,7 +276,6 @@ static MomentOfInertiaImpl impl(
     kNumPoints,
     0.5 * (kEncircledDiameter - kSubapertureDiameter),
     kSubapertureDiameter,
-    kEncircledDiameter / kSamplesInDiameter,
     kMutateProbability,
     kCrossoverProbability);
 
@@ -329,6 +316,7 @@ void MomentOfInertiaImpl::Visualize(const model_t& locations) {
 int main() {
   signal(SIGINT, stop_iteration);
   srand(time(NULL));
+  std::cout << std::endl;
 
   /*
   cv::namedWindow("MTF", cv::WINDOW_AUTOSIZE);
@@ -359,7 +347,7 @@ int main() {
   }
 
   typename MomentOfInertiaImpl::model_t best_locations;
-  GeneticAlgorithm(impl, 
+  GeneticAlgorithm(impl,
                    kPopulationSize,
                    kBreedsPerGeneration,
                    best_locations);
