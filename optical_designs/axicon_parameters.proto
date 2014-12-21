@@ -1,0 +1,10 @@
+import "base/aperture_parameters.proto";
+
+message AxiconParameters {
+  // The number of 2*PI cycles that are present in the vortex.
+  optional double num_cycles = 1;
+}
+
+extend mats.ApertureParameters {
+  optional AxiconParameters axicon_params = 15726;
+}
