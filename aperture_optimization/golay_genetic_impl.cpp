@@ -1,86 +1,54 @@
 // File Description
 // Author: Philip Salvaggio
 
-#include "genetic/genetic_algorithm.h"
+#include "golay_genetic_impl.h"
 #include "base/pupil_function.h"
+#include "base/opencv_utils.h"
 #include "optical_designs/compound_aperture.h"
 
-//#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/opencv.hpp>
-#include "base/opencv_utils.h"
-
-#include <csignal>
-#include <cmath>
-#include <fstream>
-#include <vector>
-
-static const int kNumPoints = 6;
-static const double kEncircledDiameter = 3;
-static const double kSubapertureDiameter = 0.625;
-
-static const int kPopulationSize = 8;
-static const double kCrossoverProbability = 0;
-static const double kMutateProbability = 1;
-static const int kBreedsPerGeneration = 4;
-
-static mats::SimulationConfig conf;
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 
 using namespace std;
 using namespace genetic;
 
-class MomentOfInertiaImpl : public GeneticAlgorithmImpl<vector<double>> {
- public:
-  MomentOfInertiaImpl(int num_subapertures,
-              double max_center_radius,
-              double subaperture_diameter,
-              double mutate_probability,
-              double crossover_probability)
+GolayGeneticImpl::GolayGeneticImpl(int num_subapertures,
+                                   double max_center_radius,
+                                   double subaperture_diameter,
+                                   double mutate_probability,
+                                   double crossover_probability)
       : num_subapertures_(num_subapertures),
         max_center_radius2_(max_center_radius*max_center_radius),
         subaperture_diameter2_(subaperture_diameter*subaperture_diameter),
         should_continue_(true),
         mutate_probability_(mutate_probability),
-        crossover_probability_(crossover_probability) {}
+        crossover_probability_(crossover_probability),
+        conf_() {
+  conf_.set_array_size(512);
+  conf_.set_reference_wavelength(550e-9);
 
-  static void Destroy(model_t& model) {
-    (void) model;
+  mats::Simulation* sim = conf_.add_simulation();
+  mats::ApertureParameters* compound_params = sim->mutable_aperture_params();
+
+  double enc_diameter = 2 * max_center_radius + subaperture_diameter;
+  cout << "Diameter: " << enc_diameter << endl;
+  compound_params->set_encircled_diameter(enc_diameter);
+
+  compound_params->set_type(mats::ApertureParameters::COMPOUND);
+  CompoundApertureParameters* array_ext =
+      compound_params->MutableExtension(compound_aperture_params);
+  array_ext->set_combine_operation(CompoundApertureParameters::OR);
+  for (int i = 0; i < num_subapertures; i++) {
+    mats::ApertureParameters* subap = array_ext->add_aperture();
+    subap->set_type(mats::ApertureParameters::CIRCULAR);
+    subap->set_encircled_diameter(subaperture_diameter);
+    subap->set_offset_x(0);
+    subap->set_offset_y(0);
   }
+}
 
-  bool Evaluate(PopulationMember<model_t>& member);
 
-  model_t Introduce();
-
-  model_t Crossover(const PopulationMember<model_t>& member1,
-                    const PopulationMember<model_t>& member2);
-
-  void Mutate(PopulationMember<model_t>& member);
-
-  bool ShouldContinue(const vector<PopulationMember<model_t>>& population,
-                      size_t generation_num) {
-    (void) population; (void) generation_num;
-    std::cout << "\rGeneration " << generation_num <<
-        ", Fitness = " << population[0].fitness();
-    return should_continue_;
-  }
-
-  void Stop() { should_continue_ = false; }
-
-  void GetAutocorrelationPeaks(const model_t& locations, model_t* peaks);
-
-  void ZeroMean(model_t* locations);
-
-  void Visualize(const model_t& locations);
-
- private:
-  int num_subapertures_;
-  double max_center_radius2_;
-  double subaperture_diameter2_;
-  bool should_continue_;
-  double mutate_probability_;
-  double crossover_probability_;
-};
-
-bool MomentOfInertiaImpl::Evaluate(PopulationMember<model_t>& member) {
+bool GolayGeneticImpl::Evaluate(PopulationMember<model_t>& member) {
   double moment_of_inertia = 0;
 
   const model_t& locations(member.model());
@@ -99,7 +67,8 @@ bool MomentOfInertiaImpl::Evaluate(PopulationMember<model_t>& member) {
   }
 
   mats::ApertureParameters* ap_params(
-      conf.mutable_simulation(0)->mutable_aperture_params());
+      conf_.mutable_simulation(0)->mutable_aperture_params());
+  ap_params->set_type(mats::ApertureParameters::COMPOUND);
   CompoundApertureParameters* compound_params =
       ap_params->MutableExtension(compound_aperture_params);
   for (size_t i = 0; i < locations.size(); i += 2) {
@@ -109,7 +78,7 @@ bool MomentOfInertiaImpl::Evaluate(PopulationMember<model_t>& member) {
   }
 
   mats::PupilFunction pupil;
-  unique_ptr<Aperture> aperture(new CompoundAperture(conf, 0));
+  unique_ptr<Aperture> aperture(ApertureFactory::Create(conf_, 0));
   aperture->GetPupilFunction(aperture->GetWavefrontError(), 550e-9, &pupil);
   cv::Mat mtf = FFTShift(pupil.ModulationTransferFunction());
   //double enc_diameter = aperture->encircled_diameter();
@@ -141,9 +110,9 @@ bool MomentOfInertiaImpl::Evaluate(PopulationMember<model_t>& member) {
     //fitness += diameter;
   }
   */
-  //cv::imshow("MTF", GammaScale(mtf, 1/2.2));
-  //cv::imshow("Mask", ByteScale(aperture->GetApertureMask()));
-  //cv::waitKey(1);
+  cv::imshow("MTF", GammaScale(mtf, 1/2.2));
+  cv::imshow("Mask", ByteScale(aperture->GetApertureMask()));
+  cv::waitKey(1);
   //cv::Scalar sum = cv::sum(mtf);
   //double diameter = aperture->encircled_diameter();
   //double fitness = diameter + 1e-4 * sum[0] / (M_PI * diameter * diameter / 4);
@@ -170,7 +139,7 @@ bool MomentOfInertiaImpl::Evaluate(PopulationMember<model_t>& member) {
   return true;
 }
 
-MomentOfInertiaImpl::model_t MomentOfInertiaImpl::Introduce() {
+GolayGeneticImpl::model_t GolayGeneticImpl::Introduce() {
   model_t tmp_model;
   PopulationMember<model_t> member(std::move(tmp_model));
   model_t& locations(member.model());
@@ -193,7 +162,7 @@ MomentOfInertiaImpl::model_t MomentOfInertiaImpl::Introduce() {
   return new_model;
 }
 
-MomentOfInertiaImpl::model_t MomentOfInertiaImpl::Crossover(
+GolayGeneticImpl::model_t GolayGeneticImpl::Crossover(
     const PopulationMember<model_t>& member1,
     const PopulationMember<model_t>& member2) {
   const model_t& input1_locs(member1.model());
@@ -215,7 +184,7 @@ MomentOfInertiaImpl::model_t MomentOfInertiaImpl::Crossover(
   return output_locs;
 }
 
-void MomentOfInertiaImpl::Mutate(PopulationMember<model_t>& member) {
+void GolayGeneticImpl::Mutate(PopulationMember<model_t>& member) {
   model_t& locations(member.model());
 
   for (size_t i = 0; i < locations.size(); i += 2) {
@@ -236,7 +205,7 @@ void MomentOfInertiaImpl::Mutate(PopulationMember<model_t>& member) {
   ZeroMean(&locations);
 }
 
-void MomentOfInertiaImpl::ZeroMean(model_t* locations) {
+void GolayGeneticImpl::ZeroMean(model_t* locations) {
   if (!locations) return;
 
   double mean_x = 0;
@@ -256,7 +225,7 @@ void MomentOfInertiaImpl::ZeroMean(model_t* locations) {
 
 
 
-void MomentOfInertiaImpl::GetAutocorrelationPeaks(const model_t& locations,
+void GolayGeneticImpl::GetAutocorrelationPeaks(const model_t& locations,
                                                   model_t* peaks) {
   if (!peaks) return;
   peaks->resize(locations.size() * (locations.size() - 1));
@@ -272,28 +241,9 @@ void MomentOfInertiaImpl::GetAutocorrelationPeaks(const model_t& locations,
   }
 }
 
-static MomentOfInertiaImpl impl(
-    kNumPoints,
-    0.5 * (kEncircledDiameter - kSubapertureDiameter),
-    kSubapertureDiameter,
-    kMutateProbability,
-    kCrossoverProbability);
-
-static bool has_stopped = false;
-void stop_iteration(int signo) {
-  (void) signo;
-  if (has_stopped) {
-    exit(1);
-  } else {
-    impl.Stop();
-    has_stopped = true;
-  }
-}
-
-void MomentOfInertiaImpl::Visualize(const model_t& locations) {
-  /*
+void GolayGeneticImpl::Visualize(const model_t& locations) {
   mats::ApertureParameters* ap_params(
-      conf.mutable_simulation(0)->mutable_aperture_params());
+      conf_.mutable_simulation(0)->mutable_aperture_params());
   CompoundApertureParameters* compound_params =
       ap_params->MutableExtension(compound_aperture_params);
   for (size_t i = 0; i < locations.size(); i += 2) {
@@ -303,84 +253,10 @@ void MomentOfInertiaImpl::Visualize(const model_t& locations) {
   }
 
   mats::PupilFunction pupil;
-  unique_ptr<Aperture> aperture(new CompoundAperture(conf, 0));
+  unique_ptr<Aperture> aperture(new CompoundAperture(conf_, 0));
   aperture->GetPupilFunction(aperture->GetWavefrontError(), 550e-9, &pupil);
   cv::Mat mtf = pupil.ModulationTransferFunction();
   cv::imshow("Best MTF", FFTShift(GammaScale(mtf, 1/2.2)));
   cv::imshow("Best Mask", ByteScale(aperture->GetApertureMask()));
   cv::waitKey(1);
-  */
-}
-
-
-int main() {
-  signal(SIGINT, stop_iteration);
-  srand(time(NULL));
-  std::cout << std::endl;
-
-  /*
-  cv::namedWindow("MTF", cv::WINDOW_AUTOSIZE);
-  cv::moveWindow("MTF", 0, 0);
-  cv::namedWindow("Mask", cv::WINDOW_AUTOSIZE);
-  cv::moveWindow("Mask", 0, 600);
-  cv::namedWindow("Best MTF", cv::WINDOW_AUTOSIZE);
-  cv::moveWindow("Best MTF", 600, 0);
-  cv::namedWindow("Best Mask", cv::WINDOW_AUTOSIZE);
-  cv::moveWindow("Best Mask", 600, 600);
-  */
-
-  conf.set_array_size(512);
-  conf.set_reference_wavelength(550e-9);
-  mats::Simulation* sim = conf.add_simulation();
-  mats::ApertureParameters* compound_params = sim->mutable_aperture_params();
-  compound_params->set_encircled_diameter(kEncircledDiameter);
-  compound_params->set_type(mats::ApertureParameters::COMPOUND);
-  CompoundApertureParameters* array_ext =
-      compound_params->MutableExtension(compound_aperture_params);
-  array_ext->set_combine_operation(CompoundApertureParameters::OR);
-  for (size_t i = 0; i < kNumPoints; i++) {
-    mats::ApertureParameters* subap = array_ext->add_aperture();
-    subap->set_type(mats::ApertureParameters::CIRCULAR);
-    subap->set_encircled_diameter(kSubapertureDiameter);
-    subap->set_offset_x(0);
-    subap->set_offset_y(0);
-  }
-
-  typename MomentOfInertiaImpl::model_t best_locations;
-  GeneticAlgorithm(impl,
-                   kPopulationSize,
-                   kBreedsPerGeneration,
-                   best_locations);
-
-  ofstream ofs("locations.txt");
-  ofs << "set parametric" << endl
-      << "unset key" << endl
-      << "set angle degree" << endl
-      << "set size square" << endl
-      << "set trange [0:360]" << endl
-      << "r = " << kEncircledDiameter * 0.5 << endl
-      << "r2 = " << kSubapertureDiameter * 0.5 << endl
-      << "plot \"-\" u 1:2, r*cos(t), r*sin(t)";
-
-  for (size_t i = 0; i < best_locations.size(); i += 2) {
-    ofs << ", r2*cos(t)";
-
-    if (best_locations[i] >= 0) {
-      ofs << " + " << best_locations[i];
-    } else {
-      ofs << best_locations[i];
-    }
-    ofs << ",r2*sin(t)";
-    if (best_locations[i+1] >= 0) {
-      ofs << " + " << best_locations[i+1];
-    } else {
-      ofs << best_locations[i+1];
-    }
-  }
-  ofs << endl;
-  for (size_t i = 0; i < best_locations.size(); i += 2) {
-    ofs << best_locations[i] << "\t" << best_locations[i+1] << endl;
-  }
-
-  return 0;
 }

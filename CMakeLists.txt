@@ -60,6 +60,7 @@ if (cmake_build_type_tolower STREQUAL "release")
 endif()
 
 set(MODULES base
+            aperture_optimization
             deconvolution
             io
             genetic
@@ -120,8 +121,8 @@ target_link_libraries(mats_main ${MATS_LINK_LIBS})
 add_executable(aberrated_otf aberrated_otf.cpp)
 target_link_libraries(aberrated_otf ${MATS_LINK_LIBS})
 
-add_executable(aperture_optimization aperture_optimization.cpp)
-target_link_libraries(aperture_optimization ${MATS_LINK_LIBS})
+add_executable(genetic_optimization genetic_optimization.cpp)
+target_link_libraries(genetic_optimization ${MATS_LINK_LIBS})
 
 add_executable(lab_slant_edge lab_slant_edge.cpp)
 target_link_libraries(lab_slant_edge ${MATS_LINK_LIBS})
