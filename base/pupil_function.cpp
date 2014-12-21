@@ -69,6 +69,9 @@ Mat PupilFunction::PointSpreadFunction() {
     }
   }
 
+  fftw_free(pupil_func);
+  fftw_free(pupil_func_fft);
+
   psf /= psf_total;
 
   return psf;
