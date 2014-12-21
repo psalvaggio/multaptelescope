@@ -165,6 +165,9 @@ PopulationMember<Model>& PopulationMember<Model>::operator=(
   return *this;
 }
 
+template<typename T>
+void GeneticAlgorithmImpl<T>::Visualize(const GeneticAlgorithmImpl<T>::model_t&) {}
+
 }  // namespace genetic
 
 #endif  // GENETIC_ALGORITHM_HPP

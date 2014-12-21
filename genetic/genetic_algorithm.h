@@ -58,7 +58,7 @@ class GeneticAlgorithmImpl {
   using model_t = Model;
 
   // Evaluate should evaluate the user-defined fitness function. The result
-  // should be stored using set_fitness.
+  // should be stored using set_fitness().
   //
   // Parameters:
   //   member  The model to evalute.
@@ -108,6 +108,13 @@ class GeneticAlgorithmImpl {
   virtual bool ShouldContinue(
       const std::vector<PopulationMember<model_t>>& population,
       size_t generation_num) = 0;
+
+  // Optional: Visualize the best model. This is called at the end of each
+  // iteration. The defualt implementation does nothing.
+  //
+  // Parameters:
+  //   model   The best model from the current generation.
+  virtual void Visualize(const model_t& model);
 };
 
 }  // namespace genetic
