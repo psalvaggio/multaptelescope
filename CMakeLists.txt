@@ -33,11 +33,11 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
       "${CUDA_NVCC_FLAGS} -gencode arch=compute_35,code=sm_35")
 endif()
 
-find_package(Boost REQUIRED COMPONENTS iostreams system)
+find_package(Boost REQUIRED COMPONENTS iostreams system filesystem)
 
 set(PROTOBUF_IMPORT_DIRS ${PROTOBUF_IMPORT_DIRS} ${MATS_SOURCE_DIR})
 
-if (NOT CMAKE_BUILD_TYPE)
+if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "Debug"))
   set(CMAKE_BUILD_TYPE "Release")
 endif()
 
@@ -62,6 +62,7 @@ endif()
 set(MODULES base
             deconvolution
             io
+            genetic
             optical_designs
             otf_measurement
             ransac)
@@ -121,3 +122,6 @@ target_link_libraries(aberrated_otf ${MATS_LINK_LIBS})
 
 add_executable(aperture_optimization aperture_optimization.cpp)
 target_link_libraries(aperture_optimization ${MATS_LINK_LIBS})
+
+add_executable(lab_slant_edge lab_slant_edge.cpp)
+target_link_libraries(lab_slant_edge ${MATS_LINK_LIBS})
