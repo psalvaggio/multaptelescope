@@ -1,0 +1,3 @@
+[submodule "registry"]
+	path = registry
+	url = ssh://philipsalvaggio@git.code.sf.net/p/cppregpattern/code
