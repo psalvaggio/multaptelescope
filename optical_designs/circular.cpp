@@ -62,21 +62,21 @@ Mat Circular::GetOpticalPathLengthDiffEstimate() const {
 }
 
 Mat Circular::GetApertureTemplate() const {
-  const size_t size = params().array_size();
-  const double half_size = size / 2.0;
-  const double half_size2 = half_size * half_size;
-  double primary_r2 = 1;
+  const size_t kSize = params().array_size();
+  const double kHalfSize = kSize / 2.0;
+  const double kHalfSize2 = kHalfSize * kHalfSize;
+  const double kPrimaryR2 = 1;
 
-  Mat output(size, size, CV_64FC1);
+  Mat output(kSize, kSize, CV_64FC1);
   double* output_data = (double*) output.data;
 
-  for (size_t i = 0; i < size; i++) {
-    double y = i - half_size;
-    for (size_t j = 0; j < size; j++) {
-      double x = j - half_size;
+  for (size_t i = 0; i < kSize; i++) {
+    double y = i - kHalfSize;
+    for (size_t j = 0; j < kSize; j++) {
+      double x = j - kHalfSize;
 
-      double r2 = (x*x + y*y) / half_size2;
-      output_data[i*size + j] = (r2 < primary_r2) ? 1 : 0;
+      double r2 = (x*x + y*y) / kHalfSize2;
+      output_data[i*kSize + j] = (r2 < kPrimaryR2) ? 1 : 0;
     }
   }
 
