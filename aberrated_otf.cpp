@@ -30,8 +30,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  ZernikeAberrations& tmp(ZernikeAberrations::getInstance());
-
   // Parse the base directory from the command line.
   string base_dir(argv[1]);
   if (base_dir[base_dir.size() - 1] != '/') {
@@ -53,12 +51,13 @@ int main(int argc, char** argv) {
     Mat wfe = telescope.aperture()->GetWavefrontError();
 
     mats::PupilFunction pupil;
-    telescope.aperture()->GetPupilFunction(wfe, 550e-9, &pupil);
+    telescope.aperture()->GetPupilFunction(wfe,
+        sim_config.reference_wavelength(), &pupil);
 
     Mat mtf = pupil.ModulationTransferFunction();
 
-    //cv::imwrite(base_dir + "wfe.png", ByteScale(pupil.real_part()));
-    //cv::imwrite(base_dir + "mtf.png", GammaScale(FFTShift(mtf), 1/2.2));
+    cv::imwrite(base_dir + "wfe.png", ByteScale(pupil.phase(), true));
+    cv::imwrite(base_dir + "mtf.png", GammaScale(FFTShift(mtf), 1/2.2));
   }
 
   return 0;
