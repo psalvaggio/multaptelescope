@@ -18,13 +18,13 @@ class CompoundAperture : public Aperture {
   virtual ~CompoundAperture();
   
  private:
-  virtual double GetEncircledDiameter() const;
+  double GetEncircledDiameter() const override;
 
-  virtual cv::Mat GetApertureTemplate() const;
+  cv::Mat GetApertureTemplate() const override;
 
-  virtual cv::Mat GetOpticalPathLengthDiff() const;
+  cv::Mat GetOpticalPathLengthDiff() const override;
 
-  virtual cv::Mat GetOpticalPathLengthDiffEstimate() const;
+  cv::Mat GetOpticalPathLengthDiffEstimate() const override;
 
  private:
   CompoundApertureParameters compound_params_;
@@ -36,5 +36,6 @@ class CompoundAperture : public Aperture {
   mutable cv::Mat opd_;
   mutable cv::Mat opd_est_;
 };
+REGISTER_APERTURE(CompoundAperture, COMPOUND)
 
 #endif  // COMPOUND_APERTURE_H

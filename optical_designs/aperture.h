@@ -9,6 +9,7 @@
 #include "base/macros.h"
 #include "base/simulation_config.pb.h"
 #include "base/aperture_parameters.pb.h"
+#include "registry/registry.h"
 
 namespace mats {
 class SimulationConfig;
@@ -172,5 +173,10 @@ class ApertureFactory {
  NO_CONSTRUCTION(ApertureFactory)
 };
 
+using ApertureFactoryImpl =
+    registry::Registry<Aperture, const mats::SimulationConfig&, int>;
+#define REGISTER_APERTURE(class_name, ap_config_enum) \
+  REGISTER_SUBCLASS_W_IDENTIFIER(Aperture, class_name, ap_config_enum, \
+                                 const mats::SimulationConfig&, int)
 
 #endif  // APERTURE_H

@@ -207,22 +207,11 @@ Aperture* ApertureFactory::Create(const mats::SimulationConfig& params,
     return NULL;
   }
 
-  const Simulation& sim(params.simulation(sim_index));
-  const ApertureParameters& ap_params(sim.aperture_params());
-  ApertureParameters::ApertureType ap_type = ap_params.type();
-  if (ap_type == ApertureParameters::TRIARM9) {
-    return new Triarm9(params, sim_index);
-  } else if (ap_type == ApertureParameters::CASSEGRAIN) {
-    return new Cassegrain(params, sim_index);
-  } else if (ap_type == ApertureParameters::CIRCULAR) {
-    return new Circular(params, sim_index);
-  } else if (ap_type == ApertureParameters::CASSEGRAIN_RING) {
-    return new CassegrainRing(params, sim_index);
-  } else if (ap_type == ApertureParameters::HDF5_WFE) {
-    return new Hdf5Wfe(params, sim_index);
-  } else if (ap_type == ApertureParameters::COMPOUND) {
-    return new CompoundAperture(params, sim_index);
-  }
+  ApertureParameters::ApertureType ap_type =
+      params.simulation(sim_index).aperture_params().type();
+  Aperture* ap = ApertureFactoryImpl::Create(
+      ApertureParameters::ApertureType_Name(ap_type), params, sim_index);
+  if (ap) return ap;
 
   mainLog() << "ApertureFactory error: Unsupported aperture type." << std::endl;
   return NULL;

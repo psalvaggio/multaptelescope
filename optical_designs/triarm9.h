@@ -26,11 +26,11 @@ class Triarm9 : public Aperture {
 
  // Virtual functions from Aperture
  private:
-  virtual cv::Mat GetApertureTemplate() const;
+  cv::Mat GetApertureTemplate() const override;
 
-  virtual cv::Mat GetOpticalPathLengthDiff() const;
+  cv::Mat GetOpticalPathLengthDiff() const override;
 
-  virtual cv::Mat GetOpticalPathLengthDiffEstimate() const;
+  cv::Mat GetOpticalPathLengthDiffEstimate() const override;
 
   cv::Mat OpticalPathLengthDiffPtt(const std::vector<double>& ptt_vals) const;
 
@@ -49,5 +49,6 @@ class Triarm9 : public Aperture {
   std::vector<int> subaperture_offsets_;
   mutable std::vector<double> ptt_vals_;
 };
+REGISTER_APERTURE(Triarm9, TRIARM9)
 
 #endif  // TRIARM9_H

@@ -27,16 +27,17 @@ class CassegrainRing : public Aperture {
 
  // Virtual functions from Aperture
  private:
-  virtual cv::Mat GetApertureTemplate() const;
+  cv::Mat GetApertureTemplate() const override;
 
-  virtual cv::Mat GetOpticalPathLengthDiff() const;
+  cv::Mat GetOpticalPathLengthDiff() const override;
 
-  virtual cv::Mat GetOpticalPathLengthDiffEstimate() const;
+  cv::Mat GetOpticalPathLengthDiffEstimate() const override;
 
  private:
   CassegrainRingParameters ring_params_;
 
   std::unique_ptr<Aperture> compound_aperture_;
 };
+REGISTER_APERTURE(CassegrainRing, CASSEGRAIN_RING)
 
 #endif  // CASSEGRAIN_RING_H
