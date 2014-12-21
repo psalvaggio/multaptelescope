@@ -44,6 +44,15 @@ class Telescope {
   Detector* detector() { return detector_.get(); }
   Aperture* aperture() { return aperture_.get(); }
 
+  // Simulate an image through the telescope.
+  //
+  // Arguments:
+  //  radiance    The input spectral radiance.
+  //  wavelength  The wavelengths associated with each spectral band in
+  //              radiance.
+  //  image       The output of each band of the detector.
+  //  otf         The effective OTF for each of the spectral bands of the
+  //              detector.
   void Image(const std::vector<cv::Mat>& radiance,
              const std::vector<double>& wavelength,
              std::vector<cv::Mat>* image,
