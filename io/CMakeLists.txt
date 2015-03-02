@@ -10,6 +10,7 @@ set(headers
     envi_image_reader.h
     envi_image_writer.h
     hdf5_reader.h
+    sbig_detector.h
     stl_writer.h
     input_reader.h)
 
@@ -20,6 +21,7 @@ set(sources
     envi_image_reader.cpp
     envi_image_writer.cpp
     hdf5_reader.cpp
+    sbig_detector.cpp
     stl_writer.cpp
     input_reader.cpp)
 
@@ -32,4 +34,5 @@ endforeach()
 set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${LIB_NAME} PARENT_SCOPE)
 
 add_library(${LIB_NAME} ${headers} ${sources})
-target_link_libraries(${LIB_NAME} ${LINK_LIBS} ${LIB_NAME}_proto hdf5 hdf5_hl)
+target_link_libraries(${LIB_NAME} ${LINK_LIBS} ${LIB_NAME}_proto hdf5 hdf5_hl
+                      "-framework SBIGUDrv")
