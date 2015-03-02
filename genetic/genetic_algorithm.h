@@ -17,6 +17,10 @@
 
 namespace genetic {
 
+template <typename Model> class GeneticFitnessFunction;
+template <typename Model> class GeneticSearchStrategy;
+template <typename Model> class PopulationMember;
+
 // Run the genetic algorithm using the user-defined implementation.
 //
 // Parameters:
@@ -24,11 +28,13 @@ namespace genetic {
 //   population_size       The size of the population
 //   breeds_per_generation The number of new members to create every iteration
 //   best_model            Output: The best model found.
-template <typename Impl>
-void GeneticAlgorithm(Impl& impl,
-                      size_t population_size,
-                      size_t breeds_per_generation,
-                      typename Impl::model_t& best_model);
+template <typename Model>
+void GeneticAlgorithm(
+    GeneticFitnessFunction<Model>& fitness_function,
+    GeneticSearchStrategy<Model>& searcher,
+    size_t population_size,
+    size_t breeds_per_generation,
+    Model& best_model);
 
 // Utility class for wrapping a model and its fitness.
 template <typename Model>
@@ -52,26 +58,33 @@ class PopulationMember {
 };
 
 template <typename Model>
-class GeneticAlgorithmImpl {
+class GeneticFitnessFunction {
  public:
   // Typedef available for user-defined classes to use.
   using model_t = Model;
 
-  // Evaluate should evaluate the user-defined fitness function. The result
-  // should be stored using set_fitness().
+  virtual ~GeneticFitnessFunction() {}
+
+  virtual bool operator()(PopulationMember<model_t>& member) = 0;
+
+  // Optional: Visualize the best model. This is called at the end of each
+  // iteration. The defualt implementation does nothing.
   //
   // Parameters:
-  //   member  The model to evalute.
-  //
-  // Returns:
-  //   A boolean indicating whether the model is valid. If false, the fitness
-  //   stored using set_fitness is ignored and the model is dropped from the
-  //   population.
-  virtual bool Evaluate(PopulationMember<model_t>& member) = 0;
+  //   model   The best model from the current generation.
+  virtual void Visualize(const model_t&) {}
+};
+
+template <typename Model>
+class GeneticSearchStrategy {
+ public:
+  // Typedef available for user-defined classes to use.
+  using model_t = Model;
 
   // Introduce a new model into the population. It is assumed that the model is
-  // valid, i.e. Evalute() would return true.
-  virtual model_t Introduce() = 0;
+  // valid, i.e. the fitness function would return true.
+  virtual model_t Introduce(
+      GeneticFitnessFunction<model_t>& fitness_function) = 0;
 
   // Perform the genetic crossover opertation. Given two parent models from the
   // population, constructs a new model. The new model is not necessary valid.
@@ -108,13 +121,6 @@ class GeneticAlgorithmImpl {
   virtual bool ShouldContinue(
       const std::vector<PopulationMember<model_t>>& population,
       size_t generation_num) = 0;
-
-  // Optional: Visualize the best model. This is called at the end of each
-  // iteration. The defualt implementation does nothing.
-  //
-  // Parameters:
-  //   model   The best model from the current generation.
-  virtual void Visualize(const model_t& model);
 };
 
 }  // namespace genetic

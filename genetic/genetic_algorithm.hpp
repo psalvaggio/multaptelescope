@@ -10,13 +10,13 @@
 
 namespace genetic {
 
-template <typename Impl>
-void GeneticAlgorithm(Impl& impl,
-                      size_t population_size,
-                      size_t breeds_per_generation,
-                      typename Impl::model_t& best_model) {
-  using Model = typename Impl::model_t;
-
+template <typename Model>
+void GeneticAlgorithm(
+    GeneticFitnessFunction<Model>& fitness_function,
+    GeneticSearchStrategy<Model>& searcher,
+    size_t population_size,
+    size_t breeds_per_generation,
+    Model& best_model) {
   // A lambda for sorting the population based on fitness via std::sort.
   auto fitness_sort =
       [](const PopulationMember<Model>& a,
@@ -41,14 +41,18 @@ void GeneticAlgorithm(Impl& impl,
       [&fitness_sort](const std::vector<PopulationMember<Model>>& population,
                       std::vector<double>& fitness_cdf) -> void {
         fitness_cdf.resize(population.size());
-        auto min_member = std::max_element(
+        auto minmax_members = std::minmax_element(
             std::begin(population), std::end(population), fitness_sort);
-        double min_fitness = min_member->fitness();
+        double min_fitness = minmax_members.second->fitness();
+        double max_fitness = minmax_members.first->fitness();
+        double range = max_fitness - min_fitness;
+        double offset = (range == 0)
+            ?  1 - min_fitness : 0.01 * range - min_fitness;
 
         int index = 0;
         for (const PopulationMember<Model>& tmp : population) {
-          fitness_cdf[index] = (index == 0) ?  tmp.fitness() - min_fitness
-              : fitness_cdf[index-1] + tmp.fitness() - min_fitness;
+          fitness_cdf[index] = (index == 0) ?  tmp.fitness() + offset
+              : fitness_cdf[index-1] + tmp.fitness() + offset;
           index++;
         }
       };
@@ -57,8 +61,9 @@ void GeneticAlgorithm(Impl& impl,
   std::vector<PopulationMember<Model>> population;
   population.reserve(population_size + breeds_per_generation);
   for (size_t i = 0; i < population_size; i++) {
-    PopulationMember<Model> member(std::move(impl.Introduce()), 0);
-    impl.Evaluate(member);
+    PopulationMember<Model> member(std::move(
+        searcher.Introduce(fitness_function)), 0);
+    fitness_function(member);
     population.push_back(std::move(member));
   }
   std::sort(std::begin(population), std::end(population), fitness_sort);
@@ -86,11 +91,12 @@ void GeneticAlgorithm(Impl& impl,
 
       do {
         PopulationMember<Model> member(
-            std::move(impl.Crossover(population[index1], population[index2])));
-        impl.Mutate(member);
+            std::move(searcher.Crossover(population[index1],
+                                         population[index2])));
+        searcher.Mutate(member);
 
         // Only add if the model is valid.
-        if (impl.Evaluate(member)) {
+        if (fitness_function(member)) {
           population.push_back(std::move(member));
           break;
         }
@@ -139,8 +145,8 @@ void GeneticAlgorithm(Impl& impl,
     std::cout << "\rGeneration " << generation_num
               << ", Fitness = " << population[0].fitness();
     std::cout.flush();
-    impl.Visualize(population[0].model());
-  } while (impl.ShouldContinue(population, generation_num));
+    fitness_function.Visualize(population[0].model());
+  } while (searcher.ShouldContinue(population, generation_num));
 
   best_model = Model(population[0].model());
 }
@@ -165,8 +171,8 @@ PopulationMember<Model>& PopulationMember<Model>::operator=(
   return *this;
 }
 
-template<typename T>
-void GeneticAlgorithmImpl<T>::Visualize(const GeneticAlgorithmImpl<T>::model_t&) {}
+//template<typename T>
+//void GeneticSearchStrategy<T>::Visualize(const model_t&) {}
 
 }  // namespace genetic
 
