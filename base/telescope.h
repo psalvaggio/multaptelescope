@@ -42,6 +42,7 @@ class Telescope {
 
   const Detector* detector() const { return detector_.get(); }
   Detector* detector() { return detector_.get(); }
+  const Aperture* aperture() const { return aperture_.get(); }
   Aperture* aperture() { return aperture_.get(); }
 
   // Simulate an image through the telescope.
@@ -59,14 +60,19 @@ class Telescope {
              std::vector<cv::Mat>* otf = NULL);
 
   void ComputeOtf(const std::vector<double>& wavelengths,
-                  std::vector<cv::Mat>* otf);
+                  std::vector<cv::Mat>* otf) const;
+
+  void ComputeEffectiveOtf(const std::vector<double>& wavelengths,
+                           const std::vector<double>& weights,
+                           cv::Mat* otf) const;
 
   void GetTransmissionSpectrum(const std::vector<double>& wavelengths,
                                std::vector<double>* transmission) const;
 
  private:
   void ComputeApertureOtf(const std::vector<double>& wavelengths,
-                          std::vector<cv::Mat>* otf);
+                          std::vector<cv::Mat>* otf) const;
+
  private:
   std::unique_ptr<Aperture> aperture_;
   std::unique_ptr<Detector> detector_;

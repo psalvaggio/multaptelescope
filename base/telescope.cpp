@@ -14,6 +14,7 @@
 #include <opencv2/highgui/highgui.hpp>
 
 #include <algorithm>
+#include <numeric>
 
 using std::vector;
 using namespace cv;
@@ -111,7 +112,7 @@ void Telescope::Image(const std::vector<Mat>& radiance,
 }
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
-                           std::vector<Mat>* otf) {
+                           std::vector<Mat>* otf) const {
   vector<Mat> ap_otf;
   ComputeApertureOtf(wavelengths, &ap_otf);
 
@@ -135,6 +136,30 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   }
 }
 
+void Telescope::ComputeEffectiveOtf(const std::vector<double>& wavelengths,
+                                    const std::vector<double>& weights,
+                                    cv::Mat* otf) const {
+  if (!otf || wavelengths.size() == 0 || weights.size() < wavelengths.size())
+    return;
+
+  vector<Mat> spectral_otf;
+  ComputeOtf(wavelengths, &spectral_otf);
+
+  double total_weight = accumulate(begin(weights), end(weights), 0);
+  vector<double> norm_weights(weights.size());
+  transform(begin(weights), end(weights), begin(norm_weights),
+      [total_weight] (const double& weight) {
+        return weight / total_weight;
+      });
+
+  spectral_otf[0].copyTo(*otf);
+  (*otf) *= norm_weights[0];
+  for (size_t i = 1; i < spectral_otf.size(); i++) {
+    spectral_otf[i] *= norm_weights[i];
+    (*otf) += spectral_otf[i];
+  }
+}
+
 void Telescope::GetTransmissionSpectrum(
     const std::vector<double>& wavelengths,
     std::vector<double>* transmission) const {
@@ -149,7 +174,7 @@ void Telescope::GetTransmissionSpectrum(
 }
 
 void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
-                                   vector<Mat>* otf) {
+                                   vector<Mat>* otf) const {
   // Array sizes
   const int kOtfSize = aperture_->params().array_size();
   const int kNumRows = detector_->rows();
@@ -225,10 +250,8 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
 
       merge(scaled_planes, scaled_otf);
     } else {
-      // std::cout << "Scaling up " << (double)kOtfSize /
-          // (otf_range.end - otf_range.start) << std::endl;
       resize(unscaled_otf(otf_range, otf_range), scaled_otf,
-             Size(kNumRows, kNumCols), 0, 0, INTER_NEAREST);
+             Size(kOtfSize, kOtfSize), 0, 0, INTER_NEAREST);
     }
 
     otf->push_back(FFTShift(scaled_otf));
