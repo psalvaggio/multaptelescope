@@ -3,6 +3,7 @@
 
 #include "mats_init.h"
 
+#include "base/filesystem.h"
 #include "io/detector_reader.h"
 #include "io/logging.h"
 #include "io/envi_image_header.pb.h"
@@ -15,7 +16,7 @@ using cv::Mat;
 
 namespace mats {
 
-bool MatsInit(const std::string& base_directory,
+bool MatsInit(const std::string& config_path,
               mats::SimulationConfig* sim_config,
               mats::DetectorParameters* detector_params,
               vector<Mat>* hyp_bands,
@@ -33,8 +34,16 @@ bool MatsInit(const std::string& base_directory,
   srand(4279419);
 
   // Initialize logging.
-  if (!mats_io::Logging::Init(base_directory)) {
-    cerr << "Could not open log files." << endl;
+  string config_file = config_path;
+  if (is_dir(config_path)) {
+    sim_config->set_base_directory(config_path);
+    config_file += "input/simulations.txt";
+    if (!mats_io::Logging::Init(config_path)) {
+      cerr << "Could not open log files." << endl;
+      return false;
+    }
+  } else if (!mats_io::Logging::Init()) {
+    cerr << "Could not initialize logging." << endl;
     return false;
   }
 
@@ -43,10 +52,8 @@ bool MatsInit(const std::string& base_directory,
             << version << ") Main Log File" << endl << endl;
 
   // Initialize the simulation parameters.
-  sim_config->set_base_directory(base_directory);
-  string sim_file = base_directory + "input/simulations.txt";
   mats_io::InputReader reader;
-  if (!reader.Read(sim_file, sim_config)) {
+  if (!reader.Read(config_file, sim_config)) {
     cerr << "Could not read simulations file." << endl;
     return false;
   }
