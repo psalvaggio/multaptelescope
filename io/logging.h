@@ -14,13 +14,18 @@ namespace mats_io {
 
 class Logging {
  public:
+  // Initialize and log to standard output.
+  static bool Init();
+
+  // Initialize and log to a log file.
   static bool Init(const std::string& base_dir);
 
-  static std::ofstream& Main();
+  static std::ostream& Main();
 
  private:
   static std::ofstream main_logfile_;
   static bool inited_;
+  static bool using_stdout_;
 
   Logging();
 };
@@ -32,6 +37,6 @@ std::string PrintDetector(const mats::DetectorParameters& detector);
 
 }
 
-std::ofstream& mainLog();
+std::ostream& mainLog();
 
 #endif  // LOGGING_H
