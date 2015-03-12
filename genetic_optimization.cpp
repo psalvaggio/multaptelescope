@@ -2,6 +2,8 @@
 // Author: Philip Salvaggio
 
 #include "aperture_optimization/golay_genetic_impl.h"
+#include "aperture_optimization/global_sparse_aperture.h"
+#include "aperture_optimization/local_sparse_aperture.h"
 #include "genetic/genetic_algorithm.h"
 #include "base/pupil_function.h"
 #include "optical_designs/compound_aperture.h"
@@ -18,22 +20,21 @@
 
 static const int kNumPoints = 6;
 static const double kEncircledDiameter = 3;
-static const double kSubapertureDiameter = 0.625;
+static const double kSubapertureDiameter = 0.52;
+static const double kReferenceWavelength = 550e-9;
 
 static const int kPopulationSize = 8;
-static const double kCrossoverProbability = 0;
-static const double kMutateProbability = 1;
+//static const double kCrossoverProbability = 0;
+//static const double kMutateProbability = 1;
 static const int kBreedsPerGeneration = 4;
 
 using namespace std;
 using namespace genetic;
+using model_t = vector<double>;
 
-static GolayGeneticImpl impl(
-    kNumPoints,
-    0.5 * (kEncircledDiameter - kSubapertureDiameter),
-    kSubapertureDiameter,
-    kMutateProbability,
-    kCrossoverProbability);
+static unique_ptr<GeneticSearchStrategy<model_t>>
+    search_strategy(nullptr);
+static bool is_global;
 
 static bool has_stopped = false;
 void stop_iteration(int) {
@@ -41,14 +42,56 @@ void stop_iteration(int) {
     std::cout << std::endl;
     exit(1);
   } else {
-    impl.Stop();
+    if (search_strategy.get()) {
+      if (is_global) {
+        auto* searcher =
+            dynamic_cast<GlobalSparseAperture<model_t>*>(search_strategy.get());
+        searcher->Stop();
+      } else {
+        auto* searcher =
+            dynamic_cast<LocalSparseAperture<model_t>*>(search_strategy.get());
+        searcher->Stop();
+      }
+    }
     has_stopped = true;
   }
 }
 
-int main() {
+int main(int argc, char** argv) {
   signal(SIGINT, stop_iteration);
   srand(time(NULL));
+
+  GolayFitnessFunction fitness_function(kNumPoints,
+                                        kEncircledDiameter,
+                                        kSubapertureDiameter,
+                                        kReferenceWavelength);
+
+  is_global = argc < 2;
+  if (is_global) {
+    search_strategy.reset(new GlobalSparseAperture<model_t>(
+          kNumPoints,
+          kEncircledDiameter,
+          kSubapertureDiameter,
+          0.25,
+          0.75));
+  } else {
+    ifstream ifs(argv[1]);
+    if (ifs.is_open()) {
+      string line;
+      model_t best_guess;
+      while (getline(ifs, line)) {
+        best_guess.push_back(atof(line.c_str()));
+      }
+
+      search_strategy.reset(new LocalSparseAperture<model_t>(
+            best_guess,
+            0.5,
+            kEncircledDiameter));
+    } else {
+      cerr << "File: " << argv[1] << " is not readable." << endl;
+      exit(1);
+    }
+  }
   /*
   cv::namedWindow("MTF", cv::WINDOW_AUTOSIZE);
   cv::moveWindow("MTF", 0, 0);
@@ -61,8 +104,9 @@ int main() {
   */
 
 
-  typename GolayGeneticImpl::model_t best_locations;
-  GeneticAlgorithm(impl,
+  typename GolayFitnessFunction::model_t best_locations;
+  GeneticAlgorithm(fitness_function,
+                   *search_strategy,
                    kPopulationSize,
                    kBreedsPerGeneration,
                    best_locations);
@@ -74,25 +118,20 @@ int main() {
       << "set size square" << endl
       << "set trange [0:360]" << endl
       << "r = " << kEncircledDiameter * 0.5 << endl
-      << "r2 = " << kSubapertureDiameter * 0.5 << endl
-      << "plot \"-\" u 1:2, r*cos(t), r*sin(t)";
+      << "r2 = " << kSubapertureDiameter * 0.5 << endl;
+  
+  for (size_t i = 0; i < best_locations.size(); i += 2) {
+    ofs << "x" << (i/2) << " = " << best_locations[i] << "; y" << (i/2)
+        << " = " << best_locations[i+1] << endl;
+  }
+
+  ofs << "plot \"-\" u 1:2, r*cos(t), r*sin(t)";
 
   for (size_t i = 0; i < best_locations.size(); i += 2) {
-    ofs << ", r2*cos(t)";
-
-    if (best_locations[i] >= 0) {
-      ofs << " + " << best_locations[i];
-    } else {
-      ofs << best_locations[i];
-    }
-    ofs << ",r2*sin(t)";
-    if (best_locations[i+1] >= 0) {
-      ofs << " + " << best_locations[i+1];
-    } else {
-      ofs << best_locations[i+1];
-    }
+    ofs << ", r2*cos(t) + x" << (i/2) << ", r2*sin(t) + y" << (i/2);
   }
   ofs << endl;
+
   for (size_t i = 0; i < best_locations.size(); i += 2) {
     ofs << best_locations[i] << "\t" << best_locations[i+1] << endl;
   }
