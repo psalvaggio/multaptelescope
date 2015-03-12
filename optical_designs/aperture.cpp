@@ -89,7 +89,7 @@ double Aperture::encircled_diameter() const {
 
 void Aperture::GetPupilFunction(const Mat& wfe,
                                 double wavelength,
-                                PupilFunction* pupil) {
+                                PupilFunction* pupil) const {
   // We want to pupil function to take up the center half of the array. This
   // is a decent tradeoff so the user has enough resolution to upsample and a
   // decent range (2x) over which to upsample.

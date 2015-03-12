@@ -59,7 +59,7 @@ class Aperture {
   //  pupil       Output parameter to hold the resulting pupil function
   void GetPupilFunction(const cv::Mat& wfe,
                         double wavelength,
-                        mats::PupilFunction* pupil);
+                        mats::PupilFunction* pupil) const;
 
   // Get the true wavefront error across the aperture.
   //
