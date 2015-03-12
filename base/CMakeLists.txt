@@ -14,8 +14,9 @@ foreach(TMPLIB ${SUBSYS_DEPS})
 endforeach()
 
 find_package(CUDA)
+find_package(Curses REQUIRED)
 file(GLOB cuda_sources "${CMAKE_CURRENT_SOURCE_DIR}/*.cu")
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linxu" AND CUDA_FOUND)
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux" AND CUDA_FOUND)
   cuda_compile(${LIB_NAME}_cuda_o ${cuda_sources})
   cuda_add_library(${LIB_NAME}_cuda ${${LIB_NAME}_cuda_o})
   set(LINK_LIBS ${LINK_LIBS} ${LIB_NAME}_cuda)
@@ -32,4 +33,6 @@ target_link_libraries(${LIB_NAME} mats_${SUBSYS_NAME}_proto
                                   ${PROTOBUF_LIBRARY}
                                   ${OpenCV_LIBS}
                                   ${FFTW_LIBRARIES}
+                                  ${CURSES_LIBRARIES}
+                                  "-lmenu"
                                   ${LINK_LIBS})
