@@ -45,5 +45,8 @@ message ApertureParameters {
   optional double offset_x = 5 [default = 0];
   optional double offset_y = 6 [default = 0];
 
+  // Optional rotation [degrees CCW]
+  optional double rotation = 7;
+
   extensions 1000 to max;
 }
