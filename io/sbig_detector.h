@@ -4,6 +4,8 @@
 #ifndef SBIG_DETECTOR_H
 #define SBIG_DETECTOR_H
 
+#include "base/wait_queue.h"
+
 #include <opencv/cv.h>
 
 namespace mats_io {
@@ -23,20 +25,20 @@ class SbigDetector {
   ~SbigDetector();
 
   // Cool and warm the detector.
-  void Cool(double deg_c);
-  void DisableCooling();
+  virtual void Cool(double deg_c);
+  virtual void DisableCooling();
 
   // Get the full size of the imaging CCD.
-  void GetSize(unsigned short& width, unsigned short& height);
+  virtual void GetSize(unsigned short& width, unsigned short& height);
 
   // Capture a frame into an OpenCV image. Exposure time is in hundreths of a
   // second.
-  void Capture(unsigned short start_x,
-               unsigned short start_y,
-               unsigned short width,
-               unsigned short height,
-               unsigned long exposure_time,
-               cv::Mat* frame);
+  virtual void Capture(unsigned short start_x,
+                       unsigned short start_y,
+                       unsigned short width,
+                       unsigned short height,
+                       unsigned long exposure_time,
+                       cv::Mat* frame);
 
   // Get the last error from the detector.
   int last_error() const { return last_error_; }
@@ -58,6 +60,36 @@ class SbigDetector {
   bool has_cooled_;
   int last_error_;
   ErrorCallback error_callback_;
+};
+
+void SbigAcquisitionThread(WaitQueue<cv::Mat>* image_queue,
+                           SbigDetector* detector,
+                           std::vector<uint16_t>* roi,
+                           int* exposure_time,
+                           bool* keep_going);
+
+class MockSbigDetector : public SbigDetector {
+ public:
+  MockSbigDetector(const cv::Mat& image);
+
+  // Cool and warm the detector.
+  void Cool(double deg_c) override;
+  void DisableCooling() override;
+  
+  // Get the full size of the imaging CCD.
+  void GetSize(unsigned short& width, unsigned short& height) override;
+  
+  // Capture a frame into an OpenCV image. Exposure time is in hundreths of a
+  // second.
+  void Capture(unsigned short start_x,
+               unsigned short start_y,
+               unsigned short width,
+               unsigned short height,
+               unsigned long exposure_time,
+               cv::Mat* frame) override;
+ 
+ private:
+  cv::Mat image_;
 };
 
 }

@@ -103,7 +103,7 @@ void SbigDetector::Capture(unsigned short start_x,
                            unsigned short width,
                            unsigned short height,
                            unsigned long exposure_time,
-                           cv::Mat* frame) {
+                           Mat* frame) {
   if (!frame) return;
 
   StartExposureParams2 shot_params{
@@ -171,6 +171,45 @@ unsigned short SbigDetector::GetCommandStatus(unsigned short command) {
   QueryCommandStatusResults result;
   SendCommand(CC_QUERY_COMMAND_STATUS, &params, &result);
   return result.status;
+}
+
+
+MockSbigDetector::MockSbigDetector(const Mat& image) 
+    : image_(image) {}
+
+void MockSbigDetector::Cool(double) {}
+void MockSbigDetector::DisableCooling() {}
+  
+void MockSbigDetector::GetSize(unsigned short& width, unsigned short& height) {
+  width = image_.cols;
+  height = image_.rows;
+}
+  
+void MockSbigDetector::Capture(unsigned short start_x,
+                               unsigned short start_y,
+                               unsigned short width,
+                               unsigned short height,
+                               unsigned long exposure_time,
+                               Mat* frame) {
+  usleep(exposure_time * 1e4);
+
+  Mat roi;
+  Range xrange(start_x, start_x + width),
+        yrange(start_y, start_y + height);
+  image_(yrange, xrange).copyTo(*frame);
+}
+
+void SbigAcquisitionThread(WaitQueue<Mat>* image_queue,
+                           SbigDetector* detector,
+                           vector<uint16_t>* roi,
+                           int* exposure_time,
+                           bool* keep_going) {
+  while (*keep_going) {
+    Mat* frame = new Mat((*roi)[3], (*roi)[2], CV_16UC1);
+    detector->Capture((*roi)[0], (*roi)[1], (*roi)[2], (*roi)[3],
+                      *exposure_time, frame);
+    image_queue->push(frame);
+  }
 }
 
 }
