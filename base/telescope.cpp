@@ -6,6 +6,7 @@
 #include "base/detector.h"
 #include "base/opencv_utils.h"
 #include "base/pupil_function.h"
+#include "base/str_utils.h"
 #include "base/system_otf.h"
 #include "io/logging.h"
 #include "optical_designs/aperture.h"
@@ -139,24 +140,20 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
 void Telescope::ComputeEffectiveOtf(const std::vector<double>& wavelengths,
                                     const std::vector<double>& weights,
                                     cv::Mat* otf) const {
-  if (!otf || wavelengths.size() == 0 || weights.size() < wavelengths.size())
+  if (!otf || wavelengths.size() == 0 || weights.size() < wavelengths.size()) {
+    std::cerr << "Telescope::ComputeEffectiveOtf: Invalid Input" << std::endl;
     return;
+  }
 
   vector<Mat> spectral_otf;
   ComputeOtf(wavelengths, &spectral_otf);
 
-  double total_weight = accumulate(begin(weights), end(weights), 0);
-  vector<double> norm_weights(weights.size());
-  transform(begin(weights), end(weights), begin(norm_weights),
-      [total_weight] (const double& weight) {
-        return weight / total_weight;
-      });
+  double total_weight = accumulate(begin(weights), end(weights), 0.0);
 
   spectral_otf[0].copyTo(*otf);
-  (*otf) *= norm_weights[0];
+  (*otf) *= weights[0];
   for (size_t i = 1; i < spectral_otf.size(); i++) {
-    spectral_otf[i] *= norm_weights[i];
-    (*otf) += spectral_otf[i];
+    (*otf) += (weights[i] / total_weight) * spectral_otf[i];
   }
 }
 
@@ -169,8 +166,8 @@ void Telescope::GetTransmissionSpectrum(
   const double kTransmittance = 0.9;
   transmission->clear();
   transmission->resize(wavelengths.size(), kTransmittance);
-  mainLog() << "Using a flat transmittance of " << kTransmittance
-            << " for the telescope optics." << std::endl;
+  //mainLog() << "Using a flat transmittance of " << kTransmittance
+            //<< " for the telescope optics." << std::endl;
 }
 
 void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
@@ -181,12 +178,6 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
   const int kNumCols = detector_->cols();
 
   Mat aperture_wfe = aperture_->GetWavefrontError();
-
-  /*
-  VideoWriter output_vid;
-  output_vid.open("/Users/philipsalvaggio/Desktop/mtf.avi",
-                  CV_FOURCC('M','J','P','G'), 30, Size(aperture_wfe.rows, aperture_wfe.cols), true);
-  */
 
   // The OTF varies drastically with respect to wavelength. So, we will be
   // calculating an OTF for each spectral band in our input radiance data.
