@@ -115,14 +115,26 @@ target_link_libraries(mats_optical_designs_proto mats_base_proto)
 
 list(APPEND MATS_LINK_LIBS ${Boost_LIBRARIES})
 
-add_executable(mats_main mats_main.cpp)
-target_link_libraries(mats_main ${MATS_LINK_LIBS})
+set(EXES mats_main
+         display_aperture
+         aberrated_otf
+         genetic_optimization
+         lab_slant_edge
+         adding_piston
+         zernikes
+         sbig_preview
+         sbig_thread_test
+         jagged_edge_test
+         plot_mtf_profile
+         get_rer_values
+         create_edge_target
+         lens_mtf_experiment
+         slant_edge
+         watch_slant_edge_dir
+         compute_average_mtf
+         )
 
-add_executable(aberrated_otf aberrated_otf.cpp)
-target_link_libraries(aberrated_otf ${MATS_LINK_LIBS})
-
-add_executable(genetic_optimization genetic_optimization.cpp)
-target_link_libraries(genetic_optimization ${MATS_LINK_LIBS})
-
-add_executable(lab_slant_edge lab_slant_edge.cpp)
-target_link_libraries(lab_slant_edge ${MATS_LINK_LIBS})
+foreach(EXECUTABLE ${EXES})
+  add_executable(${EXECUTABLE} ${EXECUTABLE}.cpp)
+  target_link_libraries(${EXECUTABLE} ${MATS_LINK_LIBS})
+endforeach()
