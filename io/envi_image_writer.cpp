@@ -24,7 +24,7 @@ bool EnviImageWriter::Write(const std::string& image_filename,
 
   hdr->set_lines(image[0].rows);
   hdr->set_samples(image[0].cols);
-  hdr->set_bands(image[0].channels());
+  hdr->set_bands(image.size());
 
   if (hdr->band_size() != hdr->bands()) {
     for (int i = hdr->band_size(); i < hdr->bands(); i++) {
@@ -99,6 +99,7 @@ bool EnviImageWriter::Write(const std::string& image_filename,
   if (fwrite(raw_data, 1, kSize, img_file) != kSize) {
     mainLog() << "Could not write image data to the output file." << endl;
     delete[] raw_data;
+    fclose(img_file);
     return false;
   }
 
