@@ -10,9 +10,10 @@ set(headers
     envi_image_reader.h
     envi_image_writer.h
     hdf5_reader.h
+    input_reader.h
     sbig_detector.h
     stl_writer.h
-    input_reader.h)
+    text_file_reader.h)
 
 set(sources
     logging.cpp
@@ -21,9 +22,10 @@ set(sources
     envi_image_reader.cpp
     envi_image_writer.cpp
     hdf5_reader.cpp
+    input_reader.cpp
     sbig_detector.cpp
     stl_writer.cpp
-    input_reader.cpp)
+    text_file_reader.cpp)
 
 set(LIB_NAME mats_${SUBSYS_NAME})
 
