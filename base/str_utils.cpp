@@ -64,4 +64,20 @@ void SStringPrintf(std::string* output, const char* format, ...) {
   va_end(vargs);
 }
 
+bool ends_with(const std::string& haystack, const std::string& needle) {
+  if (haystack.length() >= needle.length()) {
+    return haystack.compare(haystack.length() - needle.length(),
+                            needle.length(),
+                            needle) == 0;
+  }
+  return false;
+}
+
+std::string AppendSlash(const std::string& input) {
+  if (input.back() != '/') {
+    return input + '/';
+  }
+  return input;
+}
+
 }

@@ -47,6 +47,10 @@ std::string StringPrintf(const char* format, ...);
 
 void SStringPrintf(std::string* output, const char* format, ...);
 
+bool ends_with(const std::string& haystack, const std::string& needle);
+
+std::string AppendSlash(const std::string& input);
+
 }
 
 #endif  // STR_UTILS_H
