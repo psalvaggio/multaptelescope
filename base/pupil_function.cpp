@@ -2,6 +2,9 @@
 // Author: Philip Salvaggio
 
 #include "pupil_function.h"
+
+#include "base/fftw_lock.h"
+
 #include <fftw3.h>
 #include <vector>
 
@@ -33,6 +36,8 @@ Mat PupilFunction::PointSpreadFunction() {
   const size_t cols = pupil_real_.cols;
   const size_t size = rows * cols;
 
+  fftw_lock().lock();
+
   fftw_complex* pupil_func =
       (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * size);
   fftw_complex* pupil_func_fft =
@@ -51,8 +56,9 @@ Mat PupilFunction::PointSpreadFunction() {
 
   fftw_plan fft_plan = fftw_plan_dft_2d(rows, cols, pupil_func, pupil_func_fft,
                                         FFTW_FORWARD, FFTW_ESTIMATE);
+  fftw_lock().unlock();
+
   fftw_execute(fft_plan);
-  fftw_destroy_plan(fft_plan);
 
   Mat psf(rows, cols, CV_64FC1);
   double* psf_data = (double*) psf.data;
@@ -69,8 +75,11 @@ Mat PupilFunction::PointSpreadFunction() {
     }
   }
 
+  fftw_lock().lock();
+  fftw_destroy_plan(fft_plan);
   fftw_free(pupil_func);
   fftw_free(pupil_func_fft);
+  fftw_lock().unlock();
 
   psf /= psf_total;
 

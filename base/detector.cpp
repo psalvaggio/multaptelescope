@@ -3,6 +3,7 @@
 
 #include "detector.h"
 
+#include "base/fftw_lock.h"
 #include "base/math_utils.h"
 #include "base/opencv_utils.h"
 #include "base/photon_noise.h"
@@ -180,7 +181,6 @@ void Detector::Quantize(const vector<Mat>& electrons,
 
   long max_dig_count = ((long) 1) << det_params_.a_d_bit_depth();
   double gain = 1 / det_params_.electrons_per_adu();
-  cout << "Detector Gain " << gain << endl;
 
   for (size_t i = 0; i < electrons.size(); i++) {
     Mat tmp = gain * electrons[i];
@@ -272,12 +272,14 @@ Mat Detector::GetJitterOtf(double jitter_std_dev) {
   Mat phase(2, kNumTimesteps, CV_64FC1);
   randn(phase, 0, 1);
 
+  fftw_lock().lock();
   fftw_complex* jitter_spectrum = fftw_alloc_complex(kNumTimesteps);
   fftw_complex* jitter_instance = fftw_alloc_complex(kNumTimesteps);
 
   fftw_plan fft_plan = fftw_plan_dft_1d(kNumTimesteps, jitter_spectrum,
                                         jitter_instance, FFTW_BACKWARD,
                                         FFTW_ESTIMATE);
+  fftw_lock().unlock();
 
   jitter_spectrum[0][0] = 0;
   jitter_spectrum[0][1] = 0;
@@ -305,8 +307,11 @@ Mat Detector::GetJitterOtf(double jitter_std_dev) {
     y_offset.push_back(jitter_instance[i][1]);
   }
 
+  fftw_lock().lock();
+  fftw_destroy_plan(fft_plan);
   fftw_free(jitter_spectrum);
   fftw_free(jitter_instance);
+  fftw_lock().unlock();
 
   double mean_x = 0, mean_sq_x = 0;
   double mean_y = 0, mean_sq_y = 0;
