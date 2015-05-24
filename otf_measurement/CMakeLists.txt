@@ -4,11 +4,13 @@ find_package(FFTW REQUIRED)
 
 set(headers
     hamming_window.h
+    jagged_edge_mtf.h
     mtf_interpolator.h
     slant_edge_mtf.h)
 
 set(sources
     hamming_window.cpp
+    jagged_edge_mtf.cpp
     mtf_interpolator.cpp
     slant_edge_mtf.cpp)
 
