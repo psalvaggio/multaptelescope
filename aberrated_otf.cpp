@@ -1,15 +1,7 @@
 // File Description
 // Author: Philip Salvaggio
 
-#include "base/detector_parameters.pb.h"
-#include "base/mats_init.h"
-#include "base/opencv_utils.h"
-#include "base/pupil_function.h"
-#include "base/simulation_config.pb.h"
-#include "base/telescope.h"
-#include "io/envi_image_header.pb.h"
-#include "io/logging.h"
-#include "optical_designs/aperture.h"
+#include "mats.h"
 
 #include <cstdlib>
 #include <ctime>
@@ -26,24 +18,16 @@ using mats_io::Logging;
 
 int main(int argc, char** argv) {
   if (argc < 2) {
-    cerr << "Usage: ./mats_main base_dir [sim_id]" << endl;
+    cerr << "Usage: ./mats_main config_file [sim_id]" << endl;
     return 1;
-  }
-
-  // Parse the base directory from the command line.
-  string base_dir(argv[1]);
-  if (base_dir[base_dir.size() - 1] != '/') {
-    base_dir.append("/");
   }
 
   mats::SimulationConfig sim_config;
   mats::DetectorParameters detector_params;
-  vector<Mat> hyp_planes;
-  mats_io::EnviImageHeader hyp_header;
-  if (!mats::MatsInit(base_dir, &sim_config, &detector_params, NULL, NULL)) {
+  if (!mats::MatsInit(argv[1], &sim_config, &detector_params, NULL, NULL)) {
     return 1;
   }
-  sim_config.set_array_size(512);
+  if (!sim_config.has_array_size()) sim_config.set_array_size(512);
 
   int sim_index = 0;
   if (argc >= 3) {
@@ -66,9 +50,9 @@ int main(int argc, char** argv) {
 
   Mat mtf = pupil.ModulationTransferFunction();
 
-  cv::imwrite(base_dir + "mask.png", ByteScale(pupil.magnitude()));
-  cv::imwrite(base_dir + "wfe.png", ByteScale(pupil.phase()));
-  cv::imwrite(base_dir + "mtf.png", GammaScale(FFTShift(mtf), 1/2.2));
+  cv::imwrite("mask.png", ByteScale(pupil.magnitude()));
+  cv::imwrite("wfe.png", ByteScale(pupil.phase()));
+  cv::imwrite("mtf.png", GammaScale(FFTShift(mtf), 1/2.2));
 
   return 0;
 }
