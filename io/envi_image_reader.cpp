@@ -112,6 +112,7 @@ bool EnviImageReader::Read(const string& image_filename,
   if (fseek(img_file, hdr->header_offset(), SEEK_SET) != 0) {
     mainLog() << "The header offset in the ENVI header \"" << header_filename
               << "\" was invalid." << endl;
+    fclose(img_file);
     return false;
   }
 
@@ -119,6 +120,7 @@ bool EnviImageReader::Read(const string& image_filename,
   if (fread(raw_data, 1, kSize, img_file) != kSize) {
     mainLog() << "Not enough data in the image file." << endl;
     delete[] raw_data;
+    fclose(img_file);
     return false;
   }
   fclose(img_file);
