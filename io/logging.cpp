@@ -15,7 +15,7 @@ std::ostream& mainLog() {
 
 namespace mats_io {
 
-bool Logging::using_stdout_ = false;
+bool Logging::using_stderr_ = false;
 bool Logging::inited_ = false;
 ofstream Logging::main_logfile_;
 
@@ -23,7 +23,7 @@ Logging::Logging() {}
 
 bool Logging::Init() {
   inited_ = true;
-  using_stdout_ = true;
+  using_stderr_ = true;
   return true;
 }
 
@@ -45,7 +45,7 @@ ostream& Logging::Main() {
     cerr << "Warning: Please call mats_io::Logging::Init() before trying "
          << "to log messages." << endl;
   }
-  return using_stdout_ ? cout : main_logfile_;
+  return using_stderr_ ? cerr : main_logfile_;
 }
 
 string PrintConfig(const SimulationConfig& config) {

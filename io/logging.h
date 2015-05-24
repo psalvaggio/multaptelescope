@@ -14,7 +14,7 @@ namespace mats_io {
 
 class Logging {
  public:
-  // Initialize and log to standard output.
+  // Initialize and log to standard error.
   static bool Init();
 
   // Initialize and log to a log file.
@@ -25,7 +25,7 @@ class Logging {
  private:
   static std::ofstream main_logfile_;
   static bool inited_;
-  static bool using_stdout_;
+  static bool using_stderr_;
 
   Logging();
 };
