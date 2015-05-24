@@ -196,6 +196,16 @@ cv::Mat CompoundAperture::GetApertureTemplate() const {
     }
   }
 
+  if (aperture_params().has_rotation() && aperture_params().rotation() != 0) {
+    cv::Mat rotation = cv::getRotationMatrix2D(
+        cv::Point2f(result.cols / 2, result.rows / 2),
+        aperture_params().rotation(),
+        1);
+    cv::warpAffine(result, result, rotation, result.size());
+    cv::warpAffine(opd_, opd_, rotation, result.size());
+    cv::warpAffine(opd_est_, opd_est_, rotation, result.size());
+  }
+
   return result;
 }
 
