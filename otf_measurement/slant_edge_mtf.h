@@ -13,7 +13,10 @@ class SlantEdgeMtf {
   SlantEdgeMtf();
   ~SlantEdgeMtf();
 
-  // Analyze an image patch with a slant edge.
+  // Analyze an image patch with a slant edge. All of the subroutines are also
+  // public in case they are useful for other applications. However, if the MTF
+  // measurement is all that is needed, then this is the only routine that
+  // needs to be called.
   //
   // Arguments:
   //   image        The input image. It should have a slanted edge that runs the
@@ -45,7 +48,6 @@ class SlantEdgeMtf {
   //  gp  A pointer to a gnuplot-iostream object.
   void SetGnuplot(Gnuplot* gp);
 
- private:
   // Detects the edge in the image.
   //
   // Arguments:
@@ -56,15 +58,7 @@ class SlantEdgeMtf {
   //
   // Returns:
   //  Whether or not the edge was successfully detected.
-  bool DetectEdge(const cv::Mat& image, double* edge);
-
-  // Detects the resolution that can be supported with the detected line
-  // orientation.
-  //
-  // Arguments:
-  //  image  The image being examined. Needed to get the image size.
-  //  edge   The edge detected in the image.
-  int GetSamplesPerPixel(const cv::Mat& image, const double* edge);
+  static bool DetectEdge(const cv::Mat& image, double* edge);
 
   // Generate the edge spread function from the image data.
   //
@@ -77,6 +71,14 @@ class SlantEdgeMtf {
                    const double* edge,
                    int samples_per_pixel,
                    std::vector<double>* esf);
+
+  // Detects the resolution that can be supported with the detected line
+  // orientation.
+  //
+  // Arguments:
+  //  image  The image being examined. Needed to get the image size.
+  //  edge   The edge detected in the image.
+  int GetSamplesPerPixel(const cv::Mat& image, const double* edge);
 
   // Smooth the ESF with a 3-element uniform blur kernel.
   //
