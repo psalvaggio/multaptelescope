@@ -4,7 +4,7 @@
 #ifndef OPENCV_UTILS_H
 #define OPENCV_UTILS_H
 
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 #include <vector>
 
 cv::Mat ByteScale(const cv::Mat& input,
@@ -73,5 +73,15 @@ std::string GetMatDataType(const cv::Mat& mat);
 //  output - Output: the profile.
 void GetRadialProfile(const cv::Mat& input, double theta,
                       std::vector<double>* output);
+
+// Get a ROI form two user mouse-clicks.
+//
+// Parameters:
+//  image  A full-frame image that can be presented to the user for selecting
+//         an ROI.
+//
+// Returns:
+//  [x1 y1 width+1 height+1]
+std::vector<uint16_t> GetRoi(const cv::Mat& image);
 
 #endif  // OPENCV_UTILS_H
