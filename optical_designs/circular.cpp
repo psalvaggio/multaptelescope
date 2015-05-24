@@ -45,9 +45,6 @@ Mat Circular::GetOpticalPathLengthDiffEstimate() const {
     default: knowledge_level = 0.2; break;
   }
 
-  mainLog() << "Error in the estimates of piston/tip/tilt: "
-            << knowledge_level << " [waves]" << std::endl;
-
   const std::vector<double>& real_weights = aberrations();
   std::vector<double> wrong_weights;
   for (size_t i = 0; i < real_weights.size(); i++) {
