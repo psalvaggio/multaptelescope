@@ -1,21 +1,19 @@
-set(SUBSYS_NAME otf_measurement)
-
 find_package(FFTW REQUIRED)
 
-set(headers
+set(MATS_HDRS ${MATS_HDRS}
     hamming_window.h
     jagged_edge_mtf.h
     mtf_interpolator.h
-    slant_edge_mtf.h)
+    slant_edge_mtf.h
+    PARENT_SCOPE)
 
-set(sources
+set(MATS_SRCS ${MATS_SRCS}
     hamming_window.cpp
     jagged_edge_mtf.cpp
     mtf_interpolator.cpp
-    slant_edge_mtf.cpp)
+    slant_edge_mtf.cpp
+    PARENT_SCOPE)
 
-set(LIB_NAME mats_${SUBSYS_NAME})
-set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${LIB_NAME} PARENT_SCOPE)
-
-add_library(${LIB_NAME} ${headers} ${sources})
-target_link_libraries(${LIB_NAME} ${OpenCV_LIBS} ${FFTW_LIBRARIES})
+set(MATS_LINK_LIBS ${MATS_LINK_LIBS} 
+    ${FFTW_LIBRARIES}
+    PARENT_SCOPE)

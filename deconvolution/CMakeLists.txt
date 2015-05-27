@@ -1,15 +1,7 @@
-set(SUBSYS_NAME deconvolution)
+set(MATS_HDRS ${MATS_HDRS}
+    constrained_least_squares.h
+    PARENT_SCOPE)
 
-find_package(FFTW REQUIRED)
-
-set(headers
-    constrained_least_squares.h)
-
-set(sources
-    constrained_least_squares.cpp)
-
-set(LIB_NAME mats_${SUBSYS_NAME})
-set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${LIB_NAME} PARENT_SCOPE)
-
-add_library(${LIB_NAME} ${headers} ${sources})
-target_link_libraries(${LIB_NAME} ${OpenCV_LIBS})
+set(MATS_SRCS ${MATS_SRCS}
+    constrained_least_squares.cpp
+    PARENT_SCOPE)

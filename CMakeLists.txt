@@ -108,30 +108,69 @@ foreach(TMP_LIB ${MODULES})
                                              ${${TMP_LIB}_ProtoHeaders})
     target_link_libraries(mats_${TMP_LIB}_proto ${PROTOBUF_LIBRARIES})
   endif()
-
-  add_subdirectory(${TMP_LIB})
-endforeach(TMP_LIB)
+endforeach()
 target_link_libraries(mats_optical_designs_proto mats_base_proto)
 
-list(APPEND MATS_LINK_LIBS ${Boost_LIBRARIES})
+set(SRCS "")
+set(HDRS "")
+foreach(TMP_LIB ${MODULES})
+  #if (${TMP_LIB}_ProtoFiles)
+  #  add_library(mats_${TMP_LIB}_proto SHARED ${${TMP_LIB}_ProtoSources}
+  #                                           ${${TMP_LIB}_ProtoHeaders})
+  #  target_link_libraries(mats_${TMP_LIB}_proto ${PROTOBUF_LIBRARIES})
+  #endif()
+
+  if (${TMP_LIB}_ProtoFiles)
+    set(SRCS ${SRCS} ${${TMP_LIB}_ProtoSources})
+    set(HDRS ${HDRS} ${${TMP_LIB}_ProtoHeaders})
+  endif()
+
+  set(MATS_SRCS "")
+  set(MATS_HDRS "")
+  add_subdirectory(${TMP_LIB})
+
+  foreach(TMP_FILE ${MATS_SRCS})
+    list(APPEND SRCS ${TMP_LIB}/${TMP_FILE})
+  endforeach()
+  foreach(TMP_FILE ${MATS_HDRS})
+    list(APPEND HDRS ${TMP_LIB}/${TMP_FILE})
+  endforeach()
+endforeach(TMP_LIB)
+
+list(APPEND MATS_LINK_LIBS ${Boost_LIBRARIES}
+                           ${OpenCV_LIBRARIES}
+                           ${PROTOBUF_LIBRARIES})
+
+set (LIB_NAME mats)
+
+add_library(${LIB_NAME} SHARED ${SRCS} ${HDRS})
+target_link_libraries(${LIB_NAME} ${MATS_LINK_LIBS})
+
+if (APPLE)
+  set(LIB_NAME -Wl,-force_load ${LIB_NAME})
+else()
+  set(LIB_NAME -Wl,--whole-archive ${LIB_NAME} -Wl,--no-whole-archive)
+endif()
+
+list(APPEND MATS_LINK_LIBS ${LIB_NAME})
 
 set(EXES mats_main
-         display_aperture
+  #display_aperture
          aberrated_otf
-         genetic_optimization
-         lab_slant_edge
-         adding_piston
-         zernikes
-         sbig_preview
-         sbig_thread_test
-         jagged_edge_test
-         plot_mtf_profile
-         get_rer_values
-         create_edge_target
-         lens_mtf_experiment
-         slant_edge
-         watch_slant_edge_dir
-         compute_average_mtf
+         #genetic_optimization
+         #lab_slant_edge
+         #adding_piston
+         #zernikes
+         #sbig_preview
+         #sbig_thread_test
+         #jagged_edge_test
+         #plot_mtf_profile
+         #get_rer_values
+         #create_edge_target
+         #lens_mtf_experiment
+         #slant_edge
+         #watch_slant_edge_dir
+         #compute_average_mtf
          )
 
 foreach(EXECUTABLE ${EXES})

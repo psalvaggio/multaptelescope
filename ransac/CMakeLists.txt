@@ -1,17 +1,11 @@
-set(SUBSYS_NAME ransac)
-
-set(headers
+set(MATS_HDRS ${MATS_HDRS}
     ransac.h
     ransac_fit_circle.h
-    ransac_fit_line.h)
+    ransac_fit_line.h
+    PARENT_SCOPE)
 
-set(sources
+set(MATS_SRCS ${MATS_SRCS}
     ransac.cpp
     ransac_fit_circle.cpp
-    ransac_fit_line.cpp)
-
-set(LIB_NAME mats_${SUBSYS_NAME})
-set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${LIB_NAME} PARENT_SCOPE)
-
-add_library(${LIB_NAME} ${headers} ${sources})
-target_link_libraries(${LIB_NAME} ${OpenCV_LIBS})
+    ransac_fit_line.cpp
+    PARENT_SCOPE)

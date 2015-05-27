@@ -1,9 +1,6 @@
-set(SUBSYS_NAME io)
-set(SUBSYS_DEPS base)
-
 find_package(HDF5 REQUIRED)
 
-set(headers
+set(MATS_HDRS ${MATS_HDRS}
     logging.h
     detector_writer.h
     detector_reader.h
@@ -13,9 +10,10 @@ set(headers
     input_reader.h
     sbig_detector.h
     stl_writer.h
-    text_file_reader.h)
+    text_file_reader.h
+    PARENT_SCOPE)
 
-set(sources
+set(MATS_SRCS ${MATS_SRCS}
     logging.cpp
     detector_writer.cpp
     detector_reader.cpp
@@ -25,16 +23,11 @@ set(sources
     input_reader.cpp
     sbig_detector.cpp
     stl_writer.cpp
-    text_file_reader.cpp)
+    text_file_reader.cpp
+    PARENT_SCOPE)
 
-set(LIB_NAME mats_${SUBSYS_NAME})
-
-foreach(TMPLIB ${SUBSYS_DEPS})
-  set(LINK_LIBS ${LINK_LIBS} mats_${TMPLIB})
-endforeach()
-
-set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${LIB_NAME} PARENT_SCOPE)
-
-add_library(${LIB_NAME} ${headers} ${sources})
-target_link_libraries(${LIB_NAME} ${LINK_LIBS} ${LIB_NAME}_proto hdf5 hdf5_hl
-                      "-framework SBIGUDrv")
+set(MATS_LINK_LIBS ${MATS_LINK_LIBS}
+    hdf5
+    hdf5_hl
+    "-framework SBIGUDrv"
+    PARENT_SCOPE)
