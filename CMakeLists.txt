@@ -114,12 +114,6 @@ target_link_libraries(mats_optical_designs_proto mats_base_proto)
 set(SRCS "")
 set(HDRS "")
 foreach(TMP_LIB ${MODULES})
-  #if (${TMP_LIB}_ProtoFiles)
-  #  add_library(mats_${TMP_LIB}_proto SHARED ${${TMP_LIB}_ProtoSources}
-  #                                           ${${TMP_LIB}_ProtoHeaders})
-  #  target_link_libraries(mats_${TMP_LIB}_proto ${PROTOBUF_LIBRARIES})
-  #endif()
-
   if (${TMP_LIB}_ProtoFiles)
     set(SRCS ${SRCS} ${${TMP_LIB}_ProtoSources})
     set(HDRS ${HDRS} ${${TMP_LIB}_ProtoHeaders})
@@ -154,23 +148,23 @@ endif()
 
 list(APPEND MATS_LINK_LIBS ${LIB_NAME})
 
-set(EXES mats_main
-  #display_aperture
-         aberrated_otf
-         #genetic_optimization
+set(EXES aberrated_otf
+         acquire_images
+         display_aperture
+         genetic_optimization
+         mats_main
          #lab_slant_edge
          #adding_piston
-         #zernikes
          #sbig_preview
          #sbig_thread_test
          #jagged_edge_test
          #plot_mtf_profile
          #get_rer_values
          #create_edge_target
-         #lens_mtf_experiment
          #slant_edge
          #watch_slant_edge_dir
          #compute_average_mtf
+         #create_spectral_weighting
          )
 
 foreach(EXECUTABLE ${EXES})
