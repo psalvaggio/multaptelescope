@@ -32,6 +32,7 @@ message ApertureParameters {
     COMPOUND = 6;
     OPTICAL_VORTEX = 7;
     AXICON = 8;
+    GOLAY6 = 9;
   }
   optional ApertureType type = 2;
 
