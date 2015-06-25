@@ -4,17 +4,13 @@
 #include "mats.h"
 
 #include <cstdlib>
-#include <ctime>
 #include <iostream>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 #include <string>
 
-#include "base/zernike_aberrations.h"
-
 using namespace std;
 using namespace cv;
-using mats_io::Logging;
 
 int main(int argc, char** argv) {
   if (argc < 2) {
