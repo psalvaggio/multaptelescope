@@ -226,7 +226,6 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   // Wait for the user to select the corners.
   std::vector<uint16_t> roi;
   cv::setMouseCallback(input_window, mouse_callback, &roi);
-  int i = 0;
   while (roi.size() != 4) {
     cv::waitKey(50);
   }
