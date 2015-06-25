@@ -1,4 +1,5 @@
-# multaptelescope
-Multi-aperture Telescope Simulation
+# Multi-aperture Telescope Simulation
 
-This model is used to simulate the performance of imaging systems with non-conventional aperture functions, such as sparse aperture systems. This is done using optical transfer functions calculated through the autocorrelation of the aberated pupil function of the system.
+A C++ library that models image quality of sparse/segmented aperture telescopes.
+Has support for complex pupil function and image restoration with various levels
+of knowledge of the wavefront error.
