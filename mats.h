@@ -10,6 +10,7 @@
 #include "base/detector_parameters.pb.h"
 #include "base/filesystem.h"
 #include "base/linear_interpolator.h"
+#include "base/math_utils.h"
 #include "base/mats_init.h"
 #include "base/menu_application.h"
 #include "base/opencv_utils.h"
