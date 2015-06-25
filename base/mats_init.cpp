@@ -21,7 +21,7 @@ bool MatsInit(const std::string& config_path,
               mats::DetectorParameters* detector_params,
               vector<Mat>* hyp_bands,
               mats_io::EnviImageHeader* hyp_header) {
-  if (!sim_config || !detector_params) {
+  if (!sim_config) {
     cerr << "Invalid Pointer passed to mats::MatsInit()" << endl;
     return false;
   }
@@ -62,15 +62,17 @@ bool MatsInit(const std::string& config_path,
             << mats_io::PrintConfig(*sim_config) << endl;
 
   // Initialize the detector parameters.
-  mats_io::DetectorReader det_reader;
-  if (!det_reader.Read(sim_config->detector_params_filename(),
-                       detector_params)) {
-    cerr << "Could not read detector file." << endl;
-    return false;
-  }
+  if (detector_params) {
+    mats_io::DetectorReader det_reader;
+    if (!det_reader.Read(sim_config->detector_params_filename(),
+                         detector_params)) {
+      cerr << "Could not read detector file." << endl;
+      return false;
+    }
 
-  mainLog() << "Detector:" << endl << mats_io::PrintDetector(*detector_params)
-            << endl;
+    mainLog() << "Detector:" << endl << mats_io::PrintDetector(*detector_params)
+              << endl;
+  }
 
   // Read in the hyperspectral input image that will serve as the input to the
   // telescope.
