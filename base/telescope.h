@@ -30,7 +30,7 @@ class Telescope {
   double FocalLength() const;
 
   // Get the F# of the system. [unitless]
-  double FNumber();
+  double FNumber() const;
 
   // Get the G# of the telescope [sr^-1]. This describes the relationship
   // between the radiance reaching the optics and the irradiance onto the
@@ -38,12 +38,23 @@ class Telescope {
   //
   // Arguments:
   //   lambda  The wavelength of interest [m]
-  double GNumber(double lambda);
+  double GNumber(double lambda) const;
 
   const Detector* detector() const { return detector_.get(); }
   Detector* detector() { return detector_.get(); }
   const Aperture* aperture() const { return aperture_.get(); }
   Aperture* aperture() { return aperture_.get(); }
+
+  // Gets the effective Q (lambda * F# / p) of the system over a bandpass
+  //
+  // Arguments:
+  //  wavelengths         The bandpass wavelengths
+  //  spectral_weighting  The weighting over the bandpass (must sum to 1)
+  //
+  // Returns:
+  //  The effective Q of the system
+  double GetEffectiveQ(const std::vector<double>& wavelengths,
+                       const std::vector<double>& spectral_weighting) const;
 
   // Simulate an image through the telescope.
   //

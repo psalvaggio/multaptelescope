@@ -34,16 +34,19 @@ Telescope::~Telescope() {}
 // altitude at which the telescope is flying, and the pixel size on the ground.
 // Thus, the focal length must be a calculated parameter.
 double Telescope::FocalLength() const {
+  const mats::Simulation& sim = detector_->simulation();
+  if (sim.has_focal_length()) return sim.focal_length();
+
   return detector_->sim_params().altitude() *
          detector_->det_params().pixel_pitch() /
          detector_->simulation().gsd();  // [m]
 }
 
-double Telescope::FNumber() {
+double Telescope::FNumber() const {
   return FocalLength() / aperture_->encircled_diameter();
 }
 
-double Telescope::GNumber(double lambda) {
+double Telescope::GNumber(double lambda) const {
   double f_number = FNumber();
 
   vector<double> transmission;
@@ -52,6 +55,22 @@ double Telescope::GNumber(double lambda) {
 
   return (1 + 4 * f_number * f_number) /
          (M_PI * transmission[0] * aperture_->fill_factor());
+}
+
+double Telescope::GetEffectiveQ(
+    const std::vector<double>& wavelengths,
+    const std::vector<double>& spectral_weighting) const {
+  double fnumber = FNumber();
+  double p = detector_->pixel_pitch();
+  double q = 0;
+  double total_weight = 0;
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    double weight =
+        spectral_weighting[std::max(i, spectral_weighting.size() - 1)];
+    q += wavelengths[i] * fnumber * weight / p;
+    total_weight += weight;
+  }
+  return q / total_weight;
 }
 
 void Telescope::Image(const std::vector<Mat>& radiance,
@@ -166,16 +185,12 @@ void Telescope::GetTransmissionSpectrum(
   const double kTransmittance = 0.9;
   transmission->clear();
   transmission->resize(wavelengths.size(), kTransmittance);
-  //mainLog() << "Using a flat transmittance of " << kTransmittance
-            //<< " for the telescope optics." << std::endl;
 }
 
 void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
                                    vector<Mat>* otf) const {
   // Array sizes
   const int kOtfSize = aperture_->params().array_size();
-  const int kNumRows = detector_->rows();
-  const int kNumCols = detector_->cols();
 
   Mat aperture_wfe = aperture_->GetWavefrontError();
 
