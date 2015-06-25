@@ -379,4 +379,27 @@ int EnviImageReader::GetOpenCVDType(int envi_dt, int& size) {
   return -1;
 }
 
+double EnviImageReader::GetWavelengthMultiplier(const std::string& wave_units,
+                                                bool* is_wavenumber) {
+  string wave_units_lc;
+  std::transform(wave_units.begin(), wave_units.end(),
+                 wave_units_lc.begin(), ::tolower);
+
+  // Wavenumbers [cm^-1]
+  double wave_multiplier = 1e-6;
+  *is_wavenumber = wave_units_lc == "wavenumbers";
+  if (*is_wavenumber) {
+    wave_multiplier = 1e-2;
+  } else if (wave_units_lc == "microns" || wave_units_lc == "micrometers") {
+    wave_multiplier = 1e-6;
+  } else if (wave_units_lc == "nanometers") {
+    wave_multiplier = 1e-9;
+  } else {
+    mainLog() << "WARNING: Wavelength units in ENVI header were missing or "
+              << "an unrecognized unit. Assuming microns..." << endl;
+  }
+
+  return wave_multiplier;
+}
+
 }

@@ -45,6 +45,19 @@ class EnviImageReader {
             EnviImageHeader* hdr,
             std::vector<cv::Mat>* image);
 
+  // Get the wavelength units multiplier and whether an inversion is needed (if
+  // wavenumber is used).
+  //
+  // Arguments:
+  //  wave_units     The wavelength_units() string in EnviImageHeader.
+  //  is_wavenumber  Output: Whether the units are wavenumbers and thus must be
+  //                 inverted prior to applying the multipler.
+  //
+  // Returns:
+  //  The conversion multiplier between the wavelength units and meters.
+  static double GetWavelengthMultiplier(const std::string& wave_units,
+                                       bool* is_wavenumber);
+
  private:
   // Parse the header file and populate the EnviImageHeader object.
   //
