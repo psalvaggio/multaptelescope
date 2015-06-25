@@ -150,6 +150,7 @@ list(APPEND MATS_LINK_LIBS ${LIB_NAME})
 
 set(EXES aberrated_otf
          acquire_images
+         create_spectral_weighting
          display_aperture
          genetic_optimization
          mats_main
@@ -164,7 +165,6 @@ set(EXES aberrated_otf
          #slant_edge
          #watch_slant_edge_dir
          #compute_average_mtf
-         #create_spectral_weighting
          )
 
 foreach(EXECUTABLE ${EXES})
