@@ -32,8 +32,6 @@ set(MATS_HDRS ${MATS_HDRS}
     opencv_utils.h
     photon_noise.h
     pupil_function.h
-    registry.h
-    registry_test.h
     str_utils.h
     system_otf.h
     telescope.h
