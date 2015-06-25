@@ -6,6 +6,7 @@ set(MATS_HDRS ${MATS_HDRS}
     circular.h
     compound_aperture.h
     hdf5_wfe.h
+    golay6.h
     optical_vortex.h
     triarm9.h
     PARENT_SCOPE)
@@ -18,6 +19,7 @@ set(MATS_SRCS ${MATS_SRCS}
     circular.cpp
     compound_aperture.cpp
     hdf5_wfe.cpp
+    golay6.cpp
     optical_vortex.cpp
     triarm9.cpp
     PARENT_SCOPE)
