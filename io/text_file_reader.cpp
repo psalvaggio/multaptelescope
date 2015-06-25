@@ -6,6 +6,7 @@
 #include "base/linear_interpolator.h"
 
 #include <fstream>
+#include <iostream>
 #include <regex>
 
 using namespace std;
@@ -19,11 +20,11 @@ bool TextFileReader::Parse(const string& filename,
 
   int line_idx = 0;
   string line;
-  regex delim("[\\s\\t,]+");
+  regex delim("[,\\s\\t]+");
 
   while (getline(ifs, line)) {
     smatch sm;
-    regex_match(line, sm, delim);
+    regex_search(line, sm, delim);
 
     size_t num_fields = sm.size() + 1;
     if (num_fields > data->size()) {
@@ -34,8 +35,9 @@ bool TextFileReader::Parse(const string& filename,
 
     int start = 0;
     for (size_t i = 0; i < num_fields; i++) {
-      int end = sm.position(i);
-      data->at(i).push_back(atof(line.substr(start, end - start + 1).c_str()));
+      int end = (i < sm.size()) ? sm.position(i) : line.size();
+      data->at(i).push_back(atof(line.substr(start, end - start).c_str()));
+      start = end + sm.length(i);
     }
   }
 
@@ -45,8 +47,11 @@ bool TextFileReader::Parse(const string& filename,
 bool TextFileReader::Resample(const string& filename,
                               const vector<double>& independent_var,
                               vector<vector<double>>* data) {
+  if (!data) return false;
+  data->clear();
+
   vector<vector<double>> raw_data;
-  if (!TextFileReader::Parse(filename, data)) return false;
+  if (!TextFileReader::Parse(filename, &raw_data)) return false;
 
   for (size_t i = 1; i < raw_data.size(); i++) {
     data->emplace_back();
