@@ -28,6 +28,9 @@ message SimulationConfig {
  
   // The filename of the input radiance image.
   optional string input_image_filename = 7;
+
+  // The filename for a spectral weighting function text file.
+  optional string spectral_weighting_filename = 8;
 }
 
 message Simulation {
@@ -49,6 +52,9 @@ message Simulation {
 
   // Ground Sample Distance (GSD) of the telescope [meters/pixel]
   optional double gsd = 9;
+
+  // Focal length, if specfied, overrides the gsd/altitude. [m]
+  optional double focal_length = 10;
 
   // Some aperture type choices may require additional parameters.
   // Protobuf extensions are a nice way to smuggle them in without changing the
