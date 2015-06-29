@@ -45,6 +45,8 @@ class Telescope {
   const Aperture* aperture() const { return aperture_.get(); }
   Aperture* aperture() { return aperture_.get(); }
 
+  const SimulationConfig& sim_params() const;
+
   // Gets the effective Q (lambda * F# / p) of the system over a bandpass
   //
   // Arguments:

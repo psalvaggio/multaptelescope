@@ -30,6 +30,10 @@ Telescope::Telescope(const SimulationConfig& sim_config,
 
 Telescope::~Telescope() {}
 
+const SimulationConfig& Telescope::sim_params() const {
+  return detector_->sim_params();
+}
+
 // In this model, the user specifies the pixel pitch of the detector, the
 // altitude at which the telescope is flying, and the pixel size on the ground.
 // Thus, the focal length must be a calculated parameter.
@@ -138,8 +142,7 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
 
   SystemOtf wave_invar_sys_otf;
   wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf());
-  wave_invar_sys_otf.PushOtf(
-      detector_->GetSmearOtf(0, detector_->pixel_pitch() * 2.5e4));
+  wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0));
   wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0.1));
   Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
