@@ -35,6 +35,8 @@ message SimulationConfig {
 
 message Simulation {
   optional int32 simulation_id = 1;
+
+  optional string name = 11;
   
   optional ApertureParameters aperture_params = 3;
 
