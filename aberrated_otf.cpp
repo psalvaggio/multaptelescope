@@ -9,10 +9,18 @@
 #include <opencv/highgui.h>
 #include <string>
 
+#include <gflags/gflags.h>
+
 using namespace std;
 using namespace cv;
 
+DEFINE_string(spectral_weighting, "", "Optional spectral weighting filename.");
+DEFINE_bool(output_inverse_filter, false,
+            "Whether to output the inverse filter.");
+DEFINE_double(smoothness, 1e-3, "Smoothness Lagrange multiplier.");
+
 int main(int argc, char** argv) {
+  google::ParseCommandLineFlags(&argc, &argv, true);
   if (argc < 2) {
     cerr << "Usage: ./mats_main config_file [sim_id]" << endl;
     return 1;
@@ -24,6 +32,9 @@ int main(int argc, char** argv) {
     return 1;
   }
   if (!sim_config.has_array_size()) sim_config.set_array_size(512);
+
+  detector_params.set_array_rows(512);
+  detector_params.set_array_cols(512);
 
   int sim_index = 0;
   if (argc >= 3) {
@@ -37,6 +48,7 @@ int main(int argc, char** argv) {
   }
 
   mats::Telescope telescope(sim_config, sim_index, detector_params);
+  Mat otf;
 
   Mat wfe = telescope.aperture()->GetWavefrontError();
 
@@ -44,11 +56,29 @@ int main(int argc, char** argv) {
   telescope.aperture()->GetPupilFunction(wfe,
       sim_config.reference_wavelength(), &pupil);
 
-  Mat mtf = pupil.ModulationTransferFunction();
+  if (FLAGS_spectral_weighting == "") {
+    otf = pupil.OpticalTransferFunction();
+  } else {
+    vector<vector<double>> data;
+    if (mats_io::TextFileReader::Parse(FLAGS_spectral_weighting, &data)) {
+      telescope.ComputeEffectiveOtf(data[0], data[1], &otf);
+    } else {
+      cerr << "Could not read spectral weighting file." << endl;
+    }
+  }
 
-  cv::imwrite("mask.png", ByteScale(pupil.magnitude()));
-  cv::imwrite("wfe.png", ByteScale(pupil.phase()));
-  cv::imwrite("mtf.png", GammaScale(FFTShift(mtf), 1/2.2));
+  imwrite("mask.png", ByteScale(pupil.magnitude()));
+  imwrite("wfe.png", ByteScale(pupil.phase()));
+  imwrite("wfe_real.png", ByteScale(pupil.real_part()));
+  imwrite("mtf.png", GammaScale(FFTShift(magnitude(otf)), 1/2.2));
+
+  if (FLAGS_output_inverse_filter) {
+    ConstrainedLeastSquares cls;
+    Mat inv_filter;
+    cls.GetInverseFilter(otf, FLAGS_smoothness, &inv_filter);
+    imwrite("inv_filter.png",
+        GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2));
+  }
 
   return 0;
 }
