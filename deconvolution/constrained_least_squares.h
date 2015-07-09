@@ -14,6 +14,10 @@ class ConstrainedLeastSquares {
                   const cv::Mat& transfer_function,
                   double smoothness,
                   cv::Mat* output);
+
+  void GetInverseFilter(const cv::Mat& transfer_function,
+                        double smoothness,
+                        cv::Mat* output);
 };
 
 #endif  // CONSTRAINED_LEAST_SQUARES_H

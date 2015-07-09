@@ -21,19 +21,25 @@ void ConstrainedLeastSquares::Deconvolve(const Mat& input,
   Mat input_fft;
   dft(input, input_fft, DFT_COMPLEX_OUTPUT);
 
-  Mat numerator;
-  mulSpectrums(input_fft, transfer_function, numerator, 0, true);
+  Mat inv_filter;
+  GetInverseFilter(transfer_function, smoothness, &inv_filter);
+  mulSpectrums(input_fft, inv_filter, *output, 0, true);
+}
 
-  Mat laplacian = Mat::zeros(input.rows, input.cols, CV_64FC1);
-  double* laplacian_data = (double*) laplacian.data;
-  laplacian_data[0*input.cols + 0] = 4;
-  laplacian_data[0*input.cols + 1] = -1;
-  laplacian_data[1*input.cols + 0] = -1;
-  laplacian_data[0*input.cols + input.cols - 1] = -1;
-  laplacian_data[(input.rows - 1)*input.cols + 0] = -1;
+void ConstrainedLeastSquares::GetInverseFilter(const Mat& transfer_function,
+                                               double smoothness,
+                                               Mat* output) {
+  Mat_<double> laplacian = Mat::zeros(transfer_function.rows,
+                                      transfer_function.cols, CV_64FC1);
+  laplacian(0, 0) = 4;
+  laplacian(0, 1) = -1;
+  laplacian(1, 0) = -1;
+  laplacian(0, transfer_function.cols - 1) = -1;
+  laplacian(transfer_function.rows - 1, 0) = -1;
 
   Mat laplacian_fft;
   dft(laplacian, laplacian_fft, DFT_COMPLEX_OUTPUT);
+
   vector<Mat> laplacian_fft_planes;
   split(laplacian_fft, laplacian_fft_planes);
   Mat smooth_power = laplacian_fft_planes[0].mul(laplacian_fft_planes[0]) +
@@ -46,16 +52,10 @@ void ConstrainedLeastSquares::Deconvolve(const Mat& input,
 
   Mat denominator = transfer_power + smooth_power * smoothness;
 
-  vector<Mat> output_planes;
-  output_planes.push_back(Mat());
-  output_planes.push_back(Mat());
-
-  vector<Mat> numerator_planes;
-  split(numerator, numerator_planes);
-  divide(numerator_planes[0], denominator, output_planes[0]);
-  divide(numerator_planes[1], denominator, output_planes[1]);
-
-  Mat output_fft;
-  merge(output_planes, output_fft);
-  dft(output_fft, *output, DFT_REAL_OUTPUT | DFT_INVERSE | DFT_SCALE);
+  vector<Mat> inv_filter;
+  split(transfer_function, inv_filter);
+  inv_filter[1] *= -1;
+  divide(inv_filter[0], denominator, inv_filter[0]);
+  divide(inv_filter[1], denominator, inv_filter[1]);
+  merge(inv_filter, *output);
 }
