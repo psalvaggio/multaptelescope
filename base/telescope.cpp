@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <numeric>
 
-using std::vector;
+using namespace std;
 using namespace cv;
 
 namespace mats {
@@ -62,25 +62,25 @@ double Telescope::GNumber(double lambda) const {
 }
 
 double Telescope::GetEffectiveQ(
-    const std::vector<double>& wavelengths,
-    const std::vector<double>& spectral_weighting) const {
+    const vector<double>& wavelengths,
+    const vector<double>& spectral_weighting) const {
   double fnumber = FNumber();
   double p = detector_->pixel_pitch();
   double q = 0;
   double total_weight = 0;
   for (size_t i = 0; i < wavelengths.size(); i++) {
     double weight =
-        spectral_weighting[std::max(i, spectral_weighting.size() - 1)];
+        spectral_weighting[max(i, spectral_weighting.size() - 1)];
     q += wavelengths[i] * fnumber * weight / p;
     total_weight += weight;
   }
   return q / total_weight;
 }
 
-void Telescope::Image(const std::vector<Mat>& radiance,
-                      const std::vector<double>& wavelength,
-                      std::vector<Mat>* image,
-                      std::vector<Mat>* otf) {
+void Telescope::Image(const vector<Mat>& radiance,
+                      const vector<double>& wavelength,
+                      vector<Mat>* image,
+                      vector<Mat>* otf) {
   // Compute the OTF for each of the spectral points in the input data.
   vector<Mat> spectral_otfs;
   ComputeOtf(wavelength, &spectral_otfs);
@@ -136,7 +136,7 @@ void Telescope::Image(const std::vector<Mat>& radiance,
 }
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
-                           std::vector<Mat>* otf) const {
+                           vector<Mat>* otf) const {
   vector<Mat> ap_otf;
   ComputeApertureOtf(wavelengths, &ap_otf);
 
@@ -146,11 +146,6 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0.1));
   Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
-  vector<Mat> otf_planes;
-  Mat mtf;
-  split(wave_invariant_otf, otf_planes);
-  magnitude(otf_planes[0], otf_planes[1], mtf);
-
   for (size_t i = 0; i < wavelengths.size(); i++) {
     SystemOtf sys_otf;
     sys_otf.PushOtf(ap_otf[i]);
@@ -159,11 +154,11 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   }
 }
 
-void Telescope::ComputeEffectiveOtf(const std::vector<double>& wavelengths,
-                                    const std::vector<double>& weights,
+void Telescope::ComputeEffectiveOtf(const vector<double>& wavelengths,
+                                    const vector<double>& weights,
                                     cv::Mat* otf) const {
   if (!otf || wavelengths.size() == 0 || weights.size() < wavelengths.size()) {
-    std::cerr << "Telescope::ComputeEffectiveOtf: Invalid Input" << std::endl;
+    cerr << "Telescope::ComputeEffectiveOtf: Invalid Input" << endl;
     return;
   }
 
@@ -180,8 +175,8 @@ void Telescope::ComputeEffectiveOtf(const std::vector<double>& wavelengths,
 }
 
 void Telescope::GetTransmissionSpectrum(
-    const std::vector<double>& wavelengths,
-    std::vector<double>* transmission) const {
+    const vector<double>& wavelengths,
+    vector<double>* transmission) const {
   if (!transmission) return;
 
   // We're just going to use a flat transmittance for the optics.
