@@ -25,7 +25,8 @@ void SystemOtf::PushOtf(const cv::Mat& otf) {
     magnitude(otf_planes[0], otf_planes[1], mtf);
     phase(otf_planes[0], otf_planes[1], ptf);
   } else {
-    mainLog() << "Warning: Given OTF must have 1 or 2 channels." << endl;
+    mainLog() << "Warning: Given OTF must have 1 or 2 channels. ("
+              << otf_planes.size() << " given)" << endl;
     return;
   }
 
