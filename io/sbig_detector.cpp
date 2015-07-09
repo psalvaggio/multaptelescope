@@ -55,19 +55,26 @@ void SbigDetector::Cool(double deg_c) {
   }
   has_cooled_ = true;
 
+  const int kMaxTime = 2 * 60 * 1e6; // [usec]
+  const int kIterSleep = 5e5;
+  const int kMaxIter = kMaxTime / kIterSleep;
+  int iter = 0;
+
   bool needs_to_cool = true;
-  cout << "Cooling to " << deg_c << "\370C" << endl;
-  while (needs_to_cool) {
+  cout << "Cooling to " << deg_c << " C" << endl;
+  while (needs_to_cool && iter < kMaxIter) {
     QueryTemperatureStatusParams temp_query{TEMP_STATUS_ADVANCED2};
     QueryTemperatureStatusResults2 temp_query_results;
     if (SendCommand(CC_QUERY_TEMPERATURE_STATUS, &temp_query,
                     &temp_query_results)) {
       cout << "Temperature: " << temp_query_results.imagingCCDTemperature
-           << "\370C (" <<  temp_query_results.fanPower << "%)      \r";
+           << " C (" <<  temp_query_results.fanPower << "%)      \r";
+      cout.flush();
     }
 
-    needs_to_cool = temp_query_results.imagingCCDTemperature - deg_c < 1;
-    usleep(5e5);
+    needs_to_cool = (temp_query_results.imagingCCDTemperature - deg_c) > 1;
+    usleep(kIterSleep);
+    iter++;
   }
   cout << endl;
 }
@@ -88,7 +95,8 @@ void SbigDetector::DisableCooling() {
     if (SendCommand(CC_QUERY_TEMPERATURE_STATUS, &temp_query,
                     &temp_query_results)) {
       cout << "Temperature: " << temp_query_results.imagingCCDTemperature
-           << "\370C     \r";
+           << " C     \r";
+      cout.flush();
     }
 
     needs_to_warm = temp_query_results.imagingCCDTemperature -
