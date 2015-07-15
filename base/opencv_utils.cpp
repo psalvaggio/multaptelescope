@@ -5,6 +5,7 @@
 #include "io/logging.h"
 
 #include <iostream>
+#include <random>
 
 cv::Mat ByteScale(const cv::Mat& input,
                   bool verbose) {
@@ -239,4 +240,40 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   cv::destroyWindow(input_window);
 
   return roi;
+}
+
+cv::Mat_<double> CreateEdgeTarget(int width,
+                                  int height,
+                                  double angle,
+                                  double dim,
+                                  double bright,
+                                  double noise) {
+  double nx = cos(angle * M_PI / 180);
+  double ny = sin(angle * M_PI / 180);
+
+  std::default_random_engine rng;
+  std::normal_distribution<double> noise_dist(0, noise);
+
+  double offset = (width / 2.0) * nx + (height / 2.0) * ny;
+
+  cv::Mat_<double> image(height, width, CV_64FC1);
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      double nDotR = j * nx + i * ny;
+      double edge_offset = nDotR - offset;
+
+      double value = 0;
+      if (edge_offset > 0.5) {
+        value = bright;
+      } else if (edge_offset < -0.5) {
+        value = dim;
+      } else {
+        value = (edge_offset + 0.5) * (bright - dim) + dim;
+      }
+
+      image(i, j) = value + noise_dist(rng);
+    }
+  }
+
+  return image;
 }

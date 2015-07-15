@@ -84,4 +84,11 @@ void GetRadialProfile(const cv::Mat& input, double theta,
 //  [x1 y1 width+1 height+1]
 std::vector<uint16_t> GetRoi(const cv::Mat& image);
 
+cv::Mat_<double> CreateEdgeTarget(int width,
+                                  int height,
+                                  double angle,
+                                  double dim,
+                                  double bright,
+                                  double noise);
+
 #endif  // OPENCV_UTILS_H
