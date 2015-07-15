@@ -58,7 +58,7 @@ class SlantEdgeMtf {
   //
   // Returns:
   //  Whether or not the edge was successfully detected.
-  static bool DetectEdge(const cv::Mat& image, double* edge);
+  virtual bool DetectEdge(const cv::Mat& image, double* edge);
 
   // Generate the edge spread function from the image data.
   //
@@ -67,10 +67,12 @@ class SlantEdgeMtf {
   //  edge              The edge detected in the image.
   //  samples_per_pixel The number of samples per pixel.`
   //  esf               Output: The edge spread function.
+  //  esf_stddevs       Output: The standard deviation in each esf bin.
   void GenerateEsf(const cv::Mat& image,
                    const double* edge,
                    int samples_per_pixel,
-                   std::vector<double>* esf);
+                   std::vector<double>* esf,
+                   std::vector<double>* esf_stddevs);
 
   // Detects the resolution that can be supported with the detected line
   // orientation.
@@ -91,6 +93,14 @@ class SlantEdgeMtf {
   // Arguments:
   //  esf  The edge spread function.
   void PlotEsf(const std::vector<double>& esf);
+
+  // Plots the ESF with error bars.
+  //
+  // Arguments:
+  //  esf          The edge spread function.
+  //  esf_stddevs  The error bars
+  void PlotEsf(const std::vector<double>& esf,
+               const std::vector<double>& esf_stddevs);
 
  private:
   Gnuplot* gp_;

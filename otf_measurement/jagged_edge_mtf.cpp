@@ -172,7 +172,8 @@ bool JaggedEdgeMtf::DetectEdge(const cv::Mat& image,
   if (!edge) return false;
 
   cout << "Trying to detected edge." << endl;
-  if (!SlantEdgeMtf::DetectEdge(image, edge)) {
+  SlantEdgeMtf slant_edge;
+  if (!slant_edge.DetectEdge(image, edge)) {
     return false;
   }
   cout << "Detected Edge." << endl;
