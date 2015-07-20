@@ -72,13 +72,33 @@ class Telescope {
              std::vector<cv::Mat>* image,
              std::vector<cv::Mat>* otf = NULL);
 
+  // Computes the monochromatic OTF of the telescope at the provided
+  // wavelengths.
+  //
+  // Arguments:
+  //  wavelengths  Desired wavelengths for MTF computation [m]
+  //  otf          Output: Will be populated with the OTFs. The size will be
+  //                       the array_size() field in SimulationConfig. The OTF
+  //                       will be centered at (0,0) and go to detector Nyquist.
+  //                       Frequency units are [cyc/pixel].
   void ComputeOtf(const std::vector<double>& wavelengths,
                   std::vector<cv::Mat>* otf) const;
 
+  // Compute the effective OTF over a bandpass.
+  //
+  // Arguments:
+  //  wavelengths  Wavelength domain of the bandpass [m]
+  //  weights      The spectral weighting function of the bandpass.
+  //  otf          Output: Output OTF (see ComputeOtf())
   void ComputeEffectiveOtf(const std::vector<double>& wavelengths,
                            const std::vector<double>& weights,
                            cv::Mat* otf) const;
 
+  // Get the transmission spectrum of the telescope optics.
+  //
+  // Arguments:
+  //  wavelengths   The desired wavelengths [m]
+  //  transmission  Output: The transmission at each wavelength.
   void GetTransmissionSpectrum(const std::vector<double>& wavelengths,
                                std::vector<double>* transmission) const;
 

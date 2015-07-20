@@ -141,9 +141,8 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   ComputeApertureOtf(wavelengths, &ap_otf);
 
   SystemOtf wave_invar_sys_otf;
-  wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf());
   wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0));
-  wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0.1));
+  wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0));
   Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
   for (size_t i = 0; i < wavelengths.size(); i++) {
@@ -190,14 +189,12 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
   // Array sizes
   const int kOtfSize = aperture_->params().array_size();
 
-  Mat aperture_wfe = aperture_->GetWavefrontError();
-
   // The OTF varies drastically with respect to wavelength. So, we will be
   // calculating an OTF for each spectral band in our input radiance data.
   for (size_t i = 0; i < wavelengths.size(); i++) {
     // Get the aberrated pupil function from the aperture.
     PupilFunction pupil_func;
-    aperture_->GetPupilFunction(aperture_wfe, wavelengths[i], &pupil_func);
+    aperture_->GetPupilFunction(wavelengths[i], &pupil_func);
 
     // The coherent OTF is given by p[lamda * f * xi, lamda * f * eta],
     // where xi and eta are in [cyc/m]. The pixel pitch factor converts from
