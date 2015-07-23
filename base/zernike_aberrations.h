@@ -36,12 +36,6 @@ class ZernikeAberrations {
   void aberrations(const std::vector<double>& weights,
                    size_t output_size,
                    cv::Mat* output);
-
-
- private:
-  float* gpu_weights_;
-  float* gpu_wfe_;
-  int gpu_wfe_size_;
 };
 
 #endif  // ZERNIKE_ABERRATIONS_H
