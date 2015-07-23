@@ -10,6 +10,7 @@ set(LIB_MACROS "")
 find_package(OpenCV)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
+find_package(gflags REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIR})
 
 include(CheckCXXCompilerFlag)
@@ -133,7 +134,8 @@ endforeach(TMP_LIB)
 
 list(APPEND MATS_LINK_LIBS ${Boost_LIBRARIES}
                            ${OpenCV_LIBRARIES}
-                           ${PROTOBUF_LIBRARIES})
+                           ${PROTOBUF_LIBRARIES}
+                           gflags)
 
 set (LIB_NAME mats)
 
@@ -153,18 +155,20 @@ set(EXES aberrated_otf
          create_spectral_weighting
          display_aperture
          genetic_optimization
+         image_binary_target
          mats_main
-         #lab_slant_edge
-         #adding_piston
          #sbig_preview
          #sbig_thread_test
          #jagged_edge_test
          #plot_mtf_profile
          #get_rer_values
+         #inverse_filter
+         #perform_rer_comparison
          #create_edge_target
          #slant_edge
          #watch_slant_edge_dir
          #compute_average_mtf
+         #align_measured_profiles
          )
 
 foreach(EXECUTABLE ${EXES})

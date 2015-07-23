@@ -47,12 +47,6 @@ int main(int argc, char** argv) {
     hyp_planes[i] *= 1e4;  // [W/m^2/sr micron^-1]
     hyp_planes[i] *= kGain;  // [W/m^2/sr micron^-1]
 
-    if (i == 10) {
-      imwrite("plane530.png", GammaScale(hyp_planes[i], 1/2.2));
-    } else if (i == 30) {
-      imwrite("plane810.png", GammaScale(hyp_planes[i], 1/2.2));
-    }
-
     double wave_val = hyp_header.band(i).center_wavelength();
     if (is_wavenumber) wave_val = 1 / wave_val;
     wave_val *= wave_multiplier;
@@ -78,17 +72,6 @@ int main(int argc, char** argv) {
 
     mainLog() << "Focal Length: " << telescope.FocalLength() << " [m]" << endl;
 
-    Aperture* ap = telescope.aperture();
-    
-    cv::imwrite("mask.png", ByteScale(ap->GetApertureMask()));
-
-    Mat wfe = telescope.aperture()->GetWavefrontError();
-    cv::imwrite("wfe.png", ByteScale(wfe));
-    
-    Mat wfe_est = telescope.aperture()->GetWavefrontErrorEstimate();
-    cv::imwrite("wfe_est.png", ByteScale(wfe_est));
-
-    cout << "Imaging..." << endl;
     vector<Mat> output_image, otfs, output_ref, ref_otfs;
     telescope.Image(hyp_planes, hyp_band_wavelengths, &output_image, &otfs);
 
@@ -97,10 +80,6 @@ int main(int argc, char** argv) {
                                           false, &low_res_hyp);
 
     ConstrainedLeastSquares cls;
-    //namedWindow("Input Image");
-    //namedWindow("Output Image");
-    //moveWindow("Input Image", 0, 0);
-    //moveWindow("Output Image", 500, 0);
 
     cout << "Restoring..." << endl;
     const double kSmoothness = 1e-3;
