@@ -25,16 +25,16 @@ void PhotonNoise::AddPhotonNoise(const cv::Mat& input, cv::Mat* output) {
     output->create(input.rows, input.cols, input.type());
   }
 
-  const double* in_data = (const double*)input.data;
-  double* out_data = (double*)output->data;
-  size_t size = input.rows * input.cols;
-
-  Mat random(input.rows, input.cols, CV_64FC1);
+  Mat_<double> random(input.size());
   randn(random, 0, 1);
-  double* random_data = (double*)random.data;
 
-  for (size_t i = 0; i < size; i++) {
-    out_data[i] = in_data[i] + sqrt(in_data[i]) * random_data[i];
+  Mat& noisy(*output);
+
+  for (int i = 0; i < input.rows; i++) {
+    for (int j = 0; j < input.cols; j++) {
+      double input_val = std::max(input.at<double>(i, j), 0.);
+      noisy.at<double>(i, j) = input_val + sqrt(input_val) * random(i, j);
+    }
   }
 }
 
