@@ -39,11 +39,11 @@ class Aperture {
   const mats::Simulation& simulation_params() const {
     return params_.simulation(0);
   }
-  mats::ApertureParameters& aperture_params();
+
   const mats::ApertureParameters& aperture_params() const {
     return aperture_params_;
   }
-  std::vector<double>& aberrations() { return aberrations_; }
+
   const std::vector<double>& aberrations() const { return aberrations_; }
 
   double fill_factor() const;
@@ -54,27 +54,37 @@ class Aperture {
   // aberrations modeled by the specific implementation of this class.
   //
   // Arguments:
-  //  wfe         The wavefront error map of the aperture [waves]
   //  wavelength  The wavelength at which the pupil function is desired [m]
   //  pupil       Output parameter to hold the resulting pupil function
-  void GetPupilFunction(const cv::Mat& wfe,
-                        double wavelength,
+  void GetPupilFunction(double wavelength,
                         mats::PupilFunction* pupil) const;
+
+  // Same as GetPupilFunction(), except calculated with the wavefront error
+  // estimate.
+  void GetPupilFunctionEstimate(double wavelength,
+                                mats::PupilFunction* pupil) const;
 
   // Get the true wavefront error across the aperture.
   //
+  // Parameters:
+  //  size   Side length of the output array (-1 for params().array_size()).
+  //
   // Returns:
-  //  Square array with size of params().array_size() and data type CV_64FC1
-  //  that represents the optical path length difference in waves.
-  cv::Mat GetWavefrontError() const;
+  //  Square (CV_64FC1) array that represents the wavefront error in waves.
+  cv::Mat GetWavefrontError(int size = -1) const;
+  void GetWavefrontError(cv::Mat_<double>* output) const;
 
   // Get the estimate of the wavefront error across the aperture. The quality
   // of the estimate is based wfe_knowledge() attribute in the Simulation
   // parameters that were given.
   //
+  // Parameters:
+  //  size   Side length of the output array (-1 for params().array_size()).
+  //
   // Returns:
-  //  Square array with size of params().array_size() and data type CV_64FC1
-  cv::Mat GetWavefrontErrorEstimate() const;
+  //  Square (CV_64FC1) array that represents the wvefront error estimate.
+  cv::Mat GetWavefrontErrorEstimate(int size = -1) const;
+  void GetWavefrontErrorEstimate(cv::Mat_<double>* output) const;
 
   // Get the mask of the aperture. This array will be represent the aperture
   // transmission at each point. Traditionally, it is a binary array, but it is
@@ -82,9 +92,13 @@ class Aperture {
   // the aperture fills the whole array, since the user should not be taking
   // the Fourier transform of this array.
   //
+  // Parameters:
+  //  size   Side length of the output array (-1 for params().array_size()).
+  //
   // Retures:
-  //   Square array with size of params().array_size() and data type CV_64FC1
-  cv::Mat GetApertureMask() const;
+  //   Square (CV_64FC1) array that represents the aperture mask.
+  cv::Mat GetApertureMask(int size = -1) const;
+  void GetApertureMask(cv::Mat_<double>* output) const;
 
  private:
   // Gets the encircled diameter of the aperture.
@@ -92,10 +106,10 @@ class Aperture {
 
   // Abstract method to get the mask of the aperture.
   //
-  // Returns:
-  //  Square array with size of params().array_size() that is the magnitude of
-  //  the pupil function.
-  virtual cv::Mat GetApertureTemplate() const = 0;
+  // Parameters:
+  //  output  Output: The aperture template |p[x,y]|. The size of the array will
+  //                  already be set and is guaranteed to be square.
+  virtual void GetApertureTemplate(cv::Mat_<double>* output) const = 0;
 
   // Abstract method to the get the optical path length difference across the
   // aperture. This is a virtual function, as different apertures may want to
@@ -105,7 +119,7 @@ class Aperture {
   // Returns:
   //  Square array with size of params().array_size() and data type CV_64FC1
   //  that represents the optical path length difference in waves.
-  virtual cv::Mat GetOpticalPathLengthDiff() const = 0;
+  virtual void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const = 0;
 
   // Abstract method to the get the estimate of the optical path length 
   // difference across the aperture. The quality of the estimate is determined
@@ -116,7 +130,15 @@ class Aperture {
   // Returns:
   //  Square array with size of params().array_size() and data type CV_64FC1
   //  that represents the optical path length difference estimate in waves.
-  virtual cv::Mat GetOpticalPathLengthDiffEstimate() const = 0;
+  virtual void GetOpticalPathLengthDiffEstimate(
+      cv::Mat_<double>* output) const = 0;
+
+  // Internal helper function for GetPupilFunction() and
+  // GetPupilFunctionEstimate().
+  void GetPupilFunctionHelper(
+      double wavelength,
+      mats::PupilFunction* pupil,
+      std::function<void(cv::Mat_<double>*)> wfe_generator) const;
 
  // Utility functions for subclasses
  protected:
@@ -147,20 +169,11 @@ class Aperture {
   std::vector<double> aberrations_;
 
  private:  // Cache variables
-  mutable cv::Mat mask_;
-  mutable bool mask_dirty_;
-
-  mutable cv::Mat opd_;
-  mutable bool opd_dirty_;
-
-  mutable cv::Mat opd_est_;
-  mutable bool opd_est_dirty_;
-  
+  mutable cv::Mat_<double> mask_;
+  mutable cv::Mat_<double> opd_;
+  mutable cv::Mat_<double> opd_est_;
   mutable double encircled_diameter_;
-  mutable bool encircled_diameter_dirty_;
-
   mutable double fill_factor_;
-  mutable bool fill_factor_dirty_;
 };
 
 

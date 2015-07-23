@@ -7,13 +7,6 @@
 #include "base/opencv_utils.h"
 #include "io/logging.h"
 
-#include "optical_designs/cassegrain.h"
-#include "optical_designs/triarm9.h"
-#include "optical_designs/circular.h"
-#include "optical_designs/cassegrain_ring.h"
-#include "optical_designs/hdf5_wfe.h"
-#include "optical_designs/compound_aperture.h"
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -25,19 +18,18 @@ using mats::SimulationConfig;
 using mats::Simulation;
 using mats::PupilFunction;
 using mats::ApertureParameters;
-using std::cout;
-using std::endl;
+using namespace std;
 using namespace cv;
 
 Aperture::Aperture(const SimulationConfig& params, int sim_index)
     : params_(),
       aperture_params_(params.simulation(sim_index).aperture_params()),
       aberrations_(),
-      mask_(), mask_dirty_(false),
-      opd_(), opd_dirty_(false),
-      opd_est_(), opd_est_dirty_(false),
-      encircled_diameter_(), encircled_diameter_dirty_(true),
-      fill_factor_(0), fill_factor_dirty_(true) {
+      mask_(),
+      opd_(),
+      opd_est_(),
+      encircled_diameter_(-1),
+      fill_factor_(-1) {
 
   params_.CopyFrom(params);
   params_.clear_simulation();
@@ -58,120 +50,150 @@ Aperture::Aperture(const SimulationConfig& params, int sim_index)
 
 Aperture::~Aperture() {}
 
-mats::ApertureParameters& Aperture::aperture_params() {
-  mask_dirty_ = true;
-  opd_dirty_ = true;
-  opd_est_dirty_ = true;
-  fill_factor_dirty_ = true;
-  encircled_diameter_dirty_ = true;
-  return aperture_params_;
-}
 
 double Aperture::fill_factor() const {
-  if (fill_factor_dirty_) {
-    if (aperture_params_.has_fill_factor()) {
-      fill_factor_ = aperture_params_.fill_factor();
-    } else {
-      Mat mask = GetApertureMask();
-      Scalar sum = cv::sum(mask);
-      fill_factor_ = sum[0] / (M_PI * pow(params().array_size() / 2, 2));
-    }
+  if (fill_factor_ >= 0) return fill_factor_;
+
+  if (aperture_params_.has_fill_factor()) {
+    fill_factor_ = aperture_params_.fill_factor();
+  } else {
+    Mat mask = GetApertureMask();
+    Scalar sum = cv::sum(mask);
+    fill_factor_ = sum[0] / (M_PI * pow(params().array_size() / 2, 2));
   }
   return fill_factor_;
 }
 
+
 double Aperture::encircled_diameter() const {
-  if (encircled_diameter_dirty_) {
+  if (encircled_diameter_ < 0) {
     encircled_diameter_ = GetEncircledDiameter();
   }
   return encircled_diameter_;
-}
-
-void Aperture::GetPupilFunction(const Mat& wfe,
-                                double wavelength,
-                                PupilFunction* pupil) const {
-  // We want to pupil function to take up the center half of the array. This
-  // is a decent tradeoff so the user has enough resolution to upsample and a
-  // decent range (2x) over which to upsample.
-  const size_t kSize = params_.array_size();
-  int target_diameter = kSize / 2;
-
-  // Set the scale of the pupil function, so the user can rescale the
-  // function with physical units if they need to.
-  pupil->set_meters_per_pixel(encircled_diameter() / target_diameter);
-
-  // Resize the wavefront error and aperture template to the desired
-  // resolution.
-  Mat scaled_aperture, scaled_wfe;
-  resize(GetApertureMask(), scaled_aperture,
-         Size(target_diameter, target_diameter));
-  resize(wfe, scaled_wfe, Size(target_diameter, target_diameter),
-      0, 0, INTER_NEAREST);
-
-  // The wavefront error is in units of the reference wavelength. So, we will
-  // need to scale it to be in terms of the requested wavelength, with this
-  // scale factor.
-  double wavelength_scale = params_.reference_wavelength() / wavelength;
-
-  // Create the aberrated pupil function. This consists of putting the
-  // wavefront error into the phase of the complex pupil function.
-  Mat scaled_aberrated_real(target_diameter, target_diameter, CV_64FC1);
-  Mat scaled_aberrated_imag(target_diameter, target_diameter, CV_64FC1);
-
-  double* aberrated_real = (double*) scaled_aberrated_real.data;
-  double* aberrated_imag = (double*) scaled_aberrated_imag.data;
-  double* unaberrated = (double*) scaled_aperture.data;
-  double* opd_data = (double*) scaled_wfe.data;
-  for (int i = 0; i < target_diameter*target_diameter; i++) {
-    aberrated_real[i] = unaberrated[i] * cos(2 * M_PI * opd_data[i] *
-                        wavelength_scale);
-    aberrated_imag[i] = unaberrated[i] * sin(2 * M_PI * opd_data[i] *
-                        wavelength_scale);
-  }
-
-  // Copy the aberrated pupil function into the output variables.
-  Range crop_range;
-  crop_range.start = kSize / 2 - (target_diameter + 1) / 2;
-  crop_range.end = crop_range.start + target_diameter;
-
-  Mat& pupil_real(pupil->real_part());
-  Mat& pupil_imag(pupil->imaginary_part());
-
-  pupil_real = Mat::zeros(kSize, kSize, CV_64FC1);
-  pupil_imag = Mat::zeros(kSize, kSize, CV_64FC1);
-
-  scaled_aberrated_real.copyTo(pupil_real(crop_range, crop_range));
-  scaled_aberrated_imag.copyTo(pupil_imag(crop_range, crop_range));
 }
 
 double Aperture::GetEncircledDiameter() const {
   return aperture_params_.encircled_diameter();
 }
 
-Mat Aperture::GetWavefrontError() const {
-  if (opd_dirty_ || opd_.rows == 0) {
-    opd_ = GetOpticalPathLengthDiff();
-    opd_dirty_ = false;
+
+void Aperture::GetPupilFunction(double wavelength,
+                                PupilFunction* pupil) const {
+  GetPupilFunctionHelper(wavelength, pupil, [this] (Mat_<double>* output) {
+    GetWavefrontError(output);
+  });
+}
+
+void Aperture::GetPupilFunctionEstimate(double wavelength,
+                                        PupilFunction* pupil) const {
+  GetPupilFunctionHelper(wavelength, pupil, [this] (Mat_<double>* output) {
+    GetWavefrontErrorEstimate(output);
+  });
+}
+
+void Aperture::GetPupilFunctionHelper(
+    double wavelength,
+    PupilFunction* pupil,
+    function<void(Mat_<double>*)> wfe_generator) const {
+  // We want to pupil function to take up the center half of the array. This
+  // is a decent tradeoff so the user has enough resolution to upsample and a
+  // decent range (2x) over which to upsample.
+  const size_t kSize = params_.array_size();
+  int target_diameter = kSize / 2;
+
+  Range mid_range(kSize / 4, kSize / 4 + target_diameter);
+
+  // Set the scale of the pupil function, so the user can rescale the
+  // function with physical units if they need to.
+  pupil->set_meters_per_pixel(encircled_diameter() / target_diameter);
+
+  Mat_<double> mask(params_.array_size(), params_.array_size()),
+               wfe(params_.array_size(), params_.array_size());
+  mask = 0; wfe = 0;
+  Mat_<double> mask_center = mask(mid_range, mid_range),
+               wfe_center = wfe(mid_range, mid_range);
+
+  GetApertureMask(&mask_center);
+  wfe_generator(&wfe_center);
+
+  // The wavefront error is in units of the reference wavelength. So, we need
+  // to scale it to be in terms of the requested wavelength.
+  wfe *= params_.reference_wavelength() / wavelength;
+
+  // Create the aberrated pupil function. This consists of putting the
+  // wavefront error into the phase of the complex pupil function.
+  Mat& pupil_real = pupil->real_part();
+  Mat& pupil_imag = pupil->imaginary_part();
+  pupil_real = Mat::zeros(kSize, kSize, CV_64FC1);
+  pupil_imag = Mat::zeros(kSize, kSize, CV_64FC1);
+
+  for (int i = mid_range.start; i < mid_range.end; i++) {
+    for (int j = mid_range.start; j < mid_range.end; j++) {
+      pupil_real.at<double>(i, j) = mask(i, j) * cos(2 * M_PI * wfe(i, j));
+      pupil_imag.at<double>(i, j) = mask(i, j) * sin(2 * M_PI * wfe(i, j));
+    }
+  }
+}
+
+
+// Accessors for wavefront error.
+Mat Aperture::GetWavefrontError(int size) const {
+  size = (size == -1) ? params_.array_size() : size;
+  if (opd_.rows != size) {
+    opd_.create(size, size);
+    GetOpticalPathLengthDiff(&opd_);
   }
   return opd_;
 }
 
-Mat Aperture::GetWavefrontErrorEstimate() const {
-  if (opd_est_dirty_ || opd_est_.rows == 0) {
-    opd_est_ = GetOpticalPathLengthDiffEstimate();
-    opd_est_dirty_ = false;
+void Aperture::GetWavefrontError(cv::Mat_<double>* output) const {
+  if (output->rows > 0 && output->rows != opd_.rows) {
+    opd_.create(output->rows, output->rows);
+    GetOpticalPathLengthDiff(&opd_);
+  }
+  opd_.copyTo(*output);
+}
+
+
+// Accessors for wavefron error estimates.
+Mat Aperture::GetWavefrontErrorEstimate(int size) const {
+  size = (size == -1) ? params_.array_size() : size;
+  if (opd_est_.rows != size) {
+    opd_est_.create(size, size);
+    GetOpticalPathLengthDiffEstimate(&opd_est_);
   }
   return opd_est_;
 }
 
-Mat Aperture::GetApertureMask() const {
-  if (mask_dirty_ || mask_.rows == 0) {
-    mask_ = GetApertureTemplate();
-    mask_dirty_ = false;
+void Aperture::GetWavefrontErrorEstimate(cv::Mat_<double>* output) const {
+  if (output->rows > 0 && output->rows != opd_est_.rows) {
+    opd_est_.create(output->rows, output->rows);
+    GetOpticalPathLengthDiffEstimate(&opd_est_);
+  }
+  opd_est_.copyTo(*output);
+}
+
+
+// Accessors for aperture masks.
+Mat Aperture::GetApertureMask(int size) const {
+  size = (size == -1) ? params_.array_size() : size;
+  if (mask_.rows != params_.array_size()) {
+    mask_.create(size, size);
+    GetApertureTemplate(&mask_);
   }
   return mask_;
 }
 
+void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
+  if (output->rows > 0 && output->rows != mask_.rows) {
+    mask_.create(output->rows, output->rows);
+    GetApertureTemplate(&mask_);
+  }
+  mask_.copyTo(*output);
+}
+
+
+// DEPRECATED TO BE REMOVED
 Mat Aperture::GetPistonTipTilt(double piston, double tip, double tilt,
                                size_t rows, size_t cols) const {
   const double kHalfRow = rows / 2.0;
@@ -199,11 +221,12 @@ Mat Aperture::GetPistonTipTilt(double piston, double tip, double tilt) const {
 }
 
 
+// ApertureFactory Implementation.
 Aperture* ApertureFactory::Create(const mats::SimulationConfig& params, 
                                   int sim_index) {
   if (sim_index > params.simulation_size()) {
     mainLog() << "ApertureFactory error: Given simulation index out of bounds."
-              << std::endl;
+              << endl;
     return NULL;
   }
 
@@ -213,6 +236,6 @@ Aperture* ApertureFactory::Create(const mats::SimulationConfig& params,
       ApertureParameters::ApertureType_Name(ap_type), params, sim_index);
   if (ap) return ap;
 
-  mainLog() << "ApertureFactory error: Unsupported aperture type." << std::endl;
+  mainLog() << "ApertureFactory error: Unsupported aperture type." << endl;
   return NULL;
 }
