@@ -191,9 +191,9 @@ void Detector::Quantize(const vector<Mat>& electrons,
   }
 }
 
-Mat Detector::GetSamplingOtf() {
-  const int kRows = rows();
-  const int kCols = cols();
+Mat Detector::GetSamplingOtf(int rows, int cols) {
+  const int kRows = (rows > 0) ? rows : this->rows();
+  const int kCols = (cols > 0) ? cols : this->cols();
   const double kSize = std::max(kRows, kCols);
   const double kPixelPitch = det_params_.pixel_pitch();
   const double kPiPixelPitch = M_PI * kPixelPitch;
@@ -224,9 +224,12 @@ Mat Detector::GetSamplingOtf() {
   return otf;
 }
 
-Mat Detector::GetSmearOtf(double x_velocity, double y_velocity) {
-  const int kRows = rows();
-  const int kCols = cols();
+Mat Detector::GetSmearOtf(double x_velocity,
+                          double y_velocity,
+                          int rows,
+                          int cols) {
+  const int kRows = (rows > 0) ? rows : this->rows();
+  const int kCols = (cols > 0) ? cols : this->cols();
   const double kSize = std::max(kRows, kCols);
   const double kPixelPitch = det_params_.pixel_pitch();
   const double kIntTime =
@@ -259,9 +262,9 @@ Mat Detector::GetSmearOtf(double x_velocity, double y_velocity) {
   return otf;
 }
 
-Mat Detector::GetJitterOtf(double jitter_std_dev) {
-  const int kRows = rows();
-  const int kCols = cols();
+Mat Detector::GetJitterOtf(double jitter_std_dev, int rows, int cols) {
+  const int kRows = (rows > 0) ? rows : this->rows();
+  const int kCols = (cols > 0) ? cols : this->cols();
   const int kNumTimesteps = 100;
   const double kIntTime =
       sim_params_.simulation(sim_index_).integration_time();

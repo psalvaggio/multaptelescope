@@ -92,7 +92,7 @@ class Detector {
   //  Zero-frequency is at (0, 0) and the frequencies range from 0 
   //  cycles/detector to +/- N/2 cycles per detector, where N is the
   //  number of pixels along a dimension.
-  cv::Mat GetSamplingOtf();
+  cv::Mat GetSamplingOtf(int rows = -1, int cols = -1);
 
   // Get the OTF due to image smearing effects.
   //
@@ -105,7 +105,10 @@ class Detector {
   //  Zero-frequency is at (0, 0) and the frequencies range from 0 
   //  cycles/detector to +/- N/2 cycles per detector, where N is the
   //  number of pixels along a dimension.
-  cv::Mat GetSmearOtf(double x_velocity, double y_velocity);
+  cv::Mat GetSmearOtf(double x_velocity,
+                      double y_velocity,
+                      int rows = -1,
+                      int cols = -1);
 
   // Get the OTF due to jittering of the optical system.
   //
@@ -118,7 +121,7 @@ class Detector {
   //  Zero-frequency is at (0, 0) and the frequencies range from 0 
   //  cycles/detector to +/- N/2 cycles per detector, where N is the
   //  number of pixels along a dimension.
-  cv::Mat GetJitterOtf(double jitter_std_dev);
+  cv::Mat GetJitterOtf(double jitter_std_dev, int rows = -1, int cols = -1);
 
   // Struct to hold samples of a QE spectrum.
   struct QESample {
