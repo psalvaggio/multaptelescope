@@ -85,30 +85,57 @@ void Telescope::Image(const vector<Mat>& radiance,
   vector<Mat> spectral_otfs;
   ComputeOtf(wavelength, &spectral_otfs);
 
+  const int kRows = detector_->rows();
+  const int kCols = detector_->cols();
+  const double kAspectRatio = double(kRows) / kCols;
+
   // Get the transmission spectrum of the optics.
   vector<double> transmittances;
   GetTransmissionSpectrum(wavelength, &transmittances);
 
   vector<Mat> blurred_irradiance;
   for (size_t i = 0; i < radiance.size(); i++) {
-    Mat img_fft;
-    dft(radiance[i], img_fft, DFT_COMPLEX_OUTPUT);
-
-    Mat blurred_fft;
-    if (img_fft.rows != spectral_otfs[i].rows ||
-        img_fft.cols != spectral_otfs[i].cols) {
-      Mat scaled_spectrum;
-      cv::resize(spectral_otfs[i], scaled_spectrum, img_fft.size());
-
-      cv::mulSpectrums(img_fft, scaled_spectrum, blurred_fft, 0);
-    } else {
-      cv::mulSpectrums(img_fft, spectral_otfs[i], blurred_fft, 0);
+    if (radiance[i].rows < kRows || radiance[i].cols < kCols) {
+      mainLog() << "Warning: Band " << i << " (" << wavelength[i] << " [m]): "
+                << "Input radiance smaller than detector. Skipping..." << endl;
+      blurred_irradiance.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
+      continue;
     }
+
+    int cols = radiance[i].cols;
+    int rows = round(cols * kAspectRatio);
+    Mat radiance_roi = radiance[i](Range(0, rows), Range(0, cols));
+
+    Mat img_fft, blurred_fft;
+    dft(radiance_roi, img_fft, DFT_COMPLEX_OUTPUT);
+
+    Mat otf(rows, cols, CV_64FC2);
+    otf.setTo(Scalar(0, 0));
+    int row_start = rows / 2 - kRows / 2;
+    int col_start = cols / 2 - kCols / 2;
+    Range row_range(row_start, row_start + kRows),
+          col_range(col_start, col_start + kCols);
+
+    resize(FFTShift(spectral_otfs[i]), otf(row_range, col_range),
+        Size(kRows, kCols));
+    /*
+    if (cols != kCols) {
+      Mat det_otf = detector_->GetSamplingOtf(kRows, kCols);
+      mulSpectrums(otf(row_range, col_range), det_otf,
+                   otf(row_range, col_range), 0);
+    }
+    */
+    mulSpectrums(img_fft, FFTShift(otf), blurred_fft, 0);
 
     Mat tmp_blurred_irradiance;
     dft(blurred_fft, tmp_blurred_irradiance,
         DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
     tmp_blurred_irradiance /= GNumber(wavelength[i]);
+
+    if (cols != kCols) {
+      resize(tmp_blurred_irradiance, tmp_blurred_irradiance,
+             Size(kRows, kCols));
+    }
 
     blurred_irradiance.push_back(tmp_blurred_irradiance);
     spectral_otfs[i] *= transmittances[i];
@@ -131,18 +158,21 @@ void Telescope::Image(const vector<Mat>& radiance,
   }
 
   vector<Mat> electrons;
-  detector_->ResponseElectrons(blurred_irradiance, wavelength, &electrons);
-  detector_->Quantize(electrons, image);
+  //detector_->ResponseElectrons(blurred_irradiance, wavelength, &electrons);
+  //detector_->Quantize(electrons, image);
+  detector_->ResponseElectrons(blurred_irradiance, wavelength, image);
 }
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
                            vector<Mat>* otf) const {
+  const int kOtfSize = aperture_->params().array_size();
+
   vector<Mat> ap_otf;
   ComputeApertureOtf(wavelengths, &ap_otf);
 
   SystemOtf wave_invar_sys_otf;
-  wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0));
-  wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0));
+  wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0, kOtfSize, kOtfSize));
+  wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0, kOtfSize, kOtfSize));
   Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
   for (size_t i = 0; i < wavelengths.size(); i++) {
