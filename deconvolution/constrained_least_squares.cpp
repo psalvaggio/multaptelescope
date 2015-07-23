@@ -25,7 +25,7 @@ void ConstrainedLeastSquares::Deconvolve(const Mat& input,
   GetInverseFilter(transfer_function, smoothness, &inv_filter);
   mulSpectrums(input_fft, inv_filter, output_fft, 0, false);
 
-  dft(output_fft, *output, DFT_INVERSE | DFT_REAL_OUTPUT);
+  dft(output_fft, *output, DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
 }
 
 void ConstrainedLeastSquares::GetInverseFilter(const Mat& transfer_function,
