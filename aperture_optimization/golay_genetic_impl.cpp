@@ -72,7 +72,7 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
 
   mats::PupilFunction pupil;
   unique_ptr<Aperture> aperture(ApertureFactory::Create(conf_, 0));
-  aperture->GetPupilFunction(aperture->GetWavefrontError(), 550e-9, &pupil);
+  aperture->GetPupilFunction(550e-9, &pupil);
   cv::Mat mtf = FFTShift(pupil.ModulationTransferFunction());
   
   cv::imshow("MTF", GammaScale(mtf, 1/2.2));
@@ -110,7 +110,7 @@ void GolayFitnessFunction::Visualize(const model_t& locations) {
 
   mats::PupilFunction pupil;
   unique_ptr<Aperture> aperture(new CompoundAperture(conf_, 0));
-  aperture->GetPupilFunction(aperture->GetWavefrontError(), 550e-9, &pupil);
+  aperture->GetPupilFunction(550e-9, &pupil);
   cv::Mat mtf = pupil.ModulationTransferFunction();
   cv::Mat mask = ByteScale(aperture->GetApertureMask());
   cv::circle(mask, cv::Point(mask.cols / 2, mask.rows / 2), mask.cols / 2,
