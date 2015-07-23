@@ -50,14 +50,18 @@ int main(int argc, char** argv) {
   mats::Telescope telescope(sim_config, sim_index, detector_params);
   Mat otf;
 
-  Mat wfe = telescope.aperture()->GetWavefrontError();
+  mainLog() << mats_io::PrintAperture(telescope.aperture()->aperture_params())
+            << endl;
+
 
   mats::PupilFunction pupil;
-  telescope.aperture()->GetPupilFunction(wfe,
+  telescope.aperture()->GetPupilFunction(
       sim_config.reference_wavelength(), &pupil);
 
   if (FLAGS_spectral_weighting == "") {
-    otf = pupil.OpticalTransferFunction();
+    vector<Mat> spectral_otf;
+    telescope.ComputeOtf({sim_config.reference_wavelength()}, &spectral_otf);
+    otf = spectral_otf[0];
   } else {
     vector<vector<double>> data;
     if (mats_io::TextFileReader::Parse(FLAGS_spectral_weighting, &data)) {
@@ -69,7 +73,6 @@ int main(int argc, char** argv) {
 
   imwrite("mask.png", ByteScale(pupil.magnitude()));
   imwrite("wfe.png", ByteScale(pupil.phase()));
-  imwrite("wfe_real.png", ByteScale(pupil.real_part()));
   imwrite("mtf.png", GammaScale(FFTShift(magnitude(otf)), 1/2.2));
 
   if (FLAGS_output_inverse_filter) {
