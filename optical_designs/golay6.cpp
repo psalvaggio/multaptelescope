@@ -40,12 +40,12 @@ Golay6::Golay6(const mats::SimulationConfig& params, int sim_index)
 
   // Transform the Golay-6 positions.
   vector<double> subaperture_offsets{
-    -0.272321333, -0.147321333,
-    -0.138393, -0.379464333,
-    0.263393, -0.147321333,
-    0.397321333, 0.084821333,
-    -0.004464333, 0.316964333,
-    -0.272321333,  0.316964333};
+    -0.269461, -0.145774,
+    -0.136939, -0.375480,
+     0.260628, -0.145774,
+     0.393150,  0.083930,
+    -0.004417,  0.313636,
+    -0.269461,  0.313636};
 
   for (auto& tmp : subaperture_offsets) tmp *= diameter;
 
@@ -64,7 +64,6 @@ Golay6::Golay6(const mats::SimulationConfig& params, int sim_index)
   CompoundApertureParameters* compound_ext = 
       compound_params->MutableExtension(compound_aperture_params);
   compound_ext->set_combine_operation(CompoundApertureParameters::AND_WFE_ADD);
-  compound_ext->set_wfe_index(0);
 
   // Add the circular aperture with the wavefront error.
   ApertureParameters* circular_mask = compound_ext->add_aperture();
@@ -113,14 +112,14 @@ Golay6::Golay6(const mats::SimulationConfig& params, int sim_index)
 
 Golay6::~Golay6() {}
 
-Mat Golay6::GetApertureTemplate() const {
-  return compound_aperture_->GetApertureMask();
+void Golay6::GetApertureTemplate(Mat_<double>* output) const {
+  compound_aperture_->GetApertureMask(output->rows).copyTo(*output);
 }
 
-Mat Golay6::GetOpticalPathLengthDiff() const {
-  return compound_aperture_->GetWavefrontError();
+void Golay6::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+  compound_aperture_->GetWavefrontError(output->rows).copyTo(*output);
 }
 
-Mat Golay6::GetOpticalPathLengthDiffEstimate() const {
-  return compound_aperture_->GetWavefrontErrorEstimate();
+void Golay6::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
+  compound_aperture_->GetWavefrontErrorEstimate(output->rows).copyTo(*output);
 }

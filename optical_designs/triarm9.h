@@ -19,18 +19,14 @@ class Triarm9 : public Aperture {
 
   virtual ~Triarm9();
 
-  // Exports to a Zemax UDA (User-Defined Aperture) file.
-  // Units are in millimeters.
-  void ExportToZemax(const std::string& aperture_filename,
-                     const std::string& obstruction_filename) const;
-
  // Virtual functions from Aperture
  private:
-  cv::Mat GetApertureTemplate() const override;
+  void GetApertureTemplate(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiff() const override;
+  void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiffEstimate() const override;
+  void GetOpticalPathLengthDiffEstimate(
+      cv::Mat_<double>* output) const override;
 
   cv::Mat OpticalPathLengthDiffPtt(const std::vector<double>& ptt_vals) const;
 

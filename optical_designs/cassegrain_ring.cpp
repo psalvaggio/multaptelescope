@@ -122,14 +122,15 @@ CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
 
 CassegrainRing::~CassegrainRing() {}
 
-Mat CassegrainRing::GetApertureTemplate() const {
-  return compound_aperture_->GetApertureMask();
+void CassegrainRing::GetApertureTemplate(Mat_<double>* output) const {
+  compound_aperture_->GetApertureMask(output->rows).copyTo(*output);
 }
 
-Mat CassegrainRing::GetOpticalPathLengthDiff() const {
-  return compound_aperture_->GetWavefrontError();
+void CassegrainRing::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+  compound_aperture_->GetWavefrontError(output->rows).copyTo(*output);
 }
 
-Mat CassegrainRing::GetOpticalPathLengthDiffEstimate() const {
-  return compound_aperture_->GetWavefrontErrorEstimate();
+void CassegrainRing::GetOpticalPathLengthDiffEstimate(
+    Mat_<double>* output) const {
+  compound_aperture_->GetWavefrontErrorEstimate(output->rows).copyTo(*output);
 }

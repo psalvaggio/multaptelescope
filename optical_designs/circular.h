@@ -16,11 +16,12 @@ class Circular : public Aperture {
 
  // Virtual functions from Aperture
  private:
-  cv::Mat GetApertureTemplate() const override;
+  void GetApertureTemplate(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiff() const override;
+  void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiffEstimate() const override;
+  void GetOpticalPathLengthDiffEstimate(
+      cv::Mat_<double>* output) const override;
 };
 REGISTER_APERTURE(Circular, CIRCULAR)
 

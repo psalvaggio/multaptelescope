@@ -17,9 +17,10 @@ class Axicon : public Circular {
 
  // Virtual functions from Aperture
  private:
-  cv::Mat GetOpticalPathLengthDiff() const override;
+  void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiffEstimate() const override;
+  void GetOpticalPathLengthDiffEstimate(
+      cv::Mat_<double>* output) const override;
 
  private:
   AxiconParameters axicon_params_;

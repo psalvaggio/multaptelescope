@@ -13,6 +13,9 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+using namespace std;
+using namespace cv;
+
 CompoundAperture::CompoundAperture(const mats::SimulationConfig& params,
                                    int sim_index)
     : Aperture(params, sim_index),
@@ -42,7 +45,7 @@ CompoundAperture::CompoundAperture(const mats::SimulationConfig& params,
         tmp_conf.mutable_simulation(0)->mutable_aperture_params();
     ap_params->CopyFrom(compound_params_.aperture(i));
 
-    apertures_.push_back(std::move(std::unique_ptr<Aperture>(
+    apertures_.push_back(move(unique_ptr<Aperture>(
         ApertureFactory::Create(tmp_conf, 0))));
   }
 }
@@ -61,160 +64,137 @@ double CompoundAperture::GetEncircledDiameter() const {
     double r = apertures_[i]->encircled_diameter() / 2.0;
     double tmp_radius = sqrt(x*x + y*y) + r;
 
-    max_diameter = std::max(max_diameter, 2*tmp_radius);
+    max_diameter = max(max_diameter, 2*tmp_radius);
   }
   return max_diameter;
 }
 
-cv::Mat CompoundAperture::GetApertureTemplate() const {
+void CompoundAperture::GetApertureTemplate(Mat_<double>* output) const {
+  Mat& mask = *output;
+  const int kSize = mask.rows;
+
   // Determine how we will be combining the masks
   int combine_op = compound_params_.combine_operation();
 
-  // Get the size of the arrays.
-  const int kSize = params().array_size();
+  // Create the mask for each sub-aperture
+  vector<Mat_<double>> masks;
+  GenerateSubapertureHelper(kSize, &masks,
+      [] (const Aperture* subap, Mat* mask) {
+        subap->GetApertureMask(mask->rows).copyTo(*mask);
+      });
 
-  std::vector<cv::Mat> masks;
-  std::vector<cv::Mat> wfes;
-  std::vector<cv::Mat> wfe_ests;
-  for (size_t i = 0; i < apertures_.size(); i++) {
-    // Get the subaperture mask.
-    std::vector<cv::Mat> ap_data;
-    ap_data.push_back(apertures_[i]->GetApertureMask());
-    
-    // Determine if we need the WFE and get it if so.
-    bool dont_need_wfe = combine_op == CompoundApertureParameters::AND &&
-        i != (size_t)compound_params_.wfe_index();
-    if (!dont_need_wfe) {
-      ap_data.push_back(apertures_[i]->GetWavefrontError());
-      ap_data.push_back(apertures_[i]->GetWavefrontErrorEstimate());
-    }
-
-    // Scale the subaperture based on its diameter
-    double scale = apertures_[i]->encircled_diameter() / encircled_diameter();
-    int new_size = round(ap_data[0].rows * scale);
-    std::vector<cv::Mat> scaled;
-    for (size_t j = 0; j < ap_data.size(); j++) {
-      scaled.push_back(cv::Mat());
-      cv::resize(ap_data[j], scaled.back(), cv::Size(new_size, new_size),
-          0, 0, cv::INTER_NEAREST);
-    }
-
-    // We need all of the apertures to be the same size. This means that we
-    // need to add zero padding to the periphery of the subapertures.
-    if (scaled[0].rows < kSize) { 
-      for (size_t j = 0; j < scaled.size(); j++) {
-        cv::Mat tmp_scaled = cv::Mat::zeros(kSize, kSize, CV_64FC1);
-        double* large_data = reinterpret_cast<double*>(tmp_scaled.data);
-        double* small_data = reinterpret_cast<double*>(scaled[j].data);
-
-        int pixels_to_pad = kSize - new_size;
-        int pad = pixels_to_pad / 2;
-
-        for (int y = 0; y < scaled[j].rows; y++) {
-          for (int x = 0; x < scaled[j].cols; x++) {
-            large_data[(pad + y)*kSize + (pad + x)] =
-                small_data[y*scaled[j].rows + x];
-          }
-        }
-
-        scaled[j] = tmp_scaled;
-      }
-    } else if (scaled[0].rows > kSize) {
-      for (size_t j = 0; j < scaled.size(); j++) {
-        cv::Mat tmp_scaled = cv::Mat::zeros(kSize, kSize, CV_64FC1);
-        double* large_data = reinterpret_cast<double*>(scaled[j].data);
-        double* small_data = reinterpret_cast<double*>(tmp_scaled.data);
-
-        int pixels_to_trim = new_size - kSize;
-        int pad = pixels_to_trim / 2;
-
-        int large_rows = scaled[j].rows;
-
-        for (int y = 0; y < kSize; y++) {
-          for (int x = 0; x < kSize; x++) {
-            small_data[y*kSize  + x] =
-                large_data[(pad + y)*large_rows + (pad + x)];
-          }
-        }
-
-        scaled[j] = tmp_scaled;
-      }
-    }
-
-    double pixel_scale = kSize / encircled_diameter();
-    int offset_x = round(apertures_[i]->aperture_params().offset_x() *
-        pixel_scale);
-    int offset_y = round(apertures_[i]->aperture_params().offset_y() *
-        pixel_scale);
-
-    std::vector<cv::Mat>* output_vecs[] = {&masks, &wfes, &wfe_ests};
-    if (offset_x != 0 || offset_y != 0) {
-      cv::Point2f shift(offset_x, offset_y);
-      for (size_t j = 0; j < scaled.size(); j++) {
-        output_vecs[j]->push_back(cv::Mat());
-        circshift(scaled[j], output_vecs[j]->back(), shift, cv::BORDER_CONSTANT,
-            cv::Scalar(0));
-      }
-    } else {
-      for (size_t j = 0; j < scaled.size(); j++) {
-        output_vecs[j]->push_back(scaled[j]);
-      }
-    }
-  }
-
-  cv::Mat result;
-  if (combine_op == CompoundApertureParameters::AND) {
-    result = cv::Mat::ones(kSize, kSize, CV_64F);
-    for (size_t i = 0; i < masks.size(); i++) {
-      cv::multiply(result, masks[i], result);
-    }
-    opd_ = wfes[0];
-    opd_est_ = wfe_ests[0];
-  } else if (combine_op == CompoundApertureParameters::AND_WFE_ADD) {
-    result = cv::Mat::ones(kSize, kSize, CV_64F);
-    for (size_t i = 0; i < masks.size(); i++) {
-      cv::multiply(result, masks[i], result);
-    }
-
-    opd_ = cv::Mat::zeros(kSize, kSize, CV_64FC1);
-    opd_est_ = cv::Mat::zeros(kSize, kSize, CV_64FC1);
-    for (size_t i = 0; i < masks.size(); i++) {
-      opd_ += wfes[i];
-      opd_est_ += wfe_ests[i];
+  // Combine the sub-apertures
+  if (combine_op == CompoundApertureParameters::AND ||
+      combine_op == CompoundApertureParameters::AND_WFE_ADD) {
+    mask = Scalar(1);
+    for (const auto& subap_mask : masks) {
+      multiply(mask, subap_mask, mask);
     }
   } else if (combine_op == CompoundApertureParameters::OR) {
-    result = cv::Mat::zeros(kSize, kSize, CV_64F);
-    for (size_t i = 0; i < masks.size(); i++) {
-      cv::max(result, masks[i], result);
-    }
-
-    opd_ = cv::Mat::zeros(kSize, kSize, CV_64FC1);
-    opd_est_ = cv::Mat::zeros(kSize, kSize, CV_64FC1);
-    for (size_t i = 0; i < masks.size(); i++) {
-      opd_ += wfes[i];
-      opd_est_ += wfe_ests[i];
+    mask = Scalar(0);
+    for (const auto& subap_mask : masks) {
+      cv::max(mask, subap_mask, mask);
     }
   }
 
+  RotateArray(output);
+}
+
+void CompoundAperture::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+  Mat_<double>& opd = *output;
+  const int kSize = opd.rows;
+
+  // Determine how we will be combining the masks
+  int combine_op = compound_params_.combine_operation();
+
+  vector<Mat_<double>> wfes;
+  GenerateSubapertureHelper(kSize, &wfes,
+      [] (const Aperture* subap, Mat_<double>* opd) {
+        subap->GetWavefrontError(opd->rows).copyTo(*opd);
+      });
+
+  if (combine_op == CompoundApertureParameters::AND) {
+    opd = wfes[compound_params_.wfe_index()];
+  } else if (combine_op == CompoundApertureParameters::AND_WFE_ADD ||
+             combine_op == CompoundApertureParameters::OR) {
+    opd = 0;
+    for (const auto& tmp_wfe : wfes) opd += tmp_wfe;
+  }
+
+  RotateArray(output);
+}
+
+void CompoundAperture::GetOpticalPathLengthDiffEstimate(
+    Mat_<double>* output) const {
+  Mat_<double>& opd_est = *output;
+  const int kSize = opd_est.rows;
+
+  // Determine how we will be combining the masks
+  int combine_op = compound_params_.combine_operation();
+
+  vector<Mat_<double>> wfes;
+  GenerateSubapertureHelper(kSize, &wfes,
+      [] (const Aperture* subap, Mat_<double>* opd) {
+        subap->GetWavefrontErrorEstimate(opd->rows).copyTo(*opd);
+      });
+
+  if (combine_op == CompoundApertureParameters::AND) {
+    opd_est = wfes[compound_params_.wfe_index()];
+  } else if (combine_op == CompoundApertureParameters::AND_WFE_ADD ||
+             combine_op == CompoundApertureParameters::OR) {
+    opd_est = 0;
+    for (const auto& tmp_wfe : wfes) opd_est += tmp_wfe;
+  }
+
+  RotateArray(output);
+}
+
+void CompoundAperture::GenerateSubapertureHelper(
+    int array_size,
+    vector<Mat_<double>>* subaps,
+    function<void(const Aperture*, Mat_<double>*)> subap_generator) const {
+  int array_half_size = array_size / 2;
+
+  // Get the scale of the mask. [m / pixel]
+  const double kMaskScale = encircled_diameter() / array_size;
+
+  // Create the mask for each sub-aperture
+  for (const auto& subap : apertures_) {
+    int subap_size = round(subap->encircled_diameter() / kMaskScale);
+    int subap_half_size = subap_size / 2;
+
+    double subap_center_x = subap->aperture_params().offset_x() / kMaskScale;
+    double subap_center_y = subap->aperture_params().offset_y() / kMaskScale;
+
+    int subap_x0 = round(subap_center_x + array_half_size - subap_half_size);
+    int subap_y0 = round(subap_center_y + array_half_size - subap_half_size);
+    int subap_x1 = subap_x0 + subap_size;
+    int subap_y1 = subap_y0 + subap_size;
+
+    if (subap_x0 < 0 || subap_y0 < 0 ||
+        subap_x1 > array_size || subap_y1 > array_size) {
+      mainLog() << "Error: CompoundAperture: One of the subapertures exceeds "
+                << "the bounds of the encircled diameter." << endl;
+      return;
+    }
+
+    subaps->emplace_back(array_size, array_size);
+    Mat_<double>& subap_array = subaps->back();
+
+    subap_array = 0;
+
+    Mat_<double> subap_region = subap_array(Range(subap_y0, subap_y1),
+                                            Range(subap_x0, subap_x1));
+    subap_generator(subap.get(), &subap_region);
+  }
+}
+
+void CompoundAperture::RotateArray(Mat_<double>* array) const {
   if (aperture_params().has_rotation() && aperture_params().rotation() != 0) {
-    cv::Mat rotation = cv::getRotationMatrix2D(
-        cv::Point2f(result.cols / 2, result.rows / 2),
+    Mat rotation = getRotationMatrix2D(
+        Point2f(array->cols / 2, array->rows / 2),
         aperture_params().rotation(),
         1);
-    cv::warpAffine(result, result, rotation, result.size());
-    cv::warpAffine(opd_, opd_, rotation, result.size());
-    cv::warpAffine(opd_est_, opd_est_, rotation, result.size());
+    warpAffine(*array, *array, rotation, array->size());
   }
-
-  return result;
-}
-
-cv::Mat CompoundAperture::GetOpticalPathLengthDiff() const {
-  GetApertureMask();  // Will recompute opd_ is needed.
-  return opd_;
-}
-
-cv::Mat CompoundAperture::GetOpticalPathLengthDiffEstimate() const {
-  GetApertureMask();  // Will recompute opd_est_ if needed.
-  return opd_est_;
 }

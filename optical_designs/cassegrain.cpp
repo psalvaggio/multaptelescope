@@ -4,6 +4,7 @@
 #include "cassegrain.h"
 #include "base/zernike_aberrations.h"
 #include "base/simulation_config.pb.h"
+#include "base/opencv_utils.h"
 #include "base/pupil_function.h"
 #include "io/logging.h"
 
@@ -23,16 +24,15 @@ Cassegrain::Cassegrain(const SimulationConfig& params, int sim_index)
 
 Cassegrain::~Cassegrain() {}
 
-Mat Cassegrain::GetOpticalPathLengthDiff() const {
-  Mat opd;
+void Cassegrain::GetOpticalPathLengthDiff(Mat_<double>* output) const {
   ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(aberrations(), params().array_size(), &opd);
-  return opd;
+  ab_factory.aberrations(aberrations(), output->rows, output);
 }
 
-Mat Cassegrain::GetOpticalPathLengthDiffEstimate() const {
+void Cassegrain::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
   if (simulation_params().wfe_knowledge() == Simulation::NONE) {
-    return Mat::zeros(params().array_size(), params().array_size(), CV_64FC1);
+    output->setTo(Scalar(0));
+    return;
   }
 
   double knowledge_level = 0;
@@ -49,34 +49,27 @@ Mat Cassegrain::GetOpticalPathLengthDiffEstimate() const {
         (2 * (rand() % 2) - 1) * knowledge_level);
   }
 
-  Mat opd_est;
   ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(wrong_weights, params().array_size(), &opd_est);
-
-  return opd_est;
+  ab_factory.aberrations(wrong_weights, output->rows, output);
 }
 
-Mat Cassegrain::GetApertureTemplate() const {
-  const size_t size = params().array_size();
-  const double half_size = size / 2.0;
-  const double half_size2 = half_size * half_size;
+void Cassegrain::GetApertureTemplate(Mat_<double>* output) const {
+  Mat_<double>& mask = *output;
 
-  Mat output(size, size, CV_64FC1);
-  double* output_data = (double*) output.data;
+  const size_t kSize = mask.rows;
+  const double kHalfSize = 0.5 * kSize;
+  const double kHalfSize2 = kHalfSize * kHalfSize;
 
   double primary_r2 = 1;
   double secondary_r2 = 1 - aperture_params().fill_factor();
 
-  for (size_t i = 0; i < size; i++) {
-    double y = i - half_size;
-    for (size_t j = 0; j < size; j++) {
-      double x = j - half_size;
+  for (size_t i = 0; i < kSize; i++) {
+    double y = i - kHalfSize;
+    for (size_t j = 0; j < kSize; j++) {
+      double x = j - kHalfSize;
 
-      double r2 = (x*x + y*y) / half_size2;
-      output_data[i*size + j] = (r2 < primary_r2 && r2 >= secondary_r2)
-                                ? 1 : 0;
+      double r2 = (x*x + y*y) / kHalfSize2;
+      mask(i, j) = (r2 < primary_r2 && r2 >= secondary_r2) ? 1 : 0;
     }
   }
-
-  return output;
 }

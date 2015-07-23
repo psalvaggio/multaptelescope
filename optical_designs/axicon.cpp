@@ -24,15 +24,14 @@ Axicon::Axicon(const SimulationConfig& params, int sim_index)
 
 Axicon::~Axicon() {}
 
-Mat Axicon::GetOpticalPathLengthDiff() const {
-  const size_t kSize = params().array_size();
+void Axicon::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+  Mat_<double>& opd = *output;
+
+  const size_t kSize = opd.rows;
   const double kHalfSize = kSize / 2.0;
   const double kHalfSize2 = kHalfSize * kHalfSize;
   const double kPrimaryR2 = 1;
   const double kNumCycles = axicon_params_.num_cycles();
-
-  Mat opd(kSize, kSize, CV_64FC1);
-  double* opd_data = reinterpret_cast<double*>(opd.data);
 
   for (size_t i = 0; i < kSize; i++) {
     double y = i - kHalfSize;
@@ -40,17 +39,11 @@ Mat Axicon::GetOpticalPathLengthDiff() const {
       double x = j - kHalfSize;
       double r2 = (x*x + y*y) / kHalfSize2;
 
-      if (r2 < kPrimaryR2) {
-        opd_data[i*kSize + j] = sqrt(r2) * kNumCycles;
-      } else {
-        opd_data[i*kSize + j] = 0;
-      }
+      opd(i, j) = (r2 < kPrimaryR2) ? sqrt(r2) * kNumCycles : 0;
     }
   }
-
-  return opd;
 }
 
-Mat Axicon::GetOpticalPathLengthDiffEstimate() const {
-  return GetOpticalPathLengthDiff();
+void Axicon::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
+  return GetOpticalPathLengthDiff(output);
 }

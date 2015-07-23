@@ -20,11 +20,20 @@ class CompoundAperture : public Aperture {
  private:
   double GetEncircledDiameter() const override;
 
-  cv::Mat GetApertureTemplate() const override;
+  void GetApertureTemplate(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiff() const override;
+  void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiffEstimate() const override;
+  void GetOpticalPathLengthDiffEstimate(
+      cv::Mat_<double>* output) const override;
+
+  void GenerateSubapertureHelper(
+      int array_size,
+      std::vector<cv::Mat_<double>>* subaps,
+      std::function<void(const Aperture*, cv::Mat_<double>*)> subap_generator)
+      const;
+
+  void RotateArray(cv::Mat_<double>* array) const;
 
  private:
   CompoundApertureParameters compound_params_;

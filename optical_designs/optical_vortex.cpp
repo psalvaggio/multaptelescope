@@ -24,16 +24,15 @@ OpticalVortex::OpticalVortex(const SimulationConfig& params, int sim_index)
 
 OpticalVortex::~OpticalVortex() {}
 
-Mat OpticalVortex::GetOpticalPathLengthDiff() const {
-  const size_t kSize = params().array_size();
+void OpticalVortex::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+  Mat_<double>& opd = *output;
+
+  const size_t kSize = opd.rows;
   const double kHalfSize = kSize / 2.0;
   const double kHalfSize2 = kHalfSize * kHalfSize;
   const double kPrimaryR2 = 1;
   const double kNumCycles = vortex_params_.num_cycles();
   const double k2Pi = 2 * M_PI;
-
-  Mat opd(kSize, kSize, CV_64FC1);
-  double* opd_data = reinterpret_cast<double*>(opd.data);
 
   for (size_t i = 0; i < kSize; i++) {
     double y = i - kHalfSize;
@@ -44,16 +43,15 @@ Mat OpticalVortex::GetOpticalPathLengthDiff() const {
       if (r2 < kPrimaryR2) {
         double phase = atan2(y, x) / k2Pi;
         if (phase < 0) phase += 1;
-        opd_data[i*kSize + j] = phase * kNumCycles;
+        opd(i, j) = phase * kNumCycles;
       } else {
-        opd_data[i*kSize + j] = 0;
+        opd(i, j) = 0;
       }
     }
   }
-
-  return opd;
 }
 
-Mat OpticalVortex::GetOpticalPathLengthDiffEstimate() const {
-  return GetOpticalPathLengthDiff();
+void OpticalVortex::GetOpticalPathLengthDiffEstimate(
+    Mat_<double>* output) const {
+  GetOpticalPathLengthDiff(output);
 }

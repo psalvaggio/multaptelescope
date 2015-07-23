@@ -81,32 +81,10 @@ Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
 
 Triarm9::~Triarm9() {}
 
-void Triarm9::ExportToZemax(const std::string& aperture_filename,
-                            const std::string& obstruction_filename) const {
-  double scale = this->aperture_params().encircled_diameter() /
-                 this->params().array_size() * 1000;
-  double offset = this->params().array_size() * 0.5;
+void Triarm9::GetApertureTemplate(Mat_<double>* output) const {
+  Mat_<double>& mask = *output;
 
-  std::ofstream ap_ofs(aperture_filename.c_str());
-  std::ofstream ob_ofs(obstruction_filename.c_str());
-  if (!ap_ofs.is_open() || !ob_ofs.is_open()) return;
-
-  for (int ap = 0; ap < kNumApertures; ap++) {
-    ap_ofs << "CIR " << (subaperture_offsets_[2*ap] - offset) * scale << " "
-                     << (subaperture_offsets_[2*ap+1] - offset) * scale << " "
-                     << subap_diameter_ * 0.5 * scale << std::endl;
-    ob_ofs << "CIR " << (subaperture_offsets_[2*ap] - offset) * scale << " "
-                     << (subaperture_offsets_[2*ap+1] - offset) * scale << " "
-                     << subap_secondary_diameter_ * 0.5 * scale << std::endl;
-  }
-}
-
-Mat Triarm9::GetApertureTemplate() const {
-  const int kSize = params().array_size();
-
-  // Allocate the output array.
-  Mat output(kSize, kSize, CV_64FC1);
-  double* output_data = (double*)output.data;
+  const int kSize = mask.rows;
 
   double subap_r2 = subap_diameter_ * subap_diameter_ / 4.0;
   double subap_sec_r2 = subap_secondary_diameter_ * subap_secondary_diameter_
@@ -120,23 +98,23 @@ Mat Triarm9::GetApertureTemplate() const {
         double dist2 = x_diff*x_diff + y_diff*y_diff;
 
         if (dist2 < subap_r2 && dist2 >= subap_sec_r2) {
-          output_data[y*kSize + x] += 1;
+          mask(y, x) += 1;
         }
       }
     }
   }
 
   double max_val;
-  minMaxIdx(output, NULL, &max_val);
+  minMaxIdx(mask, NULL, &max_val);
   if (max_val > 1) {
     mainLog() << "Error: Triarm9 subapertures are overlapping!" << endl;
   }
-
-  return output;
 }
 
-Mat Triarm9::GetOpticalPathLengthDiff() const {
-  const int kSize = params().array_size();
+void Triarm9::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+  *output = 0;
+  /*
+  const int kSize = output->rows;
 
   Mat opd = OpticalPathLengthDiffPtt(ptt_vals_);
   double* opd_data = (double*) opd.data;
@@ -159,9 +137,12 @@ Mat Triarm9::GetOpticalPathLengthDiff() const {
   opd *= rms_ptt_mul;
 
   return opd;
+  */
 }
 
-Mat Triarm9::GetOpticalPathLengthDiffEstimate() const {
+void Triarm9::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
+  *output = 0;
+  /*
   if (simulation_params().wfe_knowledge() == Simulation::NONE) {
     return Mat(params().array_size(), params().array_size(), CV_64FC1);
   }
@@ -182,6 +163,7 @@ Mat Triarm9::GetOpticalPathLengthDiffEstimate() const {
   }
 
   return OpticalPathLengthDiffPtt(ptt_est);
+  */
 }
 
 Mat Triarm9::OpticalPathLengthDiffPtt(const vector<double>& ptt_vals) const {

@@ -16,11 +16,12 @@ class Hdf5Wfe : public Aperture {
   virtual ~Hdf5Wfe();
 
  private:
-  cv::Mat GetApertureTemplate() const override;
+  void GetApertureTemplate(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiff() const override;
+  void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const override;
 
-  cv::Mat GetOpticalPathLengthDiffEstimate() const override;
+  void GetOpticalPathLengthDiffEstimate(
+      cv::Mat_<double>* output) const override;
 
  private:
   Hdf5WfeParameters hdf5_wfe_params_;

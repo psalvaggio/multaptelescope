@@ -26,16 +26,15 @@ Circular::Circular(const SimulationConfig& params, int sim_index)
 
 Circular::~Circular() {}
 
-Mat Circular::GetOpticalPathLengthDiff() const {
-  Mat opd;
+void Circular::GetOpticalPathLengthDiff(Mat_<double>* output) const {
   ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(aberrations(), params().array_size(), &opd);
-  return opd;
+  ab_factory.aberrations(aberrations(), output->rows, output);
 }
 
-Mat Circular::GetOpticalPathLengthDiffEstimate() const {
+void Circular::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
   if (simulation_params().wfe_knowledge() == Simulation::NONE) {
-    return Mat(params().array_size(), params().array_size(), CV_64FC1);
+    output->setTo(Scalar(0));
+    return;
   }
 
   double knowledge_level = 0;
@@ -52,20 +51,17 @@ Mat Circular::GetOpticalPathLengthDiffEstimate() const {
         (2 * (rand() % 2) - 1) * knowledge_level);
   }
 
-  Mat opd_est;
   ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(wrong_weights, params().array_size(), &opd_est);
-  return opd_est;
+  ab_factory.aberrations(wrong_weights, output->rows, output);
 }
 
-Mat Circular::GetApertureTemplate() const {
-  const size_t kSize = params().array_size();
+void Circular::GetApertureTemplate(Mat_<double>* output) const {
+  Mat_<double>& mask = *output;
+
+  const size_t kSize = mask.rows;
   const double kHalfSize = kSize / 2.0;
   const double kHalfSize2 = kHalfSize * kHalfSize;
   const double kPrimaryR2 = 1;
-
-  Mat output(kSize, kSize, CV_64FC1);
-  double* output_data = (double*) output.data;
 
   for (size_t i = 0; i < kSize; i++) {
     double y = i - kHalfSize;
@@ -73,9 +69,7 @@ Mat Circular::GetApertureTemplate() const {
       double x = j - kHalfSize;
 
       double r2 = (x*x + y*y) / kHalfSize2;
-      output_data[i*kSize + j] = (r2 < kPrimaryR2) ? 1 : 0;
+      mask(i, j) = (r2 < kPrimaryR2) ? 1 : 0;
     }
   }
-
-  return output;
 }
