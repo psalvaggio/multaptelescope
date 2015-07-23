@@ -108,4 +108,12 @@ string PrintDetector(const mats::DetectorParameters& detector) {
   return output.str();
 }
 
+std::string PrintAberration(const mats::ZernikeCoefficient& aberration) {
+  stringstream ss;
+  ss << "Aberration ("
+     << mats::ZernikeCoefficient::AberrationType_Name(aberration.type())
+     << "): " << aberration.value();
+  return ss.str();
+}
+
 }

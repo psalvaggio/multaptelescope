@@ -34,6 +34,7 @@ std::string PrintConfig(const mats::SimulationConfig& config);
 std::string PrintSimulation(const mats::Simulation& simulation);
 std::string PrintAperture(const mats::ApertureParameters& detector);
 std::string PrintDetector(const mats::DetectorParameters& detector);
+std::string PrintAberration(const mats::ZernikeCoefficient& aberration);
 
 }
 
