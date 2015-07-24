@@ -1,9 +1,10 @@
-// File Description
+// A simple utility class for reading ASCII data files.
 // Author: Philip Salvaggio
 
 #ifndef TEXT_FILE_READER_H
 #define TEXT_FILE_READER_H
 
+#include <string>
 #include <vector>
 
 namespace mats_io {
