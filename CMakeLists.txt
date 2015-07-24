@@ -10,7 +10,7 @@ set(LIB_MACROS "")
 find_package(OpenCV)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
-find_package(gflags REQUIRED)
+find_package(Gflags REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} $ENV{CXXFLAGS}")
