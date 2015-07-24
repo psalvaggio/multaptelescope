@@ -3,7 +3,7 @@
 
 #include "sbig_detector.h"
 
-#include <SBIGUDrv/SBIGUDrv.h>
+#include <SBIGUDrv/sbigudrv.h>
 #include <unistd.h>
 
 using namespace std;
