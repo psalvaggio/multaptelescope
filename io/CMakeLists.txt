@@ -26,8 +26,12 @@ set(MATS_SRCS ${MATS_SRCS}
     text_file_reader.cpp
     PARENT_SCOPE)
 
-set(MATS_LINK_LIBS ${MATS_LINK_LIBS}
-    hdf5
-    hdf5_hl
-    "-framework SBIGUDrv"
-    PARENT_SCOPE)
+set(LINK_LIBS hdf5 hdf5_hl)
+
+if (APPLE)
+  set(LINK_LIBS ${LINK_LIBS} "-framework SBIGUDrv")
+else()
+  set(LINK_LIBS ${LINK_LIBS} "-lsbigudrv")
+endif()
+
+set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${LINK_LIBS} PARENT_SCOPE)
