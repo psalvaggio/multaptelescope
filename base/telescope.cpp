@@ -14,6 +14,9 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
+
 #include <algorithm>
 #include <numeric>
 
@@ -95,54 +98,36 @@ void Telescope::Image(const vector<Mat>& radiance,
 
   vector<Mat> blurred_irradiance;
   for (size_t i = 0; i < radiance.size(); i++) {
-    if (radiance[i].rows < kRows || radiance[i].cols < kCols) {
-      mainLog() << "Warning: Band " << i << " (" << wavelength[i] << " [m]): "
-                << "Input radiance smaller than detector. Skipping..." << endl;
-      blurred_irradiance.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
-      continue;
-    }
-
-    int cols = radiance[i].cols;
-    int rows = round(cols * kAspectRatio);
-    Mat radiance_roi = radiance[i](Range(0, rows), Range(0, cols));
-
-    Mat img_fft, blurred_fft;
-    dft(radiance_roi, img_fft, DFT_COMPLEX_OUTPUT);
-
-    Mat otf(rows, cols, CV_64FC2);
-    otf.setTo(Scalar(0, 0));
-    int row_start = rows / 2 - kRows / 2;
-    int col_start = cols / 2 - kCols / 2;
-    Range row_range(row_start, row_start + kRows),
-          col_range(col_start, col_start + kCols);
-
-    resize(FFTShift(spectral_otfs[i]), otf(row_range, col_range),
-        Size(kRows, kCols));
-    /*
-    if (cols != kCols) {
-      Mat det_otf = detector_->GetSamplingOtf(kRows, kCols);
-      mulSpectrums(otf(row_range, col_range), det_otf,
-                   otf(row_range, col_range), 0);
-    }
-    */
-    mulSpectrums(img_fft, FFTShift(otf), blurred_fft, 0);
-
-    Mat tmp_blurred_irradiance;
-    dft(blurred_fft, tmp_blurred_irradiance,
-        DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
-    tmp_blurred_irradiance /= GNumber(wavelength[i]);
-
-    if (cols != kCols) {
-      resize(tmp_blurred_irradiance, tmp_blurred_irradiance,
-             Size(kRows, kCols));
-    }
-
-    blurred_irradiance.push_back(tmp_blurred_irradiance);
-    spectral_otfs[i] *= transmittances[i];
+    blurred_irradiance.emplace_back();
   }
 
+  if (!parallelism_) {
+    for (size_t i = 0; i < radiance.size(); i++) {
+      OtfDegrade(radiance[i], spectral_otfs[i], wavelength[i],
+                 &(blurred_irradiance[i]));
+    }
+  } else {
+    struct {
+      const Telescope* self;
+      const vector<Mat>* radiance;
+      vector<Mat>* spectral_otfs;
+      const vector<double>* wavelength;
+      vector<Mat>* degraded;
+      void operator()(const tbb::blocked_range<int>& range) const {
+        for (int i = range.begin(); i != range.end(); i++) {
+          self->OtfDegrade((*radiance)[i], (*spectral_otfs)[i],
+                           (*wavelength)[i], &((*degraded)[i]));
+        }
+      }
+    } worker{this, &radiance, &spectral_otfs, &wavelength, &blurred_irradiance};
+    tbb::parallel_for(tbb::blocked_range<int>(0, wavelength.size()), worker);
+  }
+                     
   if (otf != NULL) {
     otf->clear();
+    for (size_t i = 0; i < wavelength.size(); i++) {
+      spectral_otfs[i] *= transmittances[i];
+    }
     detector_->AggregateSignal(spectral_otfs, wavelength, true, otf);
     for (size_t i = 0; i < otf->size(); i++) {
       vector<Mat> tmp_otf_planes;
@@ -162,6 +147,57 @@ void Telescope::Image(const vector<Mat>& radiance,
   //detector_->Quantize(electrons, image);
   detector_->ResponseElectrons(blurred_irradiance, wavelength, image);
 }
+
+void Telescope::OtfDegrade(const Mat& radiance,
+                           const Mat& spectral_otf,
+                           double wavelength,
+                           Mat* degraded) const {
+  const int kRows = detector_->rows();
+  const int kCols = detector_->cols();
+  const double kAspectRatio = double(kRows) / kCols;
+
+  if (radiance.rows < kRows || radiance.cols < kCols) {
+    mainLog() << "Warning: Band " << " " << wavelength << " [m]: "
+              << "Input radiance smaller than detector. Skipping..." << endl;
+    *degraded = Mat::zeros(kRows, kCols, CV_64FC1);
+    return;
+  }
+
+  int cols = radiance.cols;
+  int rows = round(cols * kAspectRatio);
+
+  Mat radiance_roi = radiance(Range(0, rows), Range(0, cols));
+
+  Mat img_fft, blurred_fft;
+  dft(radiance_roi, img_fft, DFT_COMPLEX_OUTPUT);
+
+  Mat otf(rows, cols, CV_64FC2);
+  otf.setTo(Scalar(0, 0));
+  int row_start = rows / 2 - kRows / 2;
+  int col_start = cols / 2 - kCols / 2;
+  Range row_range(row_start, row_start + kRows),
+        col_range(col_start, col_start + kCols);
+
+  resize(FFTShift(spectral_otf), otf(row_range, col_range),
+         Size(kRows, kCols));
+
+  /*
+  if (cols != kCols) {
+    Mat det_otf = detector_->GetSamplingOtf(kRows, kCols);
+    mulSpectrums(otf(row_range, col_range), det_otf,
+                 otf(row_range, col_range), 0);
+  }
+  */
+  mulSpectrums(img_fft, FFTShift(otf), blurred_fft, 0);
+
+  dft(blurred_fft, *degraded, DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
+  *degraded /= GNumber(wavelength);
+
+  if (cols != kCols) {
+    resize(*degraded, *degraded, Size(kRows, kCols));
+  }
+}
+
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
                            vector<Mat>* otf) const {
@@ -216,77 +252,104 @@ void Telescope::GetTransmissionSpectrum(
 
 void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
                                    vector<Mat>* otf) const {
-  // Array sizes
-  const int kOtfSize = aperture_->params().array_size();
+  otf->clear();
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    otf->emplace_back();
+  }
 
   // The OTF varies drastically with respect to wavelength. So, we will be
   // calculating an OTF for each spectral band in our input radiance data.
-  for (size_t i = 0; i < wavelengths.size(); i++) {
-    // Get the aberrated pupil function from the aperture.
-    PupilFunction pupil_func;
-    aperture_->GetPupilFunction(wavelengths[i], &pupil_func);
-
-    // The coherent OTF is given by p[lamda * f * xi, lamda * f * eta],
-    // where xi and eta are in [cyc/m]. The pixel pitch factor converts from
-    // [cyc/pixel], which we want for degrading the image, and [cyc/m], which
-    // is what is used by the pupil function.
-    double pupil_scale = wavelengths[i] * FocalLength() /
-                         detector_->pixel_pitch();
-    
-    // Get the scale of the aperture, how many meters does each pixel represent
-    // on the aperture plane [m/pix]
-    double aperture_scale = pupil_func.meters_per_pixel();
-
-    // Determine the region of the pupil function OTF that we need. This may
-    // be smaller or larger than the original array. If it is smaller, we are
-    // getting rid of the padding around the non-zero OTF, meaning the OTF
-    // will be wider and we will have better resolution. This occurs are
-    // wavelengths shorter than the reference. If the region is larger, we
-    // are adding zero padding, the OTF will be smaller and resolution will
-    // suffer. This occurs at wavelengths larger than the reference.
-    Range otf_range;
-    otf_range.start = kOtfSize / 2 -
-                      int(0.5 * pupil_scale / aperture_scale);
-    otf_range.end = kOtfSize / 2 +
-                    int(0.5 * pupil_scale / aperture_scale) + 1;
-
-    // We don't want to deal with the wrapping that occurs with FFT's, so we
-    // will shift zero frequency to the middle of the array, so cropping can
-    // be done in a single operation.
-    Mat unscaled_otf = FFTShift(pupil_func.OpticalTransferFunction());
-    Mat scaled_otf;
-
-    // If the range is larger than the image, we need to add zero-padding.
-    // Essentially, we will be downsampling the OTF and copying it into the
-    // middle of a new array. If the range is smaller, it's a simple upscaling
-    // to the required resolution.
-    if (otf_range.start < 0 || otf_range.end > kOtfSize) {
-      double scaling_size = otf_range.end - otf_range.start;
-      int new_width = int(kOtfSize*kOtfSize / scaling_size);
-      otf_range.start = kOtfSize / 2 - (new_width + 1) / 2;
-      otf_range.end = kOtfSize / 2 + new_width / 2;
-
-      scaled_otf = Mat::zeros(kOtfSize, kOtfSize, CV_64FC2);
-
-      vector<Mat> unscaled_planes, scaled_planes;
-      split(unscaled_otf, unscaled_planes);
-      for (int i = 0; i < 2; i++) {
-        Mat tmp_scaled;
-        resize(unscaled_planes[i], tmp_scaled, Size(new_width, new_width),
-               0, 0, INTER_NEAREST);
-
-        scaled_planes.push_back(Mat::zeros(kOtfSize, kOtfSize, CV_64FC1));
-        tmp_scaled.copyTo(scaled_planes[i](otf_range, otf_range));
+  if (!parallelism_) {
+    for (size_t i = 0; i < wavelengths.size(); i++) {
+      ComputeApertureOtf(wavelengths[i], &(otf->at(i)));
+    }
+  } else {
+    struct ComputeApertureOtfWorker {
+      const Telescope* self;
+      const vector<double>* wavelengths;
+      vector<Mat>* otf;
+      void operator()(const tbb::blocked_range<int>& range) const {
+        for (int i = range.begin(); i != range.end(); i++) {
+          self->ComputeApertureOtf(wavelengths->at(i), &(otf->at(i)));
+        }
       }
+    };
 
-      merge(scaled_planes, scaled_otf);
-    } else {
-      resize(unscaled_otf(otf_range, otf_range), scaled_otf,
-             Size(kOtfSize, kOtfSize), 0, 0, INTER_NEAREST);
+    ComputeApertureOtfWorker worker;
+    worker.self = this;
+    worker.wavelengths = &wavelengths;
+    worker.otf = otf;
+    tbb::parallel_for(tbb::blocked_range<int>(0, wavelengths.size()), worker);
+  }
+}
+
+void Telescope::ComputeApertureOtf(double wavelength, Mat* otf) const {
+  // Array sizes
+  const int kOtfSize = aperture_->params().array_size();
+
+  // Get the aberrated pupil function from the aperture.
+  PupilFunction pupil_func;
+  aperture_->GetPupilFunction(wavelength, &pupil_func);
+
+  // The coherent OTF is given by p[lamda * f * xi, lamda * f * eta],
+  // where xi and eta are in [cyc/m]. The pixel pitch factor converts from
+  // [cyc/pixel], which we want for degrading the image, and [cyc/m], which
+  // is what is used by the pupil function.
+  double pupil_scale = wavelength * FocalLength() / detector_->pixel_pitch();
+    
+  // Get the scale of the aperture, how many meters does each pixel represent
+  // on the aperture plane [m/pix]
+  double aperture_scale = pupil_func.meters_per_pixel();
+
+  // Determine the region of the pupil function OTF that we need. This may
+  // be smaller or larger than the original array. If it is smaller, we are
+  // getting rid of the padding around the non-zero OTF, meaning the OTF
+  // will be wider and we will have better resolution. This occurs are
+  // wavelengths shorter than the reference. If the region is larger, we
+  // are adding zero padding, the OTF will be smaller and resolution will
+  // suffer. This occurs at wavelengths larger than the reference.
+  Range otf_range;
+  otf_range.start = kOtfSize / 2 -
+                    int(0.5 * pupil_scale / aperture_scale);
+  otf_range.end = kOtfSize / 2 +
+                  int(0.5 * pupil_scale / aperture_scale) + 1;
+
+  // We don't want to deal with the wrapping that occurs with FFT's, so we
+  // will shift zero frequency to the middle of the array, so cropping can
+  // be done in a single operation.
+  Mat unscaled_otf = FFTShift(pupil_func.OpticalTransferFunction());
+  Mat scaled_otf;
+
+  // If the range is larger than the image, we need to add zero-padding.
+  // Essentially, we will be downsampling the OTF and copying it into the
+  // middle of a new array. If the range is smaller, it's a simple upscaling
+  // to the required resolution.
+  if (otf_range.start < 0 || otf_range.end > kOtfSize) {
+    double scaling_size = otf_range.end - otf_range.start;
+    int new_width = int(kOtfSize*kOtfSize / scaling_size);
+    otf_range.start = kOtfSize / 2 - (new_width + 1) / 2;
+    otf_range.end = kOtfSize / 2 + new_width / 2;
+
+    scaled_otf = Mat::zeros(kOtfSize, kOtfSize, CV_64FC2);
+
+    vector<Mat> unscaled_planes, scaled_planes;
+    split(unscaled_otf, unscaled_planes);
+    for (int i = 0; i < 2; i++) {
+      Mat tmp_scaled;
+      resize(unscaled_planes[i], tmp_scaled, Size(new_width, new_width),
+             0, 0, INTER_NEAREST);
+
+      scaled_planes.push_back(Mat::zeros(kOtfSize, kOtfSize, CV_64FC1));
+      tmp_scaled.copyTo(scaled_planes[i](otf_range, otf_range));
     }
 
-    otf->push_back(FFTShift(scaled_otf));
+    merge(scaled_planes, scaled_otf);
+  } else {
+    resize(unscaled_otf(otf_range, otf_range), scaled_otf,
+           Size(kOtfSize, kOtfSize), 0, 0, INTER_NEAREST);
   }
+
+  *otf = FFTShift(scaled_otf);
 }
 
 }

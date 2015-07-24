@@ -11,6 +11,7 @@ DEFINE_string(config_file, "", "SimulationConfig filename.");
 DEFINE_string(target_file, "", "Target image filename.");
 DEFINE_double(smoothness, 1e-2, "Inverse filtering smoothness.");
 DEFINE_double(orientation, 0, "Aperture orientation.");
+DEFINE_bool(parallelism, false, "Specify for parallel computation.");
 
 using namespace std;
 using namespace cv;
@@ -62,10 +63,10 @@ int main(int argc, char** argv) {
     sim_config.mutable_simulation(i)->
                mutable_aperture_params()->set_rotation(FLAGS_orientation);
     mats::Telescope telescope(sim_config, i, detector_params);
-    //telescope.set_parallelism(true);
+    telescope.set_parallelism(FLAGS_parallelism);
 
-    vector<Mat> output_image, otfs, output_ref, ref_otfs;
-    telescope.Image(hyp_image, wavelengths, &output_image, &otfs);
+    vector<Mat> output_image, output_ref;
+    telescope.Image(hyp_image, wavelengths, &output_image);
 
     vector<Mat> low_res_hyp;
     telescope.detector()->AggregateSignal(hyp_image, wavelengths,

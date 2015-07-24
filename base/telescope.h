@@ -47,6 +47,9 @@ class Telescope {
 
   const SimulationConfig& sim_params() const;
 
+  bool parallelism() const { return parallelism_; }
+  void set_parallelism(bool use) { parallelism_ = use; }
+
   // Gets the effective Q (lambda * F# / p) of the system over a bandpass
   //
   // Arguments:
@@ -106,9 +109,17 @@ class Telescope {
   void ComputeApertureOtf(const std::vector<double>& wavelengths,
                           std::vector<cv::Mat>* otf) const;
 
+  void ComputeApertureOtf(double wavelength, cv::Mat* otf) const;
+
+  void OtfDegrade(const cv::Mat& radiance,
+                  const cv::Mat& spectral_otf,
+                  double wavelength,
+                  cv::Mat* degraded) const;
+
  private:
   std::unique_ptr<Aperture> aperture_;
   std::unique_ptr<Detector> detector_;
+  bool parallelism_;
 };
 
 }
