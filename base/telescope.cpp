@@ -88,10 +88,6 @@ void Telescope::Image(const vector<Mat>& radiance,
   vector<Mat> spectral_otfs;
   ComputeOtf(wavelength, &spectral_otfs);
 
-  const int kRows = detector_->rows();
-  const int kCols = detector_->cols();
-  const double kAspectRatio = double(kRows) / kCols;
-
   // Get the transmission spectrum of the optics.
   vector<double> transmittances;
   GetTransmissionSpectrum(wavelength, &transmittances);
