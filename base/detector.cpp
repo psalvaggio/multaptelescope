@@ -194,33 +194,27 @@ void Detector::Quantize(const vector<Mat>& electrons,
 Mat Detector::GetSamplingOtf(int rows, int cols) {
   const int kRows = (rows > 0) ? rows : this->rows();
   const int kCols = (cols > 0) ? cols : this->cols();
-  const double kSize = std::max(kRows, kCols);
-  const double kPixelPitch = det_params_.pixel_pitch();
-  const double kPiPixelPitch = M_PI * kPixelPitch;
+  const int kDetRows = this->rows();
+  const int kDetCols = this->cols();
 
-  vector<Mat> otf_planes;
-  otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
-  otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
+  cv::Mat_<complex<double>> otf(kRows, kCols);
 
-  double* real_data = (double*) otf_planes[0].data;
   for (int r = 0; r < kRows; r++) {
     int y = std::min(r, kRows - r);
-    double eta = (1 / kPixelPitch) * (y / kSize);
-    double eta_sinc = (y == 0) ? 1 : sin(kPiPixelPitch * eta) /
-                                     (kPiPixelPitch * eta);
+    double eta = double(y) / kDetRows;  // [cyc / pixel]
+    double pi_eta = M_PI * eta;
+    double eta_sinc = (y == 0) ? 1 : sin(pi_eta) / pi_eta;
 
-    for (int c = 0; c < kSize; c++) {
+    for (int c = 0; c < kCols; c++) {
       int x = std::min(c, kCols - c);
-      double xi = (1 / kPixelPitch) * (x / kSize);
-      double xi_sinc = (x == 0) ? 1 : sin(kPiPixelPitch * xi) /
-                                      (kPiPixelPitch * xi);
+      double xi = double(x) / kDetCols;
+      double pi_xi = M_PI * xi;
+      double xi_sinc = (x == 0) ? 1 : sin(pi_xi) / pi_xi;
 
-      real_data[r*kCols + c] = eta_sinc * xi_sinc;
+      otf(r, c) = eta_sinc * xi_sinc;
     }
   }
 
-  Mat otf;
-  merge(otf_planes, otf);
   return otf;
 }
 
