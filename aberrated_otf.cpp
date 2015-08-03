@@ -18,6 +18,11 @@ DEFINE_string(spectral_weighting, "", "Optional spectral weighting filename.");
 DEFINE_bool(output_inverse_filter, false,
             "Whether to output the inverse filter.");
 DEFINE_double(smoothness, 1e-3, "Smoothness Lagrange multiplier.");
+DEFINE_bool(output_psf, false,
+            "Whether to output the point spread function.");
+DEFINE_int32(colormap, -1,
+             "Which colormap to apply to MTF/PSF outputs. See OpenCV"
+             "documentation for values.");
 
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -73,14 +78,31 @@ int main(int argc, char** argv) {
 
   imwrite("mask.png", ByteScale(pupil.magnitude()));
   imwrite("wfe.png", ByteScale(pupil.phase()));
-  imwrite("mtf.png", GammaScale(FFTShift(magnitude(otf)), 1/2.2));
+
+  Mat output_mtf = GammaScale(FFTShift(magnitude(otf)), 1/2.2);
+  if (FLAGS_colormap >= 0) {
+    output_mtf = ColorScale(output_mtf, FLAGS_colormap);
+  }
+  imwrite("mtf.png", output_mtf);
 
   if (FLAGS_output_inverse_filter) {
     ConstrainedLeastSquares cls;
     Mat inv_filter;
     cls.GetInverseFilter(otf, FLAGS_smoothness, &inv_filter);
-    imwrite("inv_filter.png",
-        GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2));
+
+    inv_filter = GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2);
+    if (FLAGS_colormap >= 0) {
+      inv_filter = ColorScale(inv_filter, FLAGS_colormap);
+    }
+    imwrite("inv_filter.png", inv_filter);
+  }
+
+  if (FLAGS_output_psf) {
+    Mat psf = GammaScale(FFTShift(pupil.PointSpreadFunction()), 1/2.2);
+    if (FLAGS_colormap >= 0) {
+      psf = ColorScale(psf, FLAGS_colormap);
+    }
+    imwrite("psf.png", psf);
   }
 
   return 0;
