@@ -36,52 +36,17 @@ Mat PupilFunction::PointSpreadFunction() {
   const size_t cols = pupil_real_.cols;
   const size_t size = rows * cols;
 
-  fftw_lock().lock();
+  std::vector<Mat> pupil_planes{pupil_real_, pupil_imag_};
+  Mat pupil, pupil_fft;
+  merge(pupil_planes, pupil);
+  dft(pupil, pupil_fft, DFT_COMPLEX_OUTPUT);
 
-  fftw_complex* pupil_func =
-      (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * size);
-  fftw_complex* pupil_func_fft =
-      (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * size);
+  std::vector<Mat> pupil_fft_planes;
+  split(pupil_fft, pupil_fft_planes);
 
-  double* real_data = (double*) pupil_real_.data;
-  double* imag_data = (double*) pupil_imag_.data;
-
-  for (size_t i = 0; i < rows; i++) {
-    for (size_t j = 0; j < cols; j++) {
-      const size_t index = i * cols + j;
-      pupil_func[index][0] = real_data[index];
-      pupil_func[index][1] = imag_data[index];
-    }
-  }
-
-  fftw_plan fft_plan = fftw_plan_dft_2d(rows, cols, pupil_func, pupil_func_fft,
-                                        FFTW_FORWARD, FFTW_ESTIMATE);
-  fftw_lock().unlock();
-
-  fftw_execute(fft_plan);
-
-  Mat psf(rows, cols, CV_64FC1);
-  double* psf_data = (double*) psf.data;
-  double psf_total = 0.0;
-  for (size_t i = 0; i < rows; i++) {
-    for (size_t j = 0; j < cols; j++) {
-      const size_t index = i * cols + j;
-      const double real = pupil_func_fft[index][0];
-      const double imag = pupil_func_fft[index][1];
-      const double psf_val = real * real + imag * imag;
-
-      psf_data[index] = psf_val;
-      psf_total += psf_val;
-    }
-  }
-
-  fftw_lock().lock();
-  fftw_destroy_plan(fft_plan);
-  fftw_free(pupil_func);
-  fftw_free(pupil_func_fft);
-  fftw_lock().unlock();
-
-  psf /= psf_total;
+  Mat psf = pupil_fft_planes[0].mul(pupil_fft_planes[0]) +
+            pupil_fft_planes[1].mul(pupil_fft_planes[1]);
+  normalize(psf, psf, 1, 0, NORM_L1);
 
   return psf;
 }
