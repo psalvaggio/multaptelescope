@@ -40,9 +40,9 @@ class WaitQueue {
 
   size_t size() const { return queue_.size(); }
 
-  std::unique_ptr<T> wait();
+  T* wait();
 
-  std::unique_ptr<T> wait_for(size_t msec);
+  T* wait_for(size_t msec);
 
  private:
   void pop();

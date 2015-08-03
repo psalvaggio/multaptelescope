@@ -72,7 +72,7 @@ void WaitQueue<T>::push(T* val) {
 }
 
 template<typename T>
-std::unique_ptr<T> WaitQueue<T>::wait() {
+T* WaitQueue<T>::wait() {
   std::unique_lock<std::mutex> lock(mutex_);
 
   if (empty()) {
@@ -82,13 +82,13 @@ std::unique_ptr<T> WaitQueue<T>::wait() {
     lock.lock();
   }
 
-  std::unique_ptr<T> ptr(std::move(queue_.front()));
+  T* ptr = queue_.front().release();
   queue_.pop();
-  return std::move(ptr);
+  return ptr;
 }
 
 template<typename T>
-std::unique_ptr<T> WaitQueue<T>::wait_for(size_t msec) {
+T* WaitQueue<T>::wait_for(size_t msec) {
   std::unique_lock<std::mutex> lock(mutex_);
 
   if (empty()) {
@@ -100,9 +100,9 @@ std::unique_ptr<T> WaitQueue<T>::wait_for(size_t msec) {
     lock.lock();
   }
 
-  std::unique_ptr<T> ptr(std::move(queue_.front()));
+  T* ptr = queue_.front().release();
   queue_.pop();
-  return std::move(ptr);
+  return ptr;
 }
 
 
