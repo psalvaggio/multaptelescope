@@ -90,6 +90,12 @@ cv::Mat GammaScale(const cv::Mat& input, double gamma) {
   return scaled;
 }
 
+cv::Mat ColorScale(const cv::Mat& input, int colormap) {
+  cv::Mat output;
+  cv::applyColorMap(ByteScale(input), output, colormap);
+  return output;
+}
+
 cv::Mat magnitude(const cv::Mat& input) {
   cv::Mat output;
   magnitude(input, output);
@@ -164,8 +170,8 @@ void GetRadialProfile(const cv::Mat& input, double theta,
   const int cols = input.cols;
 
   int profile_size = std::min(rows, cols) / 2;
-  int center_x = cols / 2;
-  int center_y = rows / 2;
+  int center_x = (cols + 1) / 2;
+  int center_y = (rows + 1) / 2;
 
   double dx = cos(theta);
   double dy = sin(theta);

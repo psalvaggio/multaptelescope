@@ -36,6 +36,9 @@ void ByteScale(const cv::Mat& input,
                double max,
                bool verbose = false);
 
+cv::Mat ColorScale(const cv::Mat& input,
+                   int colormap = cv::COLORMAP_AUTUMN);
+
 void LogScale(const cv::Mat& input,
               cv::Mat& output);
 
