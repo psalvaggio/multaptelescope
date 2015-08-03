@@ -143,6 +143,8 @@ Mat Aperture::GetWavefrontError(int size) const {
     opd_.create(size, size);
     GetOpticalPathLengthDiff(&opd_);
   }
+  Mat opd;
+  opd_.copyTo(opd);
   return opd_;
 }
 
@@ -162,7 +164,9 @@ Mat Aperture::GetWavefrontErrorEstimate(int size) const {
     opd_est_.create(size, size);
     GetOpticalPathLengthDiffEstimate(&opd_est_);
   }
-  return opd_est_;
+  Mat opd_est;
+  opd_est_.copyTo(opd_est);
+  return opd_est;
 }
 
 void Aperture::GetWavefrontErrorEstimate(cv::Mat_<double>* output) const {
@@ -177,11 +181,13 @@ void Aperture::GetWavefrontErrorEstimate(cv::Mat_<double>* output) const {
 // Accessors for aperture masks.
 Mat Aperture::GetApertureMask(int size) const {
   size = (size == -1) ? params_.array_size() : size;
-  if (mask_.rows != params_.array_size()) {
+  if (size > 0 && size != mask_.rows) {
     mask_.create(size, size);
     GetApertureTemplate(&mask_);
   }
-  return mask_;
+  Mat mask;
+  mask_.copyTo(mask);
+  return mask;
 }
 
 void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
