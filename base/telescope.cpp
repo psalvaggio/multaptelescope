@@ -106,7 +106,7 @@ void Telescope::Image(const vector<Mat>& radiance,
     struct {
       const Telescope* self;
       const vector<Mat>* radiance;
-      vector<Mat>* spectral_otfs;
+      const vector<Mat>* spectral_otfs;
       const vector<double>* wavelength;
       vector<Mat>* degraded;
       void operator()(const tbb::blocked_range<int>& range) const {
@@ -150,24 +150,22 @@ void Telescope::OtfDegrade(const Mat& radiance,
                            Mat* degraded) const {
   const int kRows = detector_->rows();
   const int kCols = detector_->cols();
-  const double kAspectRatio = double(kRows) / kCols;
 
-  if (radiance.rows < kRows || radiance.cols < kCols) {
-    mainLog() << "Warning: Band " << " " << wavelength << " [m]: "
-              << "Input radiance smaller than detector. Skipping..." << endl;
-    *degraded = Mat::zeros(kRows, kCols, CV_64FC1);
+  Mat radiance_roi;
+  GetImagingRegion(radiance, &radiance_roi);
+  if (radiance_roi.rows == 0) {
+    *degraded = Mat::zeros(detector_->rows(), detector_->cols(), CV_64FC1);
     return;
   }
 
-  int cols = radiance.cols;
-  int rows = round(cols * kAspectRatio);
+  int cols = radiance_roi.cols;
+  int rows = radiance_roi.rows;
 
-  Mat radiance_roi = radiance(Range(0, rows), Range(0, cols));
 
   Mat img_fft, blurred_fft;
   dft(radiance_roi, img_fft, DFT_COMPLEX_OUTPUT);
 
-  Mat otf(rows, cols, CV_64FC2);
+  Mat otf(radiance_roi.size(), CV_64FC2);
   otf.setTo(Scalar(0, 0));
   int row_start = rows / 2 - kRows / 2;
   int col_start = cols / 2 - kCols / 2;
@@ -175,23 +173,45 @@ void Telescope::OtfDegrade(const Mat& radiance,
         col_range(col_start, col_start + kCols);
 
   resize(FFTShift(spectral_otf), otf(row_range, col_range),
-         Size(kRows, kCols));
+         Size(kCols, kRows));
 
-  /*
-  if (cols != kCols) {
-    Mat det_otf = detector_->GetSamplingOtf(kRows, kCols);
-    mulSpectrums(otf(row_range, col_range), det_otf,
-                 otf(row_range, col_range), 0);
-  }
-  */
   mulSpectrums(img_fft, FFTShift(otf), blurred_fft, 0);
 
   dft(blurred_fft, *degraded, DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
   *degraded /= GNumber(wavelength);
 
   if (cols != kCols) {
-    resize(*degraded, *degraded, Size(kRows, kCols));
+    resize(*degraded, *degraded, Size(kCols, kRows), 0, 0, INTER_AREA);
   }
+}
+
+void Telescope::GetImagingRegion(const Mat& radiance, Mat* roi) const {
+  const int kRows = detector_->rows();
+  const int kCols = detector_->cols();
+  const double kAspectRatio = double(kRows) / kCols;
+
+  if (radiance.rows < kRows || radiance.cols < kCols) {
+    mainLog() << "Error: given radiance image should be at least as large "
+              << "as the detector." << endl;
+    return;
+  }
+
+  int rows, cols;
+  if (kRows > kCols) {
+    rows = radiance.rows;
+    cols = round(rows / kAspectRatio);
+  } else {
+    cols = radiance.cols;
+    rows = round(cols * kAspectRatio);
+  }
+
+  if (cols > radiance.cols || rows > radiance.rows) {
+    mainLog() << "Error: could not extract an imaging region from the given"
+              << "image." << endl;
+    return;
+  }
+
+  *roi = radiance(Range(0, rows), Range(0, cols));
 }
 
 

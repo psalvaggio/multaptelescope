@@ -116,6 +116,9 @@ class Telescope {
                   double wavelength,
                   cv::Mat* degraded) const;
 
+  void GetImagingRegion(const cv::Mat& radiance,
+                        cv::Mat* roi) const;
+
  private:
   std::unique_ptr<Aperture> aperture_;
   std::unique_ptr<Detector> detector_;
