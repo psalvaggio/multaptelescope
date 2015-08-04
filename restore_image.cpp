@@ -19,6 +19,8 @@ DEFINE_string(image, "", "REQUIRED: Image filename.");
 DEFINE_double(orientation, 0, "Orientation of aperture, CCW from +x [deg]");
 DEFINE_double(smoothness, 1e-2, "Smoothness for the inverse filter.");
 DEFINE_int32(band, 0, "Band index for a multi-band system.");
+DEFINE_int32(simulation_id, -1, "Simulation ID in config_file "
+                                "(defaults to first).");
 
 int main(int argc, char** argv) {
   google::SetUsageMessage("Restores an image that has been degraded with a "
@@ -43,8 +45,19 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  // Find the correct simulation
+  int sim_index = 0;
+  if (FLAGS_simulation_id >= 0) {
+    for (int i = 0; i < sim_config.simulation_size(); i++) {
+      if (sim_config.simulation(i).simulation_id() == FLAGS_simulation_id) {
+        sim_index = i;
+        break;
+      }
+    }
+  }
+
   // Orient the telescope.
-  sim_config.mutable_simulation(0)->mutable_aperture_params()->
+  sim_config.mutable_simulation(sim_index)->mutable_aperture_params()->
       set_rotation(FLAGS_orientation);
 
   // Read in the degraded image.
@@ -77,7 +90,7 @@ int main(int argc, char** argv) {
   }
 
   // Create the telescope.
-  mats::Telescope telescope(sim_config, 0, detector_params);
+  mats::Telescope telescope(sim_config, sim_index, detector_params);
   telescope.detector()->set_rows(image.rows);
   telescope.detector()->set_cols(image.cols);
 
