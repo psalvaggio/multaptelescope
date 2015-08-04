@@ -202,12 +202,37 @@ void GetRadialProfile(const cv::Mat& input, double theta,
   }
 }
 
+struct RoiRectangleData {
+  std::vector<uint16_t>* corners;
+  cv::Mat* image;
+  std::string* window;
+};
+
 // Grab the user clicks on the window for ROI acquisition.
 void mouse_callback(int event, int x, int y, int, void* userdata) {
-  auto corners = reinterpret_cast<std::vector<uint16_t>*>(userdata);
+  auto roi_data = reinterpret_cast<RoiRectangleData*>(userdata);
+
+  auto draw_roi =
+    [roi_data] (int x0, int y0, int x1, int y1) {
+      cv::Mat annotated_image;
+      cv::cvtColor(*(roi_data->image), annotated_image, CV_GRAY2BGR);
+      cv::rectangle(annotated_image, cv::Point(x0, y0), cv::Point(x1, y1),
+                    cv::Scalar(0, 255, 0), 1);
+      cv::imshow(*(roi_data->window), annotated_image);
+    };
+
   if (event == cv::EVENT_LBUTTONDOWN) {
-    corners->push_back(static_cast<uint16_t>(x));
-    corners->push_back(static_cast<uint16_t>(y));
+    roi_data->corners->clear();
+    roi_data->corners->push_back(static_cast<uint16_t>(x));
+    roi_data->corners->push_back(static_cast<uint16_t>(y));
+  } else if (event == cv::EVENT_MOUSEMOVE) {
+    if (roi_data->corners->size() == 2) {
+      draw_roi(roi_data->corners->at(0), roi_data->corners->at(1), x, y);
+    }
+  } else {
+    roi_data->corners->push_back(static_cast<uint16_t>(x));
+    roi_data->corners->push_back(static_cast<uint16_t>(y));
+    draw_roi(roi_data->corners->at(0), roi_data->corners->at(1), x, y);
   }
 }
 
@@ -216,8 +241,8 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   double aspect_ratio = static_cast<double>(rows) / cols;
 
   // Compute the scaled size of the image so that it can fit on the screen.
-  int scale_cols = 1080;
-  int scale_rows = aspect_ratio * scale_cols;
+  int scale_rows = std::min(770, rows);
+  int scale_cols = scale_rows / aspect_ratio;
   double scale_factor = static_cast<double>(rows) / scale_rows;
 
   // Resample the image to display.
@@ -225,25 +250,28 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   cv::resize(image, display_image, cv::Size(scale_cols, scale_rows));
 
   // Show the full-frame image.
-  std::string input_window = "Please click on the corners of the ROI";
+  std::string input_window = "Drag to specify an ROI. Enter to confirm.";
   cv::namedWindow(input_window, CV_GUI_NORMAL | cv::WINDOW_AUTOSIZE);
   cv::moveWindow(input_window, 0, 0);
   cv::imshow(input_window, ByteScale(display_image));
 
   // Wait for the user to select the corners.
   std::vector<uint16_t> roi;
-  cv::setMouseCallback(input_window, mouse_callback, &roi);
-  while (roi.size() != 4) {
-    cv::waitKey(50);
+  RoiRectangleData roi_data{&roi, &display_image, &input_window};
+  cv::setMouseCallback(input_window, mouse_callback, &roi_data);
+  int key = 0;
+  int iter = 0;
+  while (key != 13 || roi.size() != 4) {
+    key = cv::waitKey(50) & 0xff;
   }
+  cv::destroyWindow(input_window);
+  cv::waitKey(1);
 
   // Scale back to the image's resolution.
   std::for_each(std::begin(roi), std::end(roi),
       [scale_factor] (uint16_t& i) { i *= scale_factor; });
   roi[2] = roi[2] - roi[0] + 1;
   roi[3] = roi[3] - roi[1] + 1;
-
-  cv::destroyWindow(input_window);
 
   return roi;
 }
