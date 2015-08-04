@@ -260,7 +260,6 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   RoiRectangleData roi_data{&roi, &display_image, &input_window};
   cv::setMouseCallback(input_window, mouse_callback, &roi_data);
   int key = 0;
-  int iter = 0;
   while (key != 13 || roi.size() != 4) {
     key = cv::waitKey(50) & 0xff;
   }
@@ -268,8 +267,7 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   cv::waitKey(1);
 
   // Scale back to the image's resolution.
-  std::for_each(std::begin(roi), std::end(roi),
-      [scale_factor] (uint16_t& i) { i *= scale_factor; });
+  for (auto& tmp : roi) tmp *= scale_factor;
   roi[2] = roi[2] - roi[0] + 1;
   roi[3] = roi[3] - roi[1] + 1;
 
