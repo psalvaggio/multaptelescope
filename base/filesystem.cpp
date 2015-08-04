@@ -7,6 +7,7 @@
 
 #include <sys/stat.h>
 #include <dirent.h>
+#include <wordexp.h>
 
 namespace mats {
 
@@ -40,6 +41,19 @@ void scandir(const std::string& path,
   }
 
   closedir(dir);
+}
+
+std::string ResolvePath(const std::string& path) {
+  wordexp_t exp_result;
+  wordexp(path.c_str(), &exp_result, 0);
+  std::string new_path = exp_result.we_wordv[0];
+  wordfree(&exp_result);
+
+  if (is_dir(new_path)) {
+    new_path = mats::AppendSlash(new_path);
+  }
+
+  return new_path;
 }
 
 }

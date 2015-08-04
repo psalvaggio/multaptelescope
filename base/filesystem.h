@@ -14,6 +14,7 @@ bool file_exists(const std::string& path);
 void scandir(const std::string& path,
              const std::string& extension,
              std::vector<std::string>* files);
+std::string ResolvePath(const std::string& path);
 
 }
 

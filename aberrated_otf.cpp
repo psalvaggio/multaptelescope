@@ -69,7 +69,8 @@ int main(int argc, char** argv) {
     otf = spectral_otf[0];
   } else {
     vector<vector<double>> data;
-    if (mats_io::TextFileReader::Parse(FLAGS_spectral_weighting, &data)) {
+    if (mats_io::TextFileReader::Parse(
+          mats::ResolvePath(FLAGS_spectral_weighting), &data)) {
       telescope.ComputeEffectiveOtf(data[0], data[1], &otf);
     } else {
       cerr << "Could not read spectral weighting file." << endl;

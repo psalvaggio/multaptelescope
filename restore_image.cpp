@@ -13,6 +13,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace mats;
 
 DEFINE_string(config_file, "", "REQUIRED: SimulationConfig filename.");
 DEFINE_string(image, "", "REQUIRED: Image filename.");
@@ -38,10 +39,10 @@ int main(int argc, char** argv) {
   }
 
   // Read in the model parameters.
-  mats::SimulationConfig sim_config;
-  mats::DetectorParameters detector_params;
-  if (!mats::MatsInit(FLAGS_config_file, &sim_config, &detector_params,
-                      nullptr, nullptr)) {
+  SimulationConfig sim_config;
+  DetectorParameters detector_params;
+  if (!MatsInit(ResolvePath(FLAGS_config_file), &sim_config, &detector_params,
+                nullptr, nullptr)) {
     return 1;
   }
 
@@ -61,7 +62,7 @@ int main(int argc, char** argv) {
       set_rotation(FLAGS_orientation);
 
   // Read in the degraded image.
-  Mat image = imread(FLAGS_image, 0);
+  Mat image = imread(ResolvePath(FLAGS_image), 0);
   if (!image.data) {
     cerr << "Could not read image file." << endl;
     return 1;

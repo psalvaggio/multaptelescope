@@ -15,17 +15,17 @@ DEFINE_bool(parallelism, false, "Specify for parallel computation.");
 
 using namespace std;
 using namespace cv;
-using mats_io::Logging;
+using namespace mats;
 
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
 
   mats::SimulationConfig sim_config;
   mats::DetectorParameters detector_params;
-  if (!mats::MatsInit(FLAGS_config_file,
-                      &sim_config,
-                      &detector_params,
-                      nullptr, nullptr)) {
+  if (!MatsInit(ResolvePath(FLAGS_config_file),
+                &sim_config,
+                &detector_params,
+                nullptr, nullptr)) {
     return 1;
   }
 
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
   const vector<double>& wavelengths = data[0];
   const vector<double>& illumination = data[1];
 
-  Mat image = imread(FLAGS_target_file, 0);
+  Mat image = imread(ResolvePath(FLAGS_target_file), 0);
   if (!image.data) {
     cerr << "Could not read image file." << endl;
     return 1;
