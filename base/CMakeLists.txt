@@ -12,6 +12,7 @@ set(MATS_SRCS ${MATS_SRCS}
     opencv_utils.cpp
     photon_noise.cpp
     pupil_function.cpp
+    statistics.cpp
     str_utils.cpp
     system_otf.cpp
     telescope.cpp
@@ -32,12 +33,12 @@ set(MATS_HDRS ${MATS_HDRS}
     opencv_utils.h
     photon_noise.h
     pupil_function.h
+    statistics.h
     str_utils.h
     system_otf.h
     telescope.h
     wait_queue.h
     zernike_aberrations.h
-    #zernike_cuda.h
     PARENT_SCOPE)
 
 set(MATS_LINK_LIBS ${MATS_LINK_LIBS}
