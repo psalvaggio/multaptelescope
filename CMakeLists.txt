@@ -162,14 +162,14 @@ set(EXES aberrated_otf
          image_binary_target
          mats_main
          mtf_statistics
+         restore_image
+         slant_edge
          #sbig_preview
          #jagged_edge_test
          #plot_mtf_profile
          #get_rer_values
          #inverse_filter
          #perform_rer_comparison
-         #restore_image
-         #slant_edge
          #slant_edge_esf
          #watch_slant_edge_dir
          #align_measured_profiles
