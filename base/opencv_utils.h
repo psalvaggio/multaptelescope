@@ -37,7 +37,7 @@ void ByteScale(const cv::Mat& input,
                bool verbose = false);
 
 cv::Mat ColorScale(const cv::Mat& input,
-                   int colormap = cv::COLORMAP_AUTUMN);
+                   int colormap = cv::COLORMAP_JET);
 
 void LogScale(const cv::Mat& input,
               cv::Mat& output);
@@ -63,6 +63,9 @@ void circshift(const cv::Mat& src,
 
 void FFTShift(const cv::Mat& input, cv::Mat& output);
 cv::Mat FFTShift(const cv::Mat& input);
+
+void IFFTShift(const cv::Mat& input, cv::Mat& output);
+cv::Mat IFFTShift(const cv::Mat& input);
 
 std::string GetMatDataType(const cv::Mat& mat);
 

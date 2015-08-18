@@ -109,13 +109,24 @@ void magnitude(const cv::Mat& input, cv::Mat& output) {
 }
 
 void FFTShift(const cv::Mat& input, cv::Mat& output) {
-  circshift(input, output, cv::Point2f(input.cols / 2, input.rows / 2),
-            cv::BORDER_WRAP);
+  circshift(input, output, cv::Point2f(input.cols / 2,
+                                       input.rows / 2), cv::BORDER_WRAP);
 }
 
 cv::Mat FFTShift(const cv::Mat& input) {
   cv::Mat output;
   FFTShift(input, output);
+  return output;
+}
+
+void IFFTShift(const cv::Mat& input, cv::Mat& output) {
+  circshift(input, output, cv::Point2f(-input.cols / 2,
+                                       -input.rows / 2), cv::BORDER_WRAP);
+}
+
+cv::Mat IFFTShift(const cv::Mat& input) {
+  cv::Mat output;
+  IFFTShift(input, output);
   return output;
 }
 
@@ -248,12 +259,13 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   // Resample the image to display.
   cv::Mat display_image;
   cv::resize(image, display_image, cv::Size(scale_cols, scale_rows));
+  display_image = ByteScale(display_image);
 
   // Show the full-frame image.
   std::string input_window = "Drag to specify an ROI. Enter to confirm.";
   cv::namedWindow(input_window, CV_GUI_NORMAL | cv::WINDOW_AUTOSIZE);
   cv::moveWindow(input_window, 0, 0);
-  cv::imshow(input_window, ByteScale(display_image));
+  cv::imshow(input_window, display_image);
 
   // Wait for the user to select the corners.
   std::vector<uint16_t> roi;
