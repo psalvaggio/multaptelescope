@@ -26,18 +26,17 @@ bool TextFileReader::Parse(const string& filename,
     smatch sm;
     regex_search(line, sm, delim);
 
-    size_t num_fields = sm.size() + 1;
-    if (num_fields > data->size()) {
-      for (size_t i = data->size(); i < num_fields; i++) {
+    sregex_token_iterator srit(begin(line), end(line), delim, -1);
+    sregex_token_iterator srend;
+    int start = 0;
+    int index = 0;
+    while (srit != srend) {
+      while (index >= data->size()) {
         data->emplace_back(max(0, line_idx - 1), 0);
       }
-    }
-
-    int start = 0;
-    for (size_t i = 0; i < num_fields; i++) {
-      int end = (i < sm.size()) ? sm.position(i) : line.size();
-      data->at(i).push_back(atof(line.substr(start, end - start).c_str()));
-      start = end + sm.length(i);
+      string value = *srit;
+      data->at(index++).push_back(atof(value.c_str()));
+      ++srit;
     }
   }
 
