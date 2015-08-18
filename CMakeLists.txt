@@ -161,17 +161,17 @@ set(EXES aberrated_otf
          genetic_optimization
          image_binary_target
          mats_main
+         mtf_statistics
          #sbig_preview
-         #sbig_thread_test
          #jagged_edge_test
          #plot_mtf_profile
          #get_rer_values
          #inverse_filter
          #perform_rer_comparison
-         #create_edge_target
+         #restore_image
          #slant_edge
+         #slant_edge_esf
          #watch_slant_edge_dir
-         #compute_average_mtf
          #align_measured_profiles
          )
 
