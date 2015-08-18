@@ -19,17 +19,17 @@ void ZernikeAberrations::aberrations(const vector<double>& weights,
                                      Mat* output) {
   if (!output) return;
 
-  const size_t kSize = output_size;
+  const int kSize = output_size;
   const double kCenter = 0.5 * (output_size - 1);
 
-  if (output->rows != output_size || output->cols != output_size) {
+  if (output->rows != kSize || output->cols != kSize) {
     output->create(output_size, output_size, CV_64F);
   }
   *output = Scalar(0);
 
-  for (size_t i = 0; i < kSize; i++) {
+  for (int i = 0; i < kSize; i++) {
     double y = i - kCenter;
-    for (size_t j = 0; j < kSize; j++) {
+    for (int j = 0; j < kSize; j++) {
       double x = j - kCenter;
       double rho = sqrt(x*x + y*y) / kCenter;
 
