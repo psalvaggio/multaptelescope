@@ -29,7 +29,8 @@ Telescope::Telescope(const SimulationConfig& sim_config,
                      int sim_index,
                      const DetectorParameters& det_params)
     : aperture_(ApertureFactory::Create(sim_config, sim_index)),
-      detector_(new Detector(det_params, sim_config, sim_index)) {}
+      detector_(new Detector(det_params, sim_config, sim_index)),
+      parallelism_(false) {}
 
 Telescope::~Telescope() {}
 
@@ -175,7 +176,7 @@ void Telescope::OtfDegrade(const Mat& radiance,
   resize(FFTShift(spectral_otf), otf(row_range, col_range),
          Size(kCols, kRows));
 
-  mulSpectrums(img_fft, FFTShift(otf), blurred_fft, 0);
+  mulSpectrums(img_fft, IFFTShift(otf), blurred_fft, 0);
 
   dft(blurred_fft, *degraded, DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
   *degraded /= GNumber(wavelength);
@@ -365,7 +366,9 @@ void Telescope::ComputeApertureOtf(double wavelength, Mat* otf) const {
            Size(kOtfSize, kOtfSize), 0, 0, INTER_NEAREST);
   }
 
-  *otf = FFTShift(scaled_otf);
+  *otf = IFFTShift(scaled_otf);
+
+  otf->at<complex<double>>(0, 0) /= std::abs(otf->at<complex<double>>(0, 0));
 }
 
 }
