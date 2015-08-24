@@ -32,10 +32,6 @@ Mat PupilFunction::phase() const {
 }
 
 Mat PupilFunction::PointSpreadFunction() {
-  const size_t rows = pupil_real_.rows;
-  const size_t cols = pupil_real_.cols;
-  const size_t size = rows * cols;
-
   std::vector<Mat> pupil_planes{pupil_real_, pupil_imag_};
   Mat pupil, pupil_fft;
   merge(pupil_planes, pupil);
