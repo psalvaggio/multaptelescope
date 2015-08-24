@@ -1,7 +1,8 @@
 // File Description
 // Author: Philip Salvaggio
 
-#include "golay_genetic_impl.h"
+#include "golay_fitness_function.h"
+
 #include "base/pupil_function.h"
 #include "base/opencv_utils.h"
 #include "optical_designs/compound_aperture.h"
