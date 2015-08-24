@@ -7,7 +7,15 @@
 
 #include <fstream>
 #include <iostream>
-#include <regex>
+
+#if __GNUC__ == 4 && __GNUC_MINOR__ < 9
+  #include <boost/regex.hpp>
+  using boost::sregex_token_iterator;
+  using boost::regex;
+#else
+  #include <regex>
+#endif
+
 
 using namespace std;
 
@@ -23,9 +31,6 @@ bool TextFileReader::Parse(const string& filename,
   regex delim("[,\\s\\t]+");
 
   while (getline(ifs, line)) {
-    smatch sm;
-    regex_search(line, sm, delim);
-
     sregex_token_iterator srit(begin(line), end(line), delim, -1);
     sregex_token_iterator srend;
     size_t index = 0;

@@ -40,7 +40,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
       "${CUDA_NVCC_FLAGS} -gencode arch=compute_35,code=sm_35")
 endif()
 
-find_package(Boost REQUIRED COMPONENTS iostreams system filesystem)
+find_package(Boost REQUIRED COMPONENTS iostreams system filesystem regex)
 
 set(PROTOBUF_IMPORT_DIRS ${PROTOBUF_IMPORT_DIRS} ${MATS_SOURCE_DIR})
 
