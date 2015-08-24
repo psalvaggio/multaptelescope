@@ -360,7 +360,7 @@ void SlantEdgeMtf::SmoothEsf(vector<double>* esf) {
         if (lt_index > 0 && (*esf)[lt_index] > 0) {
           (*esf)[i] = (*esf)[lt_index];
           break;
-        } else if (gt_index < esf->size() && (*esf)[gt_index] > 0) {
+        } else if (gt_index < int(esf->size()) && (*esf)[gt_index] > 0) {
           (*esf)[i] = (*esf)[gt_index];
           break;
         }
