@@ -39,10 +39,11 @@ void AcquireImages(SbigDetector& detector,
 
   Mat full_frame;
   if (num_images == 0) {
+    cin.get();
     int key;
     do {
-      key = cv::waitKey(0);
-      if (key == 13) {
+      key = cin.get();
+      if (key == '\n') {
         detector.Capture(0, 0, fr_width, fr_height, FLAGS_exposure_time,
                          &full_frame);
 
