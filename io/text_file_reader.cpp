@@ -28,8 +28,7 @@ bool TextFileReader::Parse(const string& filename,
 
     sregex_token_iterator srit(begin(line), end(line), delim, -1);
     sregex_token_iterator srend;
-    int start = 0;
-    int index = 0;
+    size_t index = 0;
     while (srit != srend) {
       while (index >= data->size()) {
         data->emplace_back(max(0, line_idx - 1), 0);
