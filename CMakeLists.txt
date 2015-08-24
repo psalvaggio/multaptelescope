@@ -11,6 +11,8 @@ find_package(OpenCV)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 find_package(Gflags REQUIRED)
+find_package(OpenGL)
+find_package(GLUT)
 include_directories(${PROTOBUF_INCLUDE_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} $ENV{CXXFLAGS}")
@@ -139,6 +141,8 @@ endforeach(TMP_LIB)
 list(APPEND MATS_LINK_LIBS ${Boost_LIBRARIES}
                            ${OpenCV_LIBRARIES}
                            ${PROTOBUF_LIBRARIES}
+                           ${OPENGL_LIBRARIES}
+                           ${GLUT_LIBRARY}
                            gflags)
 
 set (LIB_NAME mats)
