@@ -41,4 +41,10 @@
 #include "otf_measurement/slant_edge_mtf.h"
 #include "otf_measurement/jagged_edge_mtf.h"
 
+// Aperture Optimization headers.
+#include "aperture_optimization/golay_fitness_function.h"
+#include "aperture_optimization/global_sparse_aperture.h"
+#include "aperture_optimization/local_sparse_aperture.h"
+#include "genetic/genetic_algorithm.h"
+
 #endif  // MATS_H
