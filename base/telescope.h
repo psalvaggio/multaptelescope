@@ -111,9 +111,12 @@ class Telescope {
 
   void ComputeApertureOtf(double wavelength, cv::Mat* otf) const;
 
-  void OtfDegrade(const cv::Mat& radiance,
+  void DegradeImage(const cv::Mat& radiance,
+                    const cv::Mat& spectral_otf,
+                    cv::Mat* degraded) const;
+
+  void OtfDegrade(const cv::Mat& radiance_fft,
                   const cv::Mat& spectral_otf,
-                  double wavelength,
                   cv::Mat* degraded) const;
 
   void GetImagingRegion(const cv::Mat& radiance,

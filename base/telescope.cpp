@@ -89,19 +89,12 @@ void Telescope::Image(const vector<Mat>& radiance,
   vector<Mat> spectral_otfs;
   ComputeOtf(wavelength, &spectral_otfs);
 
-  // Get the transmission spectrum of the optics.
-  vector<double> transmittances;
-  GetTransmissionSpectrum(wavelength, &transmittances);
-
-  vector<Mat> blurred_irradiance;
-  for (size_t i = 0; i < radiance.size(); i++) {
-    blurred_irradiance.emplace_back();
-  }
+  vector<Mat> blurred_irradiance(radiance.size());
 
   if (!parallelism_) {
     for (size_t i = 0; i < radiance.size(); i++) {
-      OtfDegrade(radiance[i], spectral_otfs[i], wavelength[i],
-                 &(blurred_irradiance[i]));
+      DegradeImage(radiance[i], spectral_otfs[i], &(blurred_irradiance[i]));
+      blurred_irradiance[i] /= GNumber(wavelength[i]);
     }
   } else {
     struct {
@@ -112,8 +105,9 @@ void Telescope::Image(const vector<Mat>& radiance,
       vector<Mat>* degraded;
       void operator()(const tbb::blocked_range<int>& range) const {
         for (int i = range.begin(); i != range.end(); i++) {
-          self->OtfDegrade((*radiance)[i], (*spectral_otfs)[i],
-                           (*wavelength)[i], &((*degraded)[i]));
+          self->DegradeImage((*radiance)[i], (*spectral_otfs)[i],
+                             &((*degraded)[i]));
+          (*degraded)[i] /= self->GNumber((*wavelength)[i]);
         }
       }
     } worker{this, &radiance, &spectral_otfs, &wavelength, &blurred_irradiance};
@@ -122,21 +116,17 @@ void Telescope::Image(const vector<Mat>& radiance,
                      
   if (otf != NULL) {
     otf->clear();
+    
+    // Get the transmission spectrum of the optics.
+    vector<double> transmittances;
+    GetTransmissionSpectrum(wavelength, &transmittances);
+
     for (size_t i = 0; i < wavelength.size(); i++) {
       spectral_otfs[i] *= transmittances[i];
     }
     detector_->AggregateSignal(spectral_otfs, wavelength, true, otf);
-    for (size_t i = 0; i < otf->size(); i++) {
-      vector<Mat> tmp_otf_planes;
-      split((*otf)[i], tmp_otf_planes);
-      double norm = sqrt(tmp_otf_planes[0].at<double>(0, 0) * 
-                         tmp_otf_planes[0].at<double>(0, 0) +
-                         tmp_otf_planes[1].at<double>(0, 0) * 
-                         tmp_otf_planes[1].at<double>(0, 0));
-      tmp_otf_planes[0] /= norm;
-      tmp_otf_planes[1] /= norm;
-      merge(tmp_otf_planes, (*otf)[i]);
-    }
+
+    for (auto& tmp : *otf) tmp /= std::abs(tmp.at<complex<double>>(0, 0));
   }
 
   vector<Mat> electrons;
@@ -145,10 +135,9 @@ void Telescope::Image(const vector<Mat>& radiance,
   detector_->ResponseElectrons(blurred_irradiance, wavelength, image);
 }
 
-void Telescope::OtfDegrade(const Mat& radiance,
-                           const Mat& spectral_otf,
-                           double wavelength,
-                           Mat* degraded) const {
+void Telescope::DegradeImage(const Mat& radiance,
+                             const Mat& spectral_otf,
+                             Mat* degraded) const {
   const int kRows = detector_->rows();
   const int kCols = detector_->cols();
 
@@ -159,37 +148,42 @@ void Telescope::OtfDegrade(const Mat& radiance,
     return;
   }
 
-  int cols = radiance_roi.cols;
-  int rows = radiance_roi.rows;
-
-
   Mat img_fft, blurred_fft;
   dft(radiance_roi, img_fft, DFT_COMPLEX_OUTPUT);
-
-  Mat otf(radiance_roi.size(), CV_64FC2);
-  otf.setTo(Scalar(0, 0));
-  int row_start = rows / 2 - kRows / 2;
-  int col_start = cols / 2 - kCols / 2;
-  Range row_range(row_start, row_start + kRows),
-        col_range(col_start, col_start + kCols);
-
-  resize(FFTShift(spectral_otf), otf(row_range, col_range),
-         Size(kCols, kRows));
-
-  mulSpectrums(img_fft, IFFTShift(otf), blurred_fft, 0);
+  OtfDegrade(img_fft, spectral_otf, &blurred_fft);
 
   dft(blurred_fft, *degraded, DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
-  *degraded /= GNumber(wavelength);
 
-  if (cols != kCols) {
+  if (degraded->cols != kCols) {
     resize(*degraded, *degraded, Size(kCols, kRows), 0, 0, INTER_AREA);
   }
+}
+
+void Telescope::OtfDegrade(const Mat& radiance_fft,
+                           const Mat& spectral_otf,
+                           Mat* degraded) const {
+  Mat otf(radiance_fft.size(), CV_64FC2);
+  otf.setTo(Scalar(0, 0));
+  int row_start = radiance_fft.rows / 2 - detector_->rows() / 2;
+  int col_start = radiance_fft.cols / 2 - detector_->cols() / 2;
+  Range row_range(row_start, row_start + detector_->rows()),
+        col_range(col_start, col_start + detector_->cols());
+
+  resize(FFTShift(spectral_otf), otf(row_range, col_range),
+         Size(detector_->cols(), detector_->rows()));
+
+  mulSpectrums(radiance_fft, IFFTShift(otf), *degraded, 0);
 }
 
 void Telescope::GetImagingRegion(const Mat& radiance, Mat* roi) const {
   const int kRows = detector_->rows();
   const int kCols = detector_->cols();
   const double kAspectRatio = double(kRows) / kCols;
+
+  if (kRows == 0 || kCols == 0) {
+    mainLog() << "Error: Detector has zero size." << endl;
+    return;
+  }
 
   if (radiance.rows < kRows || radiance.cols < kCols) {
     mainLog() << "Error: given radiance image should be at least as large "
