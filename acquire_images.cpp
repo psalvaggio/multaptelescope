@@ -11,7 +11,6 @@ using namespace std;
 using namespace cv;
 using mats_io::SbigDetector;
 
-DEFINE_bool(cooled, false, "Whether to cool the detector.");
 DEFINE_int32(exposure_time, 1000, "Exposure time [hundreths of a second]");
 
 static int frame_index = 0;
@@ -21,9 +20,23 @@ void die(short, short) {
   exit(1);
 }
 
-void AcquireImages(SbigDetector& detector,
-                   int num_images,
-                   const string& output_dir) {
+void AcquireImages(SbigDetector& detector) {
+  cout << "Acquisition Type:" << endl
+       << " n > 0: Acquire n images" << endl
+       << " n = 0: On-demand (Enter to capture, q to quit)" << endl
+       << " n < 0: Abort" << endl;
+
+  int num_images;
+  string output_dir = ".";
+
+  cout << "Acquisition Type: ";
+  cin >> num_images;
+  if (num_images < 0) return;
+
+  cout << "Output Directory: ";
+  cin >> output_dir;
+
+  output_dir = mats::ResolvePath(output_dir);
 
   // Grab the size of the detector.
   uint16_t fr_width, fr_height;
@@ -60,6 +73,32 @@ void AcquireImages(SbigDetector& detector,
   }
 }
 
+void OutputMenu() {
+  cout << "Commands:" << endl
+       << "  acquire: Acquire image" << endl
+       << "  set_exposure: Set the exposure time" << endl
+       << "  cool: Cool the detector" << endl
+       << "  warm: Warm the detector" << endl
+       << "  help: Reprint this menu" << endl
+       << "  exit: Quit" << endl;
+}
+
+void SetIntegrationTime() {
+  cout << "Integration Time [hundreths of a second]: ";
+
+  int int_time;
+  if (cin >> int_time) {
+    if (int_time > 9) {
+      FLAGS_exposure_time = int_time;
+    } else {
+      cerr << "Error: integration time must be greater than .09 seconds."
+           << endl;
+    }
+  } else {
+    cerr << "Invalid Value." << endl;
+  }
+}
+
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -68,31 +107,33 @@ int main(int argc, char** argv) {
   if (detector.has_error()) return 1;
   detector.set_error_callback(die);
 
-  if (FLAGS_cooled) {
-    detector.Cool(-15);
-  }
+  bool is_cooled = false;
 
-  cout << "Acquisition Type:" << endl
-       << " n > 0: Acquire n images" << endl
-       << " n = 0: On-demand (Enter to capture, q to quit)" << endl
-       << " n < 0: Quit" << endl;
+  OutputMenu();
+  string command;
+  do {
+    cout << "> ";
+    cin >> command;
+    if (command == "acquire") {
+      AcquireImages(detector);
+    } else if (command == "set_exposure") {
+      SetIntegrationTime();
+    } else if (command == "cool") {
+      if (!is_cooled) detector.Cool(-15);
+      is_cooled = true;
+    } else if (command == "warm") {
+      if (is_cooled) detector.DisableCooling();
+      is_cooled = false;
+    } else if (command == "help") {
+      OutputMenu();
+    } else if (command == "exit") {
+      break;
+    } else {
+      cerr << "Unrecognized command: " << command << endl;
+    }
+  } while (true);
 
-  int num_frames;
-  string output_dir = ".";
-  for (;;) {
-    cout << "Acquisition Type: ";
-    cin >> num_frames;
-    if (num_frames < 0) break;
-
-    cout << "Output Directory: ";
-    cin >> output_dir;
-
-    AcquireImages(detector, num_frames, mats::AppendSlash(output_dir));
-  }
-
-  if (FLAGS_cooled) {
-    detector.DisableCooling();
-  }
+  if (is_cooled) detector.DisableCooling();
 
   return 0;
 }
