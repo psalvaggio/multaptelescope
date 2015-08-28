@@ -8,6 +8,9 @@
 #include <opencv/cv.h>
 
 class MtfInterpolator {
+ public:  // Types
+  using MTF = std::vector<std::vector<double>>;  // [[frequencies], [MTF vals]]
+
  public:
   // Constructor
   MtfInterpolator();
@@ -18,20 +21,20 @@ class MtfInterpolator {
   // Get the interpolated MTF.
   //
   // Arguments:
-  //  samples            A list of the data. Should be in the form
-  //                     [xi1, eta1, MTF(xi1, eta1), ...,
-  //                      xin, etan, MTF(xin, etan)]
-  //  num_samples        The number of samples.
+  //  profiles           A list of the MTF profiles.
+  //  angles             A list of angles that correspond to profiles.
+  //                     NOTE: Must be in ascending order.
   //  rows               Number of rows in the target MTF.
   //  cols               Number of columns in the target MTF.
-  //  circular_symmetry  Whether to assume the MTF is circularly symmetric.
-  //  mtf                Output: Pointer to output array. Will be overwritten.
-  void GetMtf(double* samples,
-              int num_samples,
+  //  reflections        The number of times to reflect the profiles to fill the
+  //                     entire MTF.
+  //  output_mtf         Output: Pointer to output array. Will be overwritten.
+  void GetMtf(const std::vector<MTF>& profiles,
+              const std::vector<double>& angles,
               int rows,
               int cols,
-              bool circular_symmetry,
-              cv::Mat* mtf);
+              int reflections,
+              cv::Mat* output_mtf);
 };
 
 #endif  // MTF_INTERPOLATOR_H

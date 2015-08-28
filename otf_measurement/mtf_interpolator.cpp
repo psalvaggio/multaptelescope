@@ -7,222 +7,93 @@
 #include <iostream>
 #include <list>
 
+using namespace std;
+using namespace cv;
 
 MtfInterpolator::MtfInterpolator() {}
 
 MtfInterpolator::~MtfInterpolator() {}
 
-struct CompareAngles : std::binary_function<size_t, size_t, bool> {
-  CompareAngles(const std::vector<double>& angles)
-      : angles_(angles) {}
-
-  bool operator()(size_t lhs, size_t rhs) const {
-    return angles_[lhs] < angles_[rhs];
-  }
-
-  const std::vector<double>& angles_;
-};
-
-struct MtfSampleCircle {
-  double radius;
-  const std::vector<int>* indices;
-
-  MtfSampleCircle(double r, const std::vector<int>* idx)
-      : radius(r), indices(idx) {}
-};
-
-bool operator<(const MtfSampleCircle& lhs, const MtfSampleCircle& rhs) {
-  return lhs.radius < rhs.radius;
-}
-
-struct SampleCirclesDistance : std::binary_function<
-    const MtfSampleCircle&, const MtfSampleCircle&, double> {
-  double operator()(const MtfSampleCircle& lhs, const MtfSampleCircle& rhs) const {
-    return lhs.radius - rhs.radius;
-  }
-};
-
-void MtfInterpolator::GetMtf(double* samples,
-                             int num_samples,
+void MtfInterpolator::GetMtf(const std::vector<MTF>& profiles,
+                             const std::vector<double>& angles,
                              int rows,
                              int cols,
-                             bool circular_symmetry,
-                             cv::Mat* mtf) {
-  if (!mtf) return;
+                             int reflections,
+                             cv::Mat* output_mtf) {
+  if (!output_mtf) return;
 
-  /*
-  flann::Matrix<double> data(new double[num_samples*2], num_samples, 2);
-  for (int i = 0; i < num_samples; i++) {
-    double r = sqrt(samples[3*i + 0]*samples[3*i + 0] +
-                    samples[3*i + 1]*samples[3*i + 1]);
-    double theta = atan2(samples[3*i + 1], samples[3*i + 0]);
-    if (theta < -M_PI / 2) theta += M_PI;
-    if (theta >= M_PI / 2) theta -= M_PI;
+  const double kAngleUpper = 2 * M_PI / reflections;
 
-    *(data[2*i + 0]) = r * 2 * M_PI;
-    *(data[2*i + 1]) = theta;
-  }
+  Mat_<double> mtf(*output_mtf);
+  mtf.create(rows, cols);
+  for (int y = 0; y < mtf.rows; y++) {
+    for (int x = 0; x < mtf.cols; x++) {
+      // Compute the radius, ranges from 0 - 0.5 on the shorter axis.
+      double r = sqrt(pow(mtf.rows / 2. - y, 2) +
+                      pow(mtf.cols / 2. - x, 2));
+      r /= min(mtf.rows, mtf.cols);
 
-  flann::Index<flann::L2<double> >
-      knn_searcher(data, flann::KDTreeSingleIndexParams());
-  knn_searcher.buildIndex();
-  std::cout << "built index" << std::endl;
-  */
+      // Compute the angle in the range [0, kAngleUpper)
+      double theta = atan2(mtf.rows / 2. - y, mtf.cols / 2. - x);
+      while (theta < 0) theta += 2 * M_PI;
+      while (theta > kAngleUpper) theta -= kAngleUpper;
 
-  std::vector<double> data(2*num_samples, 0);
-  std::vector<int> indices(num_samples, 0);
-  std::vector<double> angles(num_samples, 0);
-  for (int i = 0; i < num_samples; i++) {
-    data[2*i] = samples[3*i + 0];
-    data[2*i+1] = samples[3*i + 1];
-    angles[i] = atan2(samples[3*i + 1], samples[3*i + 0]);
-    indices[i] = i;
-  }
+      // Find the two profiles around this point.
+      auto lower = lower_bound(begin(angles), end(angles), theta);
+      int ang_gt_index = lower - begin(angles);
+      int ang_lt_index = ang_gt_index - 1;
 
-  RansacFitOriginCircle circle_fitter(0.005);
-  std::vector<double> circle_radii;
-  std::vector<std::vector<int> > circles;
-  while (data.size() > 0) {
-    std::vector<double>* radius = NULL;
-    std::list<int> inliers;
-    ransac::Error_t result = ransac::Ransac(circle_fitter,
-                                            data,
-                                            data.size() / 2,
-                                            1,
-                                            1,
-                                            10,
-                                            &radius,
-                                            &inliers);
-    if (!RansacHasValidResults(result)) {
-      std::cerr << "Error: Could not fit circle to MTF samples" << std::endl;
-      std::cerr << "Ransac Error: " << RansacErrorString(result) << std::endl;
-      return;
-    }
+      // Come up with the linear interpolation weights for the angular
+      // dimension.
+      vector<pair<int, double>> interp_weights;
 
-    std::cout << "Fit a circle (r=" << (*radius)[0] << ") with "
-              << inliers.size() << " points" << std::endl;
-    circle_radii.push_back((*radius)[0]);
-    delete radius;
+      // If the angle is greater than our last profile, interpolate between the
+      // last and the first.
+      if (ang_gt_index == angles.size()) {
+        double diff = theta - angles[ang_lt_index];
+        double blend = diff / ((angles[0] + kAngleUpper) - angles.back());
+        interp_weights.emplace_back(angles.size() - 1, 1 - blend);
+        interp_weights.emplace_back(0, blend);
+    
+      // If the angle is less than our first profile, interpolate between the
+      // last and the first.
+      } else if (ang_gt_index == 0) {
+        double diff = theta - (angles.back() - kAngleUpper);
+        double blend = diff / (angles[0] - (angles.back() - kAngleUpper));
+        interp_weights.emplace_back(angles.size() - 1, 1 - blend);
+        interp_weights.emplace_back(0, blend);
 
-    std::vector<int> inliers_vec;
-    inliers_vec.insert(inliers_vec.begin(), inliers.begin(), inliers.end());
-    std::sort(inliers_vec.begin(), inliers_vec.end());
-
-    circles.push_back(std::vector<int>());
-    std::vector<int>& circle_indices(circles[circles.size() - 1]);
-    for (size_t i = 0; i < inliers_vec.size(); i++) {
-      circle_indices.push_back(indices[inliers_vec[i]]);
-    }
-
-    for (int i = inliers_vec.size() - 1; i >= 0; i--) {
-      std::vector<double>::iterator data_it = data.begin() + 2*inliers_vec[i];
-      data.erase(data_it, data_it + 2);
-      indices.erase(indices.begin() + inliers_vec[i]);
-    }
-  }
-
-  for (size_t i = 0; i < circles.size(); i++) {
-    std::sort(circles[i].begin(), circles[i].end(), CompareAngles(angles));
-  }
-
-  std::vector<MtfSampleCircle> sample_circles;
-  sample_circles.reserve(circles.size());
-  for (size_t i = 0; i < circles.size(); i++) {
-    sample_circles.push_back(MtfSampleCircle(circle_radii[i], &(circles[i])));
-  }
-  std::sort(sample_circles.begin(), sample_circles.end());
-
-  mtf->create(rows, cols, CV_64FC1);
-  double* mtf_data = (double*)mtf->data;
-
-  size_t half_x = cols / 2;
-  size_t half_y = rows / 2;
-
-  for (int i = 0; i < rows; i++) {
-    double eta = ((double)i - half_y) / rows;
-    if (circular_symmetry) eta = fabs(eta);
-
-    for (int j = 0; j < cols; j++) {
-      double xi = ((double)j - half_x) / cols;
-      if (circular_symmetry) xi = fabs(xi);
-
-      double r = sqrt(xi * xi + eta * eta);
-      double theta = atan2(eta, xi);
-
-      size_t next_circle;
-      for (next_circle = 0; next_circle < sample_circles.size();
-           next_circle++) {
-        if (r < sample_circles[next_circle].radius) break;
-      }
-
-      std::vector<int> nearest_circles;
-      std::vector<double> circle_weights;
-      if (next_circle == 0) {
-        nearest_circles.push_back(next_circle);
-        circle_weights.push_back(1);
-      } else if (next_circle == sample_circles.size()) {
-        nearest_circles.push_back(next_circle - 1);
-        circle_weights.push_back(1);
       } else {
-        nearest_circles.push_back(next_circle);
-        nearest_circles.push_back(next_circle - 1);
-        double alpha = (sample_circles[next_circle].radius - r) /
-                       (sample_circles[next_circle].radius -
-                        sample_circles[next_circle-1].radius);
-        circle_weights.push_back(1 - alpha);
-        circle_weights.push_back(alpha);
+        double diff = theta - angles[ang_lt_index];
+        double blend = diff / (angles[ang_gt_index] - angles[ang_lt_index]);
+        interp_weights.emplace_back(ang_lt_index, 1 - blend);
+        interp_weights.emplace_back(ang_gt_index, blend);
       }
 
-      std::vector<int> nn_indices;
-      std::vector<int> nn_distances;
-
+      // Perform the bilinear interpolation in polar frequency space.
       double mtf_val = 0;
-      for (size_t k = 0; k < nearest_circles.size(); k++) {
-        int circle = nearest_circles[k];
-        const std::vector<int>& circle_pts(*(sample_circles[circle].indices));
-        size_t next_angle;
-        for (next_angle = 0; next_angle < circle_pts.size(); next_angle++) {
-          if (theta < angles[circle_pts[next_angle]]) {
-            break;
-          }
-        }
+      for (const auto& angle_weight : interp_weights) {
+        const MTF& profile = profiles[angle_weight.first];
 
-        double circle_mtf_val = 0;
-        if (next_angle == 0) {
-          circle_mtf_val = samples[3*circle_pts[next_angle] + 2];
-        } else if (next_angle == circle_pts.size()) {
-          circle_mtf_val = samples[3*circle_pts[next_angle-1] + 2];
+        // Find the two bounding MTF samples.
+        auto r_lower = lower_bound(begin(profile[0]), end(profile[0]), r);
+        int r_gt_index = r_lower - begin(profile[0]);
+        int r_lt_index = r_gt_index - 1;
+
+        // If we're beyond the smaples, assume 0.
+        if (r_gt_index == profile[0].size()) {
+          mtf_val += 0;
+        } else if (r_lt_index < 0) {  // Just here for -0s.
+          mtf_val += angle_weight.second;
         } else {
-          double alpha = (angles[circle_pts[next_angle]] - theta) /
-                         (angles[circle_pts[next_angle]] - 
-                          angles[circle_pts[next_angle - 1]]);
-          circle_mtf_val = (1 - alpha) * samples[3*circle_pts[next_angle] + 2] +
-                           alpha * samples[3*circle_pts[next_angle-1] + 2];
+          double blend = (r - profile[0][r_lt_index]) /
+                         (profile[0][r_gt_index] - profile[0][r_lt_index]);
+          mtf_val += (profile[1][r_lt_index] * (1 - blend) +
+                      profile[1][r_gt_index] * blend) * angle_weight.second;
         }
-
-        mtf_val += circle_mtf_val * circle_weights[k];
       }
 
-      mtf_data[i*cols + j] = mtf_val;
-
-      /*
-      double mtf_val = 0;
-      double total_weight = 0;
-      for (int k = 0; k < nn_indices.size(); k++) {
-        double dxi = xi - samples[3*nn_indices[k]];
-        double deta = eta - samples[3*nn_indices[k] + 1];
-        double distance = sqrt(dxi*dxi + deta*deta);
-        double tmp_mtf = samples[3*nn_indices[k] + 2];
-
-        if (distance < 1e-4) distance = 1e-4;
-
-        double weight = 1 / pow(distance, kDistancePower);
-        total_weight += weight;
-        mtf_val += weight * tmp_mtf;
-      }
-      mtf_data[i*cols + j] = mtf_val / total_weight;
-      */
-
+      mtf(y, x) = mtf_val;
     }
   }
 }
