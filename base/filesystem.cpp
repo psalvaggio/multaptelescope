@@ -43,6 +43,23 @@ void scandir(const std::string& path,
   closedir(dir);
 }
 
+void subdirectories(const std::string& path,
+                    std::vector<std::string>* subdirs) {
+  subdirs->clear();
+
+  std::string dir = AppendSlash(path);
+  std::vector<std::string> files;
+  scandir(dir, "", &files);
+  for (const auto& file : files) {
+    if (file == "." || file == "..") continue;
+
+    auto subpath = dir + file;
+    if (is_dir(subpath)) {
+      subdirs->push_back(file);
+    }
+  }
+}
+
 std::string ResolvePath(const std::string& path) {
   wordexp_t exp_result;
   wordexp(path.c_str(), &exp_result, 0);
