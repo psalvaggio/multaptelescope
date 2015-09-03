@@ -13,9 +13,21 @@
 #include <iostream>
 #include <cassert>
 
-#define CHECK(expr) \
+#define CHECK_GET_MACRO(_1, _2, NAME,...) NAME
+
+#define CHECK(...) \
+  CHECK_GET_MACRO(__VA_ARGS__, CHECK2, CHECK1)(__VA_ARGS__)
+
+#define CHECK1(expr) \
   if (!(expr)) { \
     std::cerr << "CHECK failed: " << #expr << std::endl; \
+    assert(expr); \
+  }
+
+#define CHECK2(expr, message) \
+  if (!(expr)) { \
+    std::cerr << message << std::endl \
+              << "CHECK failed: " << #expr << std::endl; \
     assert(expr); \
   }
 
