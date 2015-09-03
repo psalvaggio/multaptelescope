@@ -160,6 +160,7 @@ list(APPEND MATS_LINK_LIBS ${LIB_NAME})
 
 set(EXES aberrated_otf
          acquire_images
+         align_measured_profiles
          create_spectral_weighting
          display_aperture
          genetic_optimization
@@ -168,6 +169,7 @@ set(EXES aberrated_otf
          mtf_statistics
          restore_image
          slant_edge
+         #center_mask
          #sbig_preview
          #jagged_edge_test
          #plot_mtf_profile
@@ -176,7 +178,6 @@ set(EXES aberrated_otf
          #perform_rer_comparison
          #slant_edge_esf
          #watch_slant_edge_dir
-         #align_measured_profiles
          )
 
 foreach(EXECUTABLE ${EXES})
