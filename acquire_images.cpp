@@ -88,7 +88,7 @@ void SetIntegrationTime() {
 
   int int_time;
   if (cin >> int_time) {
-    if (int_time > 9) {
+    if (int_time >= 9) {
       FLAGS_exposure_time = int_time;
     } else {
       cerr << "Error: integration time must be greater than .09 seconds."
