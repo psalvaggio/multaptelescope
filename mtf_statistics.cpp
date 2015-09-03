@@ -22,30 +22,28 @@ using namespace cv;
 using namespace std;
 
 DEFINE_string(extension, "png", "Extension of the images");
+DEFINE_bool(recursive, false, "Whether to go into subdirectories.");
+DEFINE_bool(global_roi, false, "Use one ROI for all directories.");
+DEFINE_string(output_filename, "", "Filename for saving results.");
 
-int main(int argc, char** argv) {
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  if (argc < 2) {
-    cerr << "Usage: " << argv[0] << " image_dir" << endl;
-    return 1;
-  }
+static vector<uint16_t> global_bounds;
 
-  string directory(mats::AppendSlash(argv[1]));
-
+bool AnalyzeDirectory(const string& dir) {
   // Get the images in the image directory.
   vector<string> filenames;
-  mats::scandir(argv[1], "." + FLAGS_extension, &filenames);
+  mats::scandir(dir, "." + FLAGS_extension, &filenames);
   if (filenames.size() == 0) {
-    cerr << "Could not find any images." << endl;
+    cerr << "Could not find any images in directory " << dir << endl;
     return 1;
   }
 
   // Perform slant-edge MTF on each image. Use the same ROI on each image.
   SlantEdgeMtf mtf_analyzer;
   vector<vector<double>> mtfs;
-  vector<uint16_t> bounds;
+  vector<uint16_t> local_bounds;
+  vector<uint16_t>& bounds(FLAGS_global_roi ? global_bounds : local_bounds);
   for (const auto& filename : filenames) {
-    string path = directory + filename;
+    string path = mats::AppendSlash(dir) + filename;
 
     Mat image = imread(path, 0);
     if (!image.data) {
@@ -70,6 +68,11 @@ int main(int argc, char** argv) {
     mtfs.emplace_back();
 
     mtf_analyzer.Analyze(roi, &orientation, &(mtfs.back()));
+  }
+
+  if (mtfs.size() == 0) {
+    cerr << "Warning: Skipping directory " << dir << endl;
+    return false;
   }
 
   // Verify that all of the MTF's are the same size.
@@ -101,17 +104,26 @@ int main(int argc, char** argv) {
   // Create curves to plot and print out the statistics.
   vector<pair<double, double>> mtf_data;
   vector<tuple<double, double, double>> error_bounds;
+  ofstream ofs;
+  if (FLAGS_output_filename != "") {
+    ofs.open(mats::AppendSlash(dir) + FLAGS_output_filename);
+    if (!ofs.is_open()) {
+      cerr << "Could not open output file." << endl;
+    }
+  }
+  ostream& os(FLAGS_output_filename != "" ? ofs : cout);
+
   for (size_t i = 0; i < avg_mtf.size(); i++) {
     double freq = i / (2. * (avg_mtf.size() - 1));
     mtf_data.emplace_back(freq, avg_mtf[i]);
 
     error_bounds.emplace_back(freq, min_mtf[i], max_mtf[i]);
-    cout << freq << "\t" << avg_mtf[i] << "\t" << stddev_mtf[i] << "\t"
-         << min_mtf[i] << "\t" << max_mtf[i] << "\t" << mtfs.size() << endl;
+    os << freq << "\t" << avg_mtf[i] << "\t" << stddev_mtf[i] << "\t"
+       << min_mtf[i] << "\t" << max_mtf[i] << "\t" << mtfs.size() << endl;
   }
 
   // Plot the average and the bounds
-  Gnuplot gp;
+  static Gnuplot gp;
   gp << "set xlabel \"Spatial Frequency [cyc/pixel]\"\n"
      << "set ylabel \"MTF\"\n"
      << "set yrange [0:1]\n"
@@ -122,7 +134,7 @@ int main(int argc, char** argv) {
      << endl;
 
   // Plot the individual curves.
-  Gnuplot gp2;
+  static Gnuplot gp2;
   gp2 << "set xlabel \"Spatial Frequency [cyc/pixel]\"\n"
       << "set ylabel \"MTF\"\n"
       << "set yrange [0:1]\n"
@@ -139,5 +151,32 @@ int main(int argc, char** argv) {
   }
   gp2 << endl;
 
+  return true;
+}
+
+void RecursiveAnalyze(const string& dir) {
+  AnalyzeDirectory(dir);
+  vector<string> subdirs;
+  mats::subdirectories(dir, &subdirs);
+  for (const auto& subdir : subdirs) {
+    RecursiveAnalyze(mats::AppendSlash(dir) + subdir);
+  }
+}
+
+int main(int argc, char** argv) {
+  google::ParseCommandLineFlags(&argc, &argv, true);
+  if (argc < 2) {
+    cerr << "Usage: " << argv[0] << " image_dir" << endl;
+    return 1;
+  }
+
+  string directory(mats::ResolvePath(argv[1]));
+
+  if (!FLAGS_recursive) {
+    return AnalyzeDirectory(directory) ? 0 : 1;
+  } else {
+    RecursiveAnalyze(directory);
+  }
+  
   return 0;
 }
