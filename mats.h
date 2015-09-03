@@ -5,6 +5,7 @@
 #define MATS_H
 
 // Core headers of the library.
+#include "base/assertions.h"
 #include "base/aperture_parameters.pb.h"
 #include "base/detector.h"
 #include "base/detector_parameters.pb.h"
