@@ -95,6 +95,8 @@ double RunGlobalAlignment(const Mat& theoretical_mtf,
 
 
 int main(int argc, char** argv) {
+  google::SetUsageMessage(mats::StringPrintf(
+        "%s config_file base_directory [flags]", argv[0]));
   google::ParseCommandLineFlags(&argc, &argv, true);
   if (argc < 2) {
    cerr << "Usage: " << argv[0] << " config_file base_directory [flags]"
