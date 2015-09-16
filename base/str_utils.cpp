@@ -5,20 +5,41 @@
 
 #include <cstdio>
 
+#if __GNUC__ == 4 && __GNUC_MINOR__ < 9
+  #include <boost/regex.hpp>
+  using boost::sregex_token_iterator;
+  using boost::regex;
+#else
+  #include <regex>
+#endif
+
+using namespace std;
+
 namespace mats {
 
 // Equivalent of PHP's explode() function. Splits a string on a given delimiter.
-void explode(const std::string& s,
-             char delim,
-             std::vector<std::string>* result) {
-  std::istringstream iss(s);
+void explode(const string& s, char delim, vector<string>* result) {
+  istringstream iss(s);
 
-  for (std::string token; std::getline(iss, token, delim); ) {
+  for (string token; getline(iss, token, delim); ) {
     result->push_back(token);
   }
 }
 
-void StringAppendf(std::string* output, const char* format, va_list vargs) {
+void explode(const string& s, string regex_str, vector<string>* result) {
+  if (!result) return;
+  result->clear();
+  regex delim(regex_str);
+
+  sregex_token_iterator srit(begin(s), end(s), delim, -1);
+  sregex_token_iterator srend;
+  while (srit != srend) {
+    result->push_back(*srit);
+    ++srit;
+  }
+}
+
+void StringAppendf(string* output, const char* format, va_list vargs) {
   int size = 1024;
   char* buffer = NULL;
   int length = 0;
@@ -48,23 +69,30 @@ void StringAppendf(std::string* output, const char* format, va_list vargs) {
   delete[] buffer;
 }
 
-std::string StringPrintf(const char* format, ...) {
+string StringPrintf(const char* format, ...) {
   va_list vargs;
   va_start(vargs, format);
-  std::string output;
+  string output;
   StringAppendf(&output, format, vargs);
   va_end(vargs);
   return output;
 }
 
-void SStringPrintf(std::string* output, const char* format, ...) {
+void SStringPrintf(string* output, const char* format, ...) {
   va_list vargs;                                   
   va_start(vargs, format);
   StringAppendf(output, format, vargs);
   va_end(vargs);
 }
 
-bool ends_with(const std::string& haystack, const std::string& needle) {
+bool starts_with(const string& haystack, const string& needle) {
+  if (haystack.length() >= needle.length()) {
+    return haystack.compare(0, needle.length(), needle) == 0;
+  }
+  return false;
+}
+
+bool ends_with(const string& haystack, const string& needle) {
   if (haystack.length() >= needle.length()) {
     return haystack.compare(haystack.length() - needle.length(),
                             needle.length(),
@@ -73,7 +101,7 @@ bool ends_with(const std::string& haystack, const std::string& needle) {
   return false;
 }
 
-std::string AppendSlash(const std::string& input) {
+string AppendSlash(const string& input) {
   if (input.back() != '/') {
     return input + '/';
   }

@@ -40,6 +40,9 @@ inline std::string& trim(std::string& s) {
 void explode(const std::string& s,
              char delim,
              std::vector<std::string>* result);
+void explode(const std::string& s,
+             std::string regex_str,
+             std::vector<std::string>* result);
 
 void StringAppendf(std::string* output, const char* format, va_list vargs);
 
@@ -47,6 +50,7 @@ std::string StringPrintf(const char* format, ...);
 
 void SStringPrintf(std::string* output, const char* format, ...);
 
+bool starts_with(const std::string& haystack, const std::string& needle);
 bool ends_with(const std::string& haystack, const std::string& needle);
 
 std::string AppendSlash(const std::string& input);
