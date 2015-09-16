@@ -17,6 +17,7 @@ void scandir(const std::string& path,
 void subdirectories(const std::string& path,
                     std::vector<std::string>* subdirs);
 std::string ResolvePath(const std::string& path);
+std::string Basename(const std::string& path);
 
 }
 
