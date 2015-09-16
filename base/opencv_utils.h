@@ -69,6 +69,8 @@ cv::Mat IFFTShift(const cv::Mat& input);
 
 std::string GetMatDataType(const cv::Mat& mat);
 
+void ConvertMatToDouble(const cv::Mat& input, cv::Mat& output);
+
 // Gets a 1D profile of the 2D image. A profile  starts at the center and
 // extends to the extent of the inscribed circle of the frame. There will be
 // N/2 samples in the profile, where N is the smaller dimension of the image.
@@ -87,7 +89,7 @@ void GetRadialProfile(const cv::Mat& input, double theta,
 //         an ROI.
 //
 // Returns:
-//  [x1 y1 width+1 height+1]
+//  [x1 y1 width height]
 std::vector<uint16_t> GetRoi(const cv::Mat& image);
 
 cv::Mat_<double> CreateEdgeTarget(int width,

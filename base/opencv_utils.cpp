@@ -172,6 +172,24 @@ std::string GetMatDataType(const cv::Mat& mat) {
   return type.str();
 }
 
+void ConvertMatToDouble(const cv::Mat& input, cv::Mat& output) {
+  double scale_factor = 1;
+
+  int image_type_int = input.type() % 8;
+
+  switch (image_type_int) {
+    case 0: case 1: // 8U, 8S
+      scale_factor = 1. / 255;
+      break;
+    case 2: case 3: // 16S, 16U  
+      scale_factor = 1. / 65535;
+    case 4: // 32S
+      scale_factor = 1. / (pow(2., 32) - 1);
+  }
+
+  input.convertTo(output, CV_64F, scale_factor);
+}
+
 void GetRadialProfile(const cv::Mat& input, double theta,
                       std::vector<double>* output) {
   if (!output) return;
