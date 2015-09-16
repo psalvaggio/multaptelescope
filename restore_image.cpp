@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
     cerr << "Could not read image file." << endl;
     return 1;
   }
-  image.convertTo(image, CV_64F);
+  ConvertMatToDouble(image, image);
 
   // Read in the spectral weighting function. If there is not one, use the
   // detector QE spectrum.
@@ -115,7 +115,9 @@ int main(int argc, char** argv) {
   Range row_range(restored.rows / 4., 3 * restored.rows / 4.),
         col_range(restored.cols / 4., 3 * restored.cols / 4.);
   Mat roi = restored(row_range, col_range);
-  imwrite("restored.png", ByteScale(roi));
+  Mat output = roi * 255;
+  output.convertTo(output, CV_8U);
+  imwrite("restored.png", output);
 
   return 0;
 }
