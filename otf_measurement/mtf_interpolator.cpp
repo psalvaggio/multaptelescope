@@ -2,8 +2,9 @@
 // Author: Philip Salvaggio
 
 #include "mtf_interpolator.h"
-#include "ransac/ransac.h"
-#include "ransac/ransac_fit_circle.h"
+
+#include "base/assertions.h"
+
 #include <iostream>
 #include <list>
 
@@ -22,19 +23,20 @@ void MtfInterpolator::GetMtf(const std::vector<MTF>& profiles,
                              cv::Mat* output_mtf) {
   if (!output_mtf) return;
 
+  CHECK(profiles.size() == angles.size());
+
   const double kAngleUpper = 2 * M_PI / reflections;
 
-  Mat_<double> mtf(*output_mtf);
-  mtf.create(rows, cols);
-  for (int y = 0; y < mtf.rows; y++) {
-    for (int x = 0; x < mtf.cols; x++) {
+  output_mtf->create(rows, cols, CV_64FC1);
+  for (int y = 0; y < rows; y++) {
+    for (int x = 0; x < cols; x++) {
       // Compute the radius, ranges from 0 - 0.5 on the shorter axis.
-      double r = sqrt(pow(mtf.rows / 2. - y, 2) +
-                      pow(mtf.cols / 2. - x, 2));
-      r /= min(mtf.rows, mtf.cols);
+      double r = sqrt(pow(rows / 2. - y, 2) +
+                      pow(cols / 2. - x, 2));
+      r /= min(rows, cols);
 
       // Compute the angle in the range [0, kAngleUpper)
-      double theta = atan2(mtf.rows / 2. - y, mtf.cols / 2. - x);
+      double theta = atan2(rows / 2. - y, cols / 2. - x);
       while (theta < 0) theta += 2 * M_PI;
       while (theta > kAngleUpper) theta -= kAngleUpper;
 
@@ -93,7 +95,7 @@ void MtfInterpolator::GetMtf(const std::vector<MTF>& profiles,
         }
       }
 
-      mtf(y, x) = mtf_val;
+      output_mtf->at<double>(y, x) = mtf_val;
     }
   }
 }
