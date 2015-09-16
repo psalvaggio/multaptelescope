@@ -40,7 +40,7 @@
 
 // OTF measurement headers for laboratory applications.
 #include "otf_measurement/slant_edge_mtf.h"
-#include "otf_measurement/jagged_edge_mtf.h"
+#include "otf_measurement/usaf_1951_target.h"
 
 // Aperture Optimization headers.
 #include "aperture_optimization/golay_fitness_function.h"
