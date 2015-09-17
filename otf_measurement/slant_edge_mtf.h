@@ -13,6 +13,12 @@ class SlantEdgeMtf {
   SlantEdgeMtf();
   ~SlantEdgeMtf();
 
+  // The max distance refers to the maximum othoganl distance that a point can
+  // be from the edge and still be inlcuded in the ESF reconstruction.
+  // Default is 60 pixels.
+  double max_distance() const { return max_distance_; }
+  void set_max_distances(double dist) { max_distance_ = dist; }
+
   // Analyze an image patch with a slant edge. All of the subroutines are also
   // public in case they are useful for other applications. However, if the MTF
   // measurement is all that is needed, then this is the only routine that
@@ -68,11 +74,13 @@ class SlantEdgeMtf {
   //  samples_per_pixel The number of samples per pixel.`
   //  esf               Output: The edge spread function.
   //  esf_stddevs       Output: The standard deviation in each esf bin.
+  //  mask              Optional mask for pixels to be used.
   void GenerateEsf(const cv::Mat& image,
                    const double* edge,
                    int samples_per_pixel,
                    std::vector<double>* esf,
-                   std::vector<double>* esf_stddevs);
+                   std::vector<double>* esf_stddevs,
+                   cv::Mat mask=cv::Mat());
 
   // Detects the resolution that can be supported with the detected line
   // orientation.
@@ -105,6 +113,7 @@ class SlantEdgeMtf {
  private:
   Gnuplot* gp_;
   bool local_gp_;
+  double max_distance_;
 };
 
 #endif  // SLANT_EDGE_MTF_H

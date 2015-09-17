@@ -17,7 +17,8 @@
 using namespace std;
 using namespace cv;
 
-SlantEdgeMtf::SlantEdgeMtf() {
+SlantEdgeMtf::SlantEdgeMtf()
+    : max_distance_(60) {
   gp_ = new Gnuplot();
   local_gp_ = true;
 }
@@ -279,10 +280,21 @@ template<typename T>
 void GenerateEsfHelper(const Mat& image,
                        const double* edge,
                        int samples_per_pixel,
+                       double max_distance,
                        vector<double>* esf,
                        vector<double>* esf_stddevs,
-                       vector<int>* bin_counts) {
-  double max_distance = 60;
+                       vector<int>* bin_counts,
+                       Mat mask) {
+  if (mask.rows > 0) {
+    max_distance = 0;
+    for (int i = 0; i < mask.rows; i++) {
+      for (int j = 0; j < mask.cols; j++) {
+        if (mask.at<uint8_t>(i ,j) == 0) continue;
+        double distance = edge[0]*j + edge[1]*i - edge[2];
+        max_distance = max(max_distance, abs(distance));
+      }
+    }
+  }
 
   int num_bins = samples_per_pixel * (2 * max_distance);
   double bin_size = 2 * max_distance / num_bins;
@@ -290,10 +302,11 @@ void GenerateEsfHelper(const Mat& image,
   esf->resize(num_bins, 0);
   esf_stddevs->resize(num_bins, 0);
 
-  // Build up the edge spread function.
-  //T* image_data = (T*)image.data;
+  // Build up the edge spread function
   for (int i = 0; i < image.rows; i++) {
     for (int j = 0; j < image.cols; j++) {
+      if (mask.rows > 0 && mask.at<uint8_t>(i, j) == 0) continue;
+
       double distance = edge[0]*j + edge[1]*i - edge[2];
       if (distance >= -max_distance && distance < max_distance) {
         int bin = (distance + max_distance) / bin_size;
@@ -306,14 +319,15 @@ void GenerateEsfHelper(const Mat& image,
 }
 
 #define GENERATE_ESF_HELPER(type) \
-  GenerateEsfHelper<type>(image, edge, samples_per_pixel, \
-                          esf, esf_stddevs, &bin_counts)
+  GenerateEsfHelper<type>(image, edge, samples_per_pixel, max_distance_, \
+                          esf, esf_stddevs, &bin_counts, mask)
 
 void SlantEdgeMtf::GenerateEsf(const Mat& image,
                                const double* edge,
                                int samples_per_pixel,
                                vector<double>* esf,
-                               vector<double>* esf_stddevs) {
+                               vector<double>* esf_stddevs,
+                               Mat mask) {
   if (!esf) return;
 
   vector<int> bin_counts;
