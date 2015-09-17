@@ -3,7 +3,9 @@
 
 #include "usaf_1951_target.h"
 
+#include "base/assertions.h"
 #include "base/opencv_utils.h"
+#include "otf_measurement/slant_edge_mtf.h"
 
 #include <iostream>
 #include <opencv2/imgproc.hpp>
@@ -58,10 +60,10 @@ bool Usaf1951Target::RecognizeTarget() {
 
   // The USAF target has both horizontal and vertical bars. Filter the bars into
   // groups based on angle difference in the principal direction.
-  vector<Vector2d> mean_vectors;
+  mean_vectors_.clear();
   vector<vector<int>> oriented_bars;
   SplitHorizontalVerticalBars(bar_ccs, bar_orientations,
-                              &oriented_bars, &mean_vectors);
+                              &oriented_bars, &mean_vectors_);
 
   if (oriented_bars.size() < 2) {
     cerr << "Error: Only one orientation of bars found." << endl;
@@ -73,7 +75,7 @@ bool Usaf1951Target::RecognizeTarget() {
   vector<vector<TriBar>> bar_groups;
   for (size_t i = 0; i < oriented_bars.size(); i++) {
     bar_groups.emplace_back();
-    DetectTriBars(oriented_bars[i], mean_vectors[i], cc_centroids,
+    DetectTriBars(oriented_bars[i], mean_vectors_[i], cc_centroids,
                   &(bar_groups.back()));
 
     sort(begin(bar_groups.back()), end(bar_groups.back()),
@@ -87,7 +89,7 @@ bool Usaf1951Target::RecognizeTarget() {
 
   bounding_boxes_.clear();
   vector<vector<Vector2d>> bb_centroids;
-  FindBoundingBoxes(bar_groups, cc_labels, cc_stats, mean_vectors,
+  FindBoundingBoxes(bar_groups, cc_labels, cc_stats, mean_vectors_,
                     &bounding_boxes_, &bb_centroids);
 
   CompletePartialPairs(bounding_boxes_, bb_centroids);
@@ -96,11 +98,106 @@ bool Usaf1951Target::RecognizeTarget() {
     CompleteLowerLevel(bounding_boxes_, bb_centroids, i);
   }
 
+  if (!IsHorizontalFirst(bb_centroids, mean_vectors_)) {
+    swap(bounding_boxes_[0], bounding_boxes_[1]);
+    swap(mean_vectors_[0], mean_vectors_[1]);
+  }
+
   return true;
 }
 
 
-void Usaf1951Target::GetProfile(int/*, something*/) {
+void Usaf1951Target::GetProfile(int bar_group,
+                                int orientation,
+                                vector<pair<double, double>>* profile) {
+  CHECK(orientation == HORIZONTAL || orientation == VERTICAL);
+
+  BoundingBox box;
+  GetProfileRegion(bar_group, orientation, &box);
+  
+  // Get profile direction unit vector
+  double prof_x = 0, prof_y = 0;
+  double side1_len2 = pow(box[2] - box[0], 2) + pow(box[3] - box[1], 2),
+         side2_len2 = pow(box[4] - box[2], 2) + pow(box[5] - box[3], 2);
+  if (side1_len2 > side2_len2) {
+    double mag = sqrt(side1_len2);
+    prof_x = (box[2] - box[0]) / mag;
+    prof_y = (box[3] - box[1]) / mag;
+  } else {
+    double mag = sqrt(side2_len2);
+    prof_x = (box[4] - box[2]) / mag;
+    prof_y = (box[5] - box[3]) / mag;
+  }
+
+  // Get profile endpoints
+  double endpoint1_x, endpoint1_y, endpoint2_x, endpoint2_y;
+  if (side1_len2 > side2_len2) {
+    endpoint1_x = 0.5 * (box[4] + box[2]);
+    endpoint1_y = 0.5 * (box[5] + box[3]);
+    endpoint2_x = 0.5 * (box[6] + box[0]);
+    endpoint2_y = 0.5 * (box[7] + box[1]);
+  } else {
+    endpoint1_x = 0.5 * (box[0] + box[2]);
+    endpoint1_y = 0.5 * (box[1] + box[3]);
+    endpoint2_x = 0.5 * (box[4] + box[6]);
+    endpoint2_y = 0.5 * (box[5] + box[7]);
+  }
+
+  // Determine the start and end of the profile
+  double prof_start_x, prof_start_y, prof_end_x, prof_end_y;
+  double dot1 = endpoint1_x * prof_x + endpoint1_y * prof_y,
+         dot2 = endpoint2_x * prof_x + endpoint2_y * prof_y;
+  double start_dot = min(dot1, dot2);
+  if (dot1 < dot2) {
+    prof_start_x = endpoint1_x;
+    prof_start_y = endpoint1_y;
+    prof_end_x = endpoint2_x;
+    prof_end_y = endpoint2_y;
+  } else {
+    prof_start_x = endpoint2_x;
+    prof_start_y = endpoint2_y;
+    prof_end_x = endpoint1_x;
+    prof_end_y = endpoint1_y;
+  }
+
+  // Determine image bounds round profile region
+  int min_row = numeric_limits<int>::max(),
+      min_col = numeric_limits<int>::max(),
+      max_row = -1,
+      max_col = -1;
+  for (size_t i = 0; i < box.size(); i += 2) {
+    min_col = min(int(floor(box[i])), min_col);
+    max_col = max(int(ceil(box[i])), max_col);
+    min_row = min(int(floor(box[i+1])), min_row);
+    max_row = max(int(ceil(box[i+1])), max_row);
+  }
+
+  // Create the initial profile.
+  Mat_<uint8_t> mask(max_row - min_row + 1, max_col - min_col + 1);
+  for (int i = min_row; i <= max_row; i++) {
+    for (int j = min_col; j <= max_col; j++) {
+      mask(i - min_row, j - min_col) = PointInQuad(j, i, box) ? 1 : 0;
+    }
+  }
+
+  Mat roi = image_(Range(min_row, max_row + 1), Range(min_col, max_col + 1));
+  
+  double edge[3];
+  edge[0] = prof_x;
+  edge[1] = prof_y;
+  edge[2] = prof_x * 0.5 * (prof_start_x + prof_end_x) +
+            prof_y * 0.5 * (prof_start_y + prof_end_y) - start_dot;
+
+  SlantEdgeMtf slant_edge;
+  int samples = slant_edge.GetSamplesPerPixel(roi, edge);
+
+  vector<double> prof, prof_stddevs;
+  slant_edge.GenerateEsf(roi, edge, samples, &prof, &prof_stddevs, mask);
+  slant_edge.SmoothEsf(&prof);
+
+  for (size_t i = 0; i < prof.size(); i++) {
+    profile->emplace_back(double(i) / samples, prof[i]);
+  }
 }
 
 
@@ -131,6 +228,41 @@ Mat Usaf1951Target::VisualizeBoundingBoxes() const {
                      bounding_boxes_[i][j][(k+3)%size]),
                255 * colors[j % colors.size()]);
         }
+      }
+    }
+  }
+
+  return bars;
+}
+
+
+Mat Usaf1951Target::VisualizeProfileRegions() const {
+  vector<Scalar> colors {Scalar(0, 0, 1),
+                         Scalar(0, 1, 0),
+                         Scalar(1, 0, 0),
+                         Scalar(1, 1, 0),
+                         Scalar(1, 0, 1),
+                         Scalar(0, 1, 1),
+                         Scalar(1, 1, 1),
+                         Scalar(0, 0.5, 1),
+                         Scalar(0.5, 0, 1),
+                         Scalar(0.65, 0.65, 0.65),
+                         Scalar(0.85, 0.65, 0),
+                         Scalar(0.35, 0.95, 0.35)};
+
+  Mat bars(image_.size(), CV_32FC3);
+  cvtColor(image_, bars, COLOR_GRAY2RGB);
+  for (size_t i = 0; i < bounding_boxes_.size(); i++) {
+    for (size_t j = 0; j < bounding_boxes_[i].size(); j++) {
+      BoundingBox region;
+      GetProfileRegion(j, i, &region);
+
+      for (size_t k = 0; k < region.size(); k += 2) {
+        line(bars,
+             Point(region[k], region[k+1]),
+             Point(region[(k+2)%region.size()],
+                   region[(k+3)%region.size()]),
+             255 * colors[j % colors.size()]);
       }
     }
   }
@@ -701,4 +833,128 @@ void Usaf1951Target::CompleteLowerLevel(
       get<1>(bb_centroids[i][j]) = centroid_y;
     }
   }
+}
+
+bool Usaf1951Target::IsHorizontalFirst(
+       const vector<vector<Vector2d>>& bb_centroids,
+       const vector<Vector2d>& mean_vectors) const {
+  CHECK(bb_centroids.size() == 2 && bb_centroids[0].size() >= 12);
+
+  // The key feature here is that horizontal bars are always on the outside of
+  // the target. We'll confine the analysis to the first group. We'll find the
+  // vector that goes in the x-direction on the target (between horizontal and
+  // vertical groups) and find the tri-bar group that has the maximum total
+  // absolute dot product with that vector.
+  double dx = get<0>(bb_centroids[0][0]) - get<0>(bb_centroids[1][0]);
+  double dy = get<1>(bb_centroids[0][0]) - get<1>(bb_centroids[1][0]);
+
+  Vector2d target_orientation;
+  if (abs(dx * get<0>(mean_vectors[0]) + dy * get<1>(mean_vectors[0])) >
+      abs(dx * get<0>(mean_vectors[1]) + dy * get<1>(mean_vectors[1]))) {
+    target_orientation = mean_vectors[0];
+  } else {
+    target_orientation = mean_vectors[1];
+  }
+
+  double mean[2];
+  mean[0] = 0; mean[1] = 0;
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 12; j++) {
+      mean[0] += get<0>(bb_centroids[i][j]);
+      mean[1] += get<1>(bb_centroids[i][j]);
+    }
+  }
+  mean[0] /= 24; mean[1] /= 24;
+
+  double dots[2];
+  for (int i = 0; i < 2; i++) {
+    dots[i] = 0;
+    for (int j = 0; j < 12; j++) {
+      dots[i] += abs(
+        get<0>(target_orientation) * (get<0>(bb_centroids[i][j]) - mean[0]) +
+        get<1>(target_orientation) * (get<1>(bb_centroids[i][j]) - mean[1]));
+    }
+  }
+
+  return dots[0] > dots[1];
+}
+
+
+void Usaf1951Target::GetProfileRegion(int bar_group,
+                                      int orientation,
+                                      BoundingBox* region) const {
+  CHECK(bounding_boxes_.size() > 0 && bar_group < bounding_boxes_[0].size(),
+        "Error: must call RecognizeTarget() before getting profiles.");
+
+  const BoundingBox& box = bounding_boxes_[orientation][bar_group];
+  double profile_dir_x = get<0>(mean_vectors_[1-orientation]);
+  double profile_dir_y = get<1>(mean_vectors_[1-orientation]);
+  double profile_orth_dir_x = -profile_dir_y;
+  double profile_orth_dir_y = profile_dir_x;
+
+  double side_length = 0;
+  double centroid_x = 0, centroid_y = 0;
+  for (int i = 0; i < 8; i += 2) {
+    double dx = box[i] - box[(i+2) % 8],
+           dy = box[i+1] - box[(i+3) % 8];
+    side_length += 0.25 * sqrt(dx*dx + dy*dy);
+    centroid_x += 0.25 * box[i];
+    centroid_y += 0.25 * box[i+1];
+  }
+
+  double profile_length = side_length * 7. / 5.;
+  double profile_width = side_length / 3.;
+
+  region->push_back(centroid_x - 0.5 * profile_length * profile_dir_x
+                               - 0.5 * profile_width * profile_orth_dir_x);
+  region->push_back(centroid_y - 0.5 * profile_length * profile_dir_y
+                               - 0.5 * profile_width * profile_orth_dir_y);
+
+  region->push_back(centroid_x - 0.5 * profile_length * profile_dir_x
+                               + 0.5 * profile_width * profile_orth_dir_x);
+  region->push_back(centroid_y - 0.5 * profile_length * profile_dir_y
+                               + 0.5 * profile_width * profile_orth_dir_y);
+
+  region->push_back(centroid_x + 0.5 * profile_length * profile_dir_x
+                               + 0.5 * profile_width * profile_orth_dir_x);
+  region->push_back(centroid_y + 0.5 * profile_length * profile_dir_y
+                               + 0.5 * profile_width * profile_orth_dir_y);
+
+  region->push_back(centroid_x + 0.5 * profile_length * profile_dir_x
+                               - 0.5 * profile_width * profile_orth_dir_x);
+  region->push_back(centroid_y + 0.5 * profile_length * profile_dir_y
+                               - 0.5 * profile_width * profile_orth_dir_y);
+}
+
+
+bool Usaf1951Target::PointInQuad(double x,
+                                 double y,
+                                 const BoundingBox& quad) const {
+
+  double x0 = x - quad[0], y0 = y - quad[1];
+
+  // We'll split the quad into two triangles and see if the point is in either
+  // one. The triangles are vertices 123 and 134.
+  for (int i = 2; i < 7; i += 4) {
+    double tri1_v0_x = quad[4] - quad[0],
+           tri1_v0_y = quad[5] - quad[1],
+           tri1_v1_x = quad[i] - quad[0],
+           tri1_v1_y = quad[i+1] - quad[1];
+
+  double dot00 = tri1_v0_x*tri1_v0_x + tri1_v0_y*tri1_v0_y,
+         dot01 = tri1_v0_x*tri1_v1_x + tri1_v0_y*tri1_v1_y,
+         dot0p = tri1_v0_x*x0 + tri1_v0_y*y0,
+         dot11 = tri1_v1_x*tri1_v1_x + tri1_v1_y*tri1_v1_y,
+         dot1p = tri1_v1_x*x0 + tri1_v1_y*y0;
+
+    double invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+    double u = (dot11 * dot0p - dot01 * dot1p) * invDenom;
+    double v = (dot00 * dot1p - dot01 * dot0p) * invDenom;
+
+    if ((u >= 0) && (v >= 0) && (u + v < 1)) {
+      return true;
+    }
+  }
+  
+  return false;
 }

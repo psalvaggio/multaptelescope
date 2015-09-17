@@ -14,9 +14,18 @@ class Usaf1951Target {
 
   bool RecognizeTarget();
 
-  void GetProfile(int bar_group/*, something*/);
+  enum Orientation {
+    HORIZONTAL = 0,
+    VERTICAL = 1
+  };
+
+  void GetProfile(int bar_group,
+                  int orientation,
+                  std::vector<std::pair<double, double>>* profile);
 
   cv::Mat VisualizeBoundingBoxes() const;
+
+  cv::Mat VisualizeProfileRegions() const;
 
  private:
   // Represntation of a Tri-bar group. Each element is a connected component
@@ -179,6 +188,34 @@ class Usaf1951Target {
   void CompleteLowerLevel(std::vector<std::vector<BoundingBox>>& bounding_boxes,
                           std::vector<std::vector<Vector2d>>& bb_centroids,
                           int level) const;
+
+  // Determine whether the horizontal bars are the first group in bb_centroids
+  // and the corresponding array. If not, everything should be swapped.
+  //
+  // Arguments:
+  //  bb_cenrtoids  The centroids of the bounding boxes.
+  bool IsHorizontalFirst(
+       const std::vector<std::vector<Vector2d>>& bb_centroids,
+       const std::vector<Vector2d>& mean_vectors) const;
+
+  // Get the region in which to measure a profile.
+  //
+  // Arguments:
+  //  bar_group    The index of the bar group to measure
+  //  orientation  The orientation of the bars to measure. See Orientation.
+  //  region       Output: The profile bounding box
+  void GetProfileRegion(int bar_group,
+                        int orientation,
+                        BoundingBox* region) const;
+
+  // Test whether a point is within the given quad.
+  //
+  // Arguments:
+  //  x     X-coordinate of test point
+  //  y     Y-coordinate of test point
+  //  quad  Quad to test.
+  bool PointInQuad(double x, double y, const BoundingBox& quad) const;
+
  private:
   cv::Mat image_;
   int num_levels_;
