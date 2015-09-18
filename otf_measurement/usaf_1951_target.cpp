@@ -91,25 +91,31 @@ bool Usaf1951Target::RecognizeTarget() {
 
   // Find the bounding boxes around each of the tri-bar groups. These bounding
   // boxes are not axis-aligned, but oriented with the pattern.
-  bounding_boxes_.clear();
   vector<vector<Vector2d>> bb_centroids;
   FindBoundingBoxes(bar_groups, cc_labels, cc_stats, mean_vectors_,
-                    &bounding_boxes_, &bb_centroids);
+                    &bounding_boxes_);
 
   // Infer the locations of the tri-bar groups where the horizontal or the
   // vertical group was found, but not both.
-  CompletePartialPairs(bounding_boxes_, bb_centroids);
+  CompletePartialPairs(bounding_boxes_);
 
   // Infer the location of missing tri-bars in lower levels by using the
   // locations in the biggest level.
   for (int i = 1; i < num_levels_; i++) {
-    CompleteLowerLevel(bounding_boxes_, bb_centroids, i);
+    CompleteLowerLevel(bounding_boxes_, i);
   }
 
   // Make sure the horiontal tri-bars are first in bounding_boxes_ and
   // mean_vectors_.
-  if (!IsHorizontalFirst(bb_centroids, mean_vectors_)) {
-    swap(bounding_boxes_[0], bounding_boxes_[1]);
+  if (!IsHorizontalFirst(bounding_boxes_, mean_vectors_)) {
+    double tmp;
+    for (int i = 0; i < bounding_boxes_.rows; i += 2) {
+      for (int j = 0; j < bounding_boxes_.cols; j++) {
+        tmp = bounding_boxes_(i, j);
+        bounding_boxes_(i, j) = bounding_boxes_(i+1, j);
+        bounding_boxes_(i+1, j) = tmp;
+      }
+    }
     swap(mean_vectors_[0], mean_vectors_[1]);
   }
 
@@ -227,17 +233,14 @@ Mat Usaf1951Target::VisualizeBoundingBoxes() const {
 
   Mat bars(image_.size(), CV_32FC3);
   cvtColor(image_, bars, COLOR_GRAY2RGB);
-  for (size_t i = 0; i < bounding_boxes_.size(); i++) {
-    for (size_t j = 0; j < bounding_boxes_[i].size(); j++) {
-      if (bounding_boxes_[i][j][0] != 0) {
-        size_t size = bounding_boxes_[i][j].size();
-        for (size_t k = 0; k < size; k += 2) {
-          line(bars,
-               Point(bounding_boxes_[i][j][k], bounding_boxes_[i][j][k+1]),
-               Point(bounding_boxes_[i][j][(k+2)%size],
-                     bounding_boxes_[i][j][(k+3)%size]),
-               255 * colors[j % colors.size()]);
-        }
+  for (int i = 0; i < bounding_boxes_.rows; i++) {
+    if (bounding_boxes_(i, 8) != -1) {
+      for (size_t j = 0; j < 8; j += 2) {
+        line(bars,
+             Point(bounding_boxes_(i, j), bounding_boxes_(i, j+1)),
+             Point(bounding_boxes_(i, (j+2) % 8),
+                   bounding_boxes_(i, (j+3) % 8)),
+               255 * colors[(i / 2) % colors.size()]);
       }
     }
   }
@@ -262,17 +265,16 @@ Mat Usaf1951Target::VisualizeProfileRegions() const {
 
   Mat bars(image_.size(), CV_32FC3);
   cvtColor(image_, bars, COLOR_GRAY2RGB);
-  for (size_t i = 0; i < bounding_boxes_.size(); i++) {
-    for (size_t j = 0; j < bounding_boxes_[i].size(); j++) {
+  for (int i = 0; i < bounding_boxes_.rows; i += 2) {
+    for (size_t j = 0; j < 2; j++) {
       BoundingBox region;
-      GetProfileRegion(j, i, &region);
+      GetProfileRegion(i / 2, j, &region);
 
-      for (size_t k = 0; k < region.size(); k += 2) {
+      for (size_t k = 0; k < 8; k += 2) {
         line(bars,
              Point(region[k], region[k+1]),
-             Point(region[(k+2)%region.size()],
-                   region[(k+3)%region.size()]),
-             255 * colors[j % colors.size()]);
+             Point(region[(k+2) % 8], region[(k+3) % 8]),
+             255 * colors[(i / 2) % colors.size()]);
       }
     }
   }
@@ -522,7 +524,7 @@ void Usaf1951Target::DetectMisses(vector<vector<TriBar>>& bar_groups,
   area_ratio_spread = max(area_ratio_spread, 0.05);
 
 
-  const size_t kExpectedTriBars = num_levels_ * 12;
+  const size_t kExpectedTriBars = num_levels_ * kNumTriBarsPerLevel;
   while (bar_groups[0].size() < kExpectedTriBars ||
          bar_groups[1].size() < kExpectedTriBars) {
     vector<double> first_areas;
@@ -585,26 +587,27 @@ void Usaf1951Target::FindBoundingBoxes(
     const Mat_<int32_t>& cc_labels,
     const Mat_<int32_t>& cc_stats,
     const vector<Vector2d>& mean_vectors,
-    vector<vector<BoundingBox>>* bounding_boxes,
-    vector<vector<Vector2d>>* bb_centroids) const {
+    Mat_<double>* bounding_boxes) const {
+
+  Mat_<double>& boxes = *bounding_boxes;
+  boxes.create(2 * num_levels_ * kNumTriBarsPerLevel, 10);
+  boxes = 0;
+
   Matx<double, 2, 2> rot(get<0>(mean_vectors[0]), get<1>(mean_vectors[0]),
                          get<0>(mean_vectors[1]), get<1>(mean_vectors[1]));
   Matx<double, 2, 2> rot_inv = rot.inv();
 
   for (size_t i = 0; i < bar_groups.size(); i++) {
-    bounding_boxes->emplace_back();
-    bb_centroids->emplace_back();
     for (size_t j = 0; j < bar_groups[i].size(); j++) {
-      bounding_boxes->back().emplace_back();
-      BoundingBox& box = bounding_boxes->back().back();
+      int idx = 2 * j + i;
 
       int bar1, bar2, bar3;
       std::tie(bar1, bar2, bar3) = bar_groups[i][j];
 
       double min_x = 0, min_y = 0, max_x = 0, max_y = 0;
       if (bar1 == -1) {
-        box.resize(8, 0);
-        bb_centroids->back().emplace_back(-1, -1);
+        boxes(idx, 8) = -1;
+        boxes(idx, 9) = -1;
         continue;
       }
 
@@ -638,40 +641,38 @@ void Usaf1951Target::FindBoundingBoxes(
         }
       }
 
-      box.push_back(rot_inv(0, 0) * min_x2 + rot_inv(0, 1) * min_y2);
-      box.push_back(rot_inv(1, 0) * min_x2 + rot_inv(1, 1) * min_y2);
-      box.push_back(rot_inv(0, 0) * min_x2 + rot_inv(0, 1) * max_y2);
-      box.push_back(rot_inv(1, 0) * min_x2 + rot_inv(1, 1) * max_y2);
-      box.push_back(rot_inv(0, 0) * max_x2 + rot_inv(0, 1) * max_y2);
-      box.push_back(rot_inv(1, 0) * max_x2 + rot_inv(1, 1) * max_y2);
-      box.push_back(rot_inv(0, 0) * max_x2 + rot_inv(0, 1) * min_y2);
-      box.push_back(rot_inv(1, 0) * max_x2 + rot_inv(1, 1) * min_y2);
-
-      bb_centroids->back().emplace_back(
-          0.25 * (box[0] + box[2] + box[4] + box[6]),
-          0.25 * (box[1] + box[3] + box[5] + box[7]));
+      boxes(idx, 0) = rot_inv(0, 0) * min_x2 + rot_inv(0, 1) * min_y2;
+      boxes(idx, 1) = rot_inv(1, 0) * min_x2 + rot_inv(1, 1) * min_y2;
+      boxes(idx, 2) = rot_inv(0, 0) * min_x2 + rot_inv(0, 1) * max_y2;
+      boxes(idx, 3) = rot_inv(1, 0) * min_x2 + rot_inv(1, 1) * max_y2;
+      boxes(idx, 4) = rot_inv(0, 0) * max_x2 + rot_inv(0, 1) * max_y2;
+      boxes(idx, 5) = rot_inv(1, 0) * max_x2 + rot_inv(1, 1) * max_y2;
+      boxes(idx, 6) = rot_inv(0, 0) * max_x2 + rot_inv(0, 1) * min_y2;
+      boxes(idx, 7) = rot_inv(1, 0) * max_x2 + rot_inv(1, 1) * min_y2;
+      boxes(idx, 8) = 0.25 * (boxes(idx, 0) + boxes(idx, 2) + boxes(idx, 4) +
+                              boxes(idx, 6));
+      boxes(idx, 9) = 0.25 * (boxes(idx, 1) + boxes(idx, 3) + boxes(idx, 5) +
+                              boxes(idx, 7));
     }
   }
 }
 
 
-void Usaf1951Target::CompletePartialPairs(
-    vector<vector<BoundingBox>>& bounding_boxes,
-    vector<vector<Vector2d>>& bb_centroids) const {
+void Usaf1951Target::CompletePartialPairs(Mat_<double>& bounding_boxes) const {
   // Fill in the offsets between the complete pairs. Keep track of the mean
   // vector (make sure it has a +x, so they don't all cancel out).
   vector<pair<int, double>> distances;
   double mean_dx = 0, mean_dy = 0;
-  for (size_t i = 0; i < bb_centroids[0].size(); i++) {
-    if (get<0>(bb_centroids[0][i]) == -1 || get<0>(bb_centroids[1][i]) == -1) {
+  for (int i = 0; i < bounding_boxes.rows; i += 2) {
+    if (bounding_boxes(i, 8) == -1 || bounding_boxes(i+1, 8) == -1) {
       continue;
     }
 
-    double dx = get<0>(bb_centroids[0][i]) - get<0>(bb_centroids[1][i]);
-    double dy = get<1>(bb_centroids[0][i]) - get<1>(bb_centroids[1][i]);
+    double dx = bounding_boxes(i, 8) - bounding_boxes(i+1, 8);
+    double dy = bounding_boxes(i, 9) - bounding_boxes(i+1, 9);
 
     double dist = sqrt(dx * dx + dy * dy);
-    distances.emplace_back(i, dist);
+    distances.emplace_back(i/2, dist);
 
     if (dx < 0) {
       dx *= -1; dy *= -1;
@@ -707,12 +708,12 @@ void Usaf1951Target::CompletePartialPairs(
   vector<int> offset_orient{-1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1};
   vector<double> dot_products;
   for (size_t i = 0; i < offset_orient.size(); i++) {
-    if (get<0>(bb_centroids[0][i]) == -1 || get<0>(bb_centroids[1][i]) == -1) {
+    if (bounding_boxes(2*i, 8) == -1 || bounding_boxes(2*i+1, 8) == -1) {
       dot_products.push_back(0);
     } else {
       dot_products.push_back(
-          mean_dx * (get<0>(bb_centroids[1][i]) - get<0>(bb_centroids[0][i])) +
-          mean_dy * (get<0>(bb_centroids[1][i]) - get<0>(bb_centroids[0][i])));
+          mean_dx * (bounding_boxes(2*i+1, 8) - bounding_boxes(2*i, 8)) +
+          mean_dy * (bounding_boxes(2*i+1, 9) - bounding_boxes(2*i, 9)));
     }
   }
 
@@ -734,41 +735,37 @@ void Usaf1951Target::CompletePartialPairs(
 
   if (num_neg > 0) for (auto& tmp : offset_orient) tmp *= -1;
 
-  for (size_t i = 0; i < bb_centroids[0].size(); i++) {
-    double pred_dist = initial_value * pow(mean_ratio, i);
-    int dest = -1;
+  for (int i = 0; i < bounding_boxes.rows; i += 2) {
+    double pred_dist = initial_value * pow(mean_ratio, i / 2);
+    int dest = -1, src = -1;
 
-    if (get<0>(bb_centroids[0][i]) == -1 && get<0>(bb_centroids[1][i]) != -1) {
-      dest = 0;
-    } else if (get<0>(bb_centroids[0][i]) != -1 &&
-               get<0>(bb_centroids[1][i]) == -1) {
-      dest = 1;
+    if (bounding_boxes(i, 8) == -1 && bounding_boxes(i+1, 8) != -1) {
+      dest = i; src = i + 1;
+    } else if (bounding_boxes(i, 8) != -1 && bounding_boxes(i+1, 8) == -1) {
+      dest = i + 1; src = i;
     } else continue;
 
     int refl = dest == 0 ? -1 : 1;
-    double dx = refl * pred_dist * mean_dx * offset_orient[i % 12];
-    double dy = refl * pred_dist * mean_dy * offset_orient[i % 12];
+    double dx = refl * pred_dist * mean_dx *
+                offset_orient[(i/2) % kNumTriBarsPerLevel];
+    double dy = refl * pred_dist * mean_dy *
+                offset_orient[(i/2) % kNumTriBarsPerLevel];
 
-    get<0>(bb_centroids[dest][i]) = get<0>(bb_centroids[1-dest][i]) + dx;
-    get<1>(bb_centroids[dest][i]) = get<1>(bb_centroids[1-dest][i]) + dy;
-    for (size_t j = 0; j < bounding_boxes[1-dest][i].size(); j += 2) {
-      bounding_boxes[dest][i][j] = bounding_boxes[1-dest][i][j] + dx;
-      bounding_boxes[dest][i][j+1] = bounding_boxes[1-dest][i][j+1] + dy;
+    for (int j = 0; j < bounding_boxes.cols; j += 2) {
+      bounding_boxes(dest, j) = bounding_boxes(src, j) + dx;
+      bounding_boxes(dest, j+1) = bounding_boxes(src, j+1) + dy;
     }
   }
 }
 
 
 void Usaf1951Target::CompleteLowerLevel(
-    vector<vector<BoundingBox>>& bounding_boxes,
-    vector<vector<Vector2d>>& bb_centroids,
+    Mat_<double>& bounding_boxes,
     int level) const {
-  const int kGroupsPerLevel = 12;
+  const int kLowerStart = 2 * level * kNumTriBarsPerLevel;
+  const int kLowerEnd = 2 * (level + 1) * kNumTriBarsPerLevel;
 
-  const size_t kLowerStart = level * kGroupsPerLevel;
-  const size_t kLowerEnd = (level + 1) * kGroupsPerLevel;
-
-  if (kLowerEnd > bb_centroids[0].size()) {
+  if (kLowerEnd > bounding_boxes.rows) {
     cerr << "Error: the given level was beyond the number of present levels."
          << endl;
     return;
@@ -778,15 +775,11 @@ void Usaf1951Target::CompleteLowerLevel(
   // levels. We'll use the corners of bounding boxes that were found in both
   // levels. We need 3 to find the parameters.
   int num_correspondences = 0;
-  vector<vector<int>> correspondences;
-  for (const auto& centroids : bb_centroids) {
-    correspondences.emplace_back();
-    for (size_t i = kLowerStart; i < kLowerEnd; i++) {
-      if (get<0>(centroids[i]) != -1 &&
-          get<0>(centroids[i-kLowerStart]) != -1) {
-        num_correspondences += 4;
-        correspondences.back().emplace_back(i);
-      }
+  vector<int> correspondences;
+  for (int i = 0; i < 2 * kNumTriBarsPerLevel; i++) {
+    if (bounding_boxes(i, 8) != -1 && bounding_boxes(i+kLowerStart, 8) != -1) {
+      num_correspondences += 4;
+      correspondences.emplace_back(i);
     }
   }
 
@@ -806,57 +799,53 @@ void Usaf1951Target::CompleteLowerLevel(
   int current_row = 0;
   Mat_<double> obs_matrix(2 * num_correspondences, 3);
   Mat_<double> result_vector(2 * num_correspondences, 1);
-  for (size_t i = 0; i < correspondences.size(); i++) {
-    for (auto cor : correspondences[i]) {
-      for (int j = 0; j < 8; j++) {
-        obs_matrix(current_row, 0) = bounding_boxes[i][cor - kLowerStart][j];
-        obs_matrix(current_row, 1) = (j % 2) == 0 ? 1 : 0;
-        obs_matrix(current_row, 2) = 1 - obs_matrix(current_row, 1);
-        result_vector(current_row, 0) = bounding_boxes[i][cor][j];
-        current_row++;
-      }
+  for (auto cor : correspondences) {
+    for (int i = 0; i < 8; i++) {
+      obs_matrix(current_row, 0) = bounding_boxes(cor, i);
+      obs_matrix(current_row, 1) = (i % 2) == 0 ? 1 : 0;
+      obs_matrix(current_row, 2) = 1 - obs_matrix(current_row, 1);
+      result_vector(current_row, 0) = bounding_boxes(cor+kLowerStart, i);
+      current_row++;
     }
   }
 
   Mat_<double> params = (obs_matrix.t() * obs_matrix).inv() *
                         obs_matrix.t() * result_vector;
 
-  for (size_t i = 0; i < bounding_boxes.size(); i++) {
-    for (size_t j = kLowerStart; j < kLowerEnd; j++) {
-      if (get<0>(bb_centroids[i][j]) != -1) continue;
-      if (get<0>(bb_centroids[i][j-kLowerStart]) == -1) continue;
+  for (int i = kLowerStart; i < kLowerEnd; i++) {
+    if (bounding_boxes(i, 8) != -1) continue;
+    if (bounding_boxes(i-kLowerStart, 8) == -1) continue;
 
-      double centroid_x = 0;
-      double centroid_y = 0;
-      for (size_t k = 0; k < bounding_boxes[i][j].size(); k += 2) {
-        double pred_x = params(0) * bounding_boxes[i][j-kLowerStart][k] +
-                        params(1);
-        double pred_y = params(0) * bounding_boxes[i][j-kLowerStart][k+1] +
-                        params(2);
+    double centroid_x = 0;
+    double centroid_y = 0;
+    for (size_t k = 0; k < 8; k += 2) {
+      double pred_x = params(0) * bounding_boxes(i-kLowerStart, k) +
+                      params(1);
+      double pred_y = params(0) * bounding_boxes(i-kLowerStart, k+1) +
+                      params(2);
 
-        bounding_boxes[i][j][k] = pred_x;
-        bounding_boxes[i][j][k+1] = pred_y;
-        centroid_x += pred_x / (0.5 * bounding_boxes[i][j].size());
-        centroid_y += pred_y / (0.5 * bounding_boxes[i][j].size());
-      }
-      get<0>(bb_centroids[i][j]) = centroid_x;
-      get<1>(bb_centroids[i][j]) = centroid_y;
+      bounding_boxes(i, k) = pred_x;
+      bounding_boxes(i, k+1) = pred_y;
+      centroid_x += 0.25 * pred_x;
+      centroid_y += 0.25 * pred_y;
     }
+    bounding_boxes(i, 8) = centroid_x;
+    bounding_boxes(i, 9) = centroid_y;
   }
 }
 
 bool Usaf1951Target::IsHorizontalFirst(
-       const vector<vector<Vector2d>>& bb_centroids,
+       const Mat_<double>& bounding_boxes,
        const vector<Vector2d>& mean_vectors) const {
-  CHECK(bb_centroids.size() == 2 && bb_centroids[0].size() >= 12);
+  CHECK(bounding_boxes.rows >= 2 * kNumTriBarsPerLevel);
 
   // The key feature here is that horizontal bars are always on the outside of
   // the target. We'll confine the analysis to the first group. We'll find the
   // vector that goes in the x-direction on the target (between horizontal and
   // vertical groups) and find the tri-bar group that has the maximum total
   // absolute dot product with that vector.
-  double dx = get<0>(bb_centroids[0][0]) - get<0>(bb_centroids[1][0]);
-  double dy = get<1>(bb_centroids[0][0]) - get<1>(bb_centroids[1][0]);
+  double dx = bounding_boxes(0, 8) - bounding_boxes(1, 8);
+  double dy = bounding_boxes(0, 9) - bounding_boxes(1, 9);
 
   Vector2d target_orientation;
   if (abs(dx * get<0>(mean_vectors[0]) + dy * get<1>(mean_vectors[0])) >
@@ -868,21 +857,19 @@ bool Usaf1951Target::IsHorizontalFirst(
 
   double mean[2];
   mean[0] = 0; mean[1] = 0;
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < 12; j++) {
-      mean[0] += get<0>(bb_centroids[i][j]);
-      mean[1] += get<1>(bb_centroids[i][j]);
-    }
+  for (int i = 0; i < 2 * kNumTriBarsPerLevel; i++) {
+    mean[0] += bounding_boxes(i, 8);
+    mean[1] += bounding_boxes(i, 9);
   }
-  mean[0] /= 24; mean[1] /= 24;
+  mean[0] /= 2 * kNumTriBarsPerLevel; mean[1] /= 2 * kNumTriBarsPerLevel;
 
   double dots[2];
   for (int i = 0; i < 2; i++) {
     dots[i] = 0;
-    for (int j = 0; j < 12; j++) {
+    for (int j = 0; j < kNumTriBarsPerLevel; j++) {
       dots[i] += abs(
-        get<0>(target_orientation) * (get<0>(bb_centroids[i][j]) - mean[0]) +
-        get<1>(target_orientation) * (get<1>(bb_centroids[i][j]) - mean[1]));
+        get<0>(target_orientation) * (bounding_boxes(2*j + i, 8) - mean[0]) +
+        get<1>(target_orientation) * (bounding_boxes(2*j + 1, 9) - mean[1]));
     }
   }
 
@@ -893,10 +880,10 @@ bool Usaf1951Target::IsHorizontalFirst(
 void Usaf1951Target::GetProfileRegion(int bar_group,
                                       int orientation,
                                       BoundingBox* region) const {
-  CHECK(bounding_boxes_.size() > 0 && bar_group < bounding_boxes_[0].size(),
+  CHECK(bar_group < bounding_boxes_.rows / 2,
         "Error: must call RecognizeTarget() before getting profiles.");
 
-  const BoundingBox& box = bounding_boxes_[orientation][bar_group];
+  Mat_<double> box = bounding_boxes_.row(2 * bar_group + orientation);
   double profile_dir_x = get<0>(mean_vectors_[1-orientation]);
   double profile_dir_y = get<1>(mean_vectors_[1-orientation]);
   double profile_orth_dir_x = -profile_dir_y;
@@ -905,11 +892,11 @@ void Usaf1951Target::GetProfileRegion(int bar_group,
   double side_length = 0;
   double centroid_x = 0, centroid_y = 0;
   for (int i = 0; i < 8; i += 2) {
-    double dx = box[i] - box[(i+2) % 8],
-           dy = box[i+1] - box[(i+3) % 8];
+    double dx = box(i) - box((i+2) % 8),
+           dy = box(i+1) - box((i+3) % 8);
     side_length += 0.25 * sqrt(dx*dx + dy*dy);
-    centroid_x += 0.25 * box[i];
-    centroid_y += 0.25 * box[i+1];
+    centroid_x += 0.25 * box(i);
+    centroid_y += 0.25 * box(i+1);
   }
 
   double profile_length = side_length * 7. / 5.;

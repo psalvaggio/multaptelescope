@@ -19,6 +19,8 @@ class Usaf1951Target {
     VERTICAL = 1
   };
 
+  static const int kNumTriBarsPerLevel = 12;
+
   void GetProfile(int bar_group,
                   int orientation,
                   std::vector<std::pair<double, double>>* profile);
@@ -152,16 +154,14 @@ class Usaf1951Target {
   //  mean_vectors    The mean vectors of the two tri-bar orientations from
   //                  SplitHorizontalVerticalBars().
   //  bounding_boxes  Output: The bounding boxes for each detected tri-bar in
-  //                          bar_groups. Misses will be all 0's.
-  //  bb_centroids    Output: The centroids for each bounding box. Misses will
-  //                          be [-1, -1].
+  //                          bar_groups. Misses will be all have 0 for the
+  //                          conrers and (-1, -1) for the centroid.
   void FindBoundingBoxes(
       const std::vector<std::vector<TriBar>>& bar_groups,
       const cv::Mat_<int32_t>& cc_labels,
       const cv::Mat_<int32_t>& cc_stats,
       const std::vector<Vector2d>& mean_vectors,
-      std::vector<std::vector<BoundingBox>>* bounding_boxes,
-      std::vector<std::vector<Vector2d>>* bb_centroids) const;
+      cv::Mat_<double>* bounding_boxes) const;
 
   // Find the missing bounding box when only one of two tri-bars in a
   // horizontal/vertical pair was found.
@@ -169,11 +169,7 @@ class Usaf1951Target {
   // Arguments:
   //  bounding_boxes  Input/Output: Tri-bar bounding boxes. Will be updated with
   //                                inferred locations.
-  //  bb_centroids    Input/Output: Bounding box centroids. Will be updated with
-  //                                inferred centroids.
-  void CompletePartialPairs(
-      std::vector<std::vector<BoundingBox>>& bounding_boxes,
-      std::vector<std::vector<Vector2d>>& bb_centroids) const;
+  void CompletePartialPairs(cv::Mat_<double>& bounding_boxes) const;
 
   // Complete the lower levels of the USAF-1951 target by using the bar spacing
   // information from the top level. As such, the upper and lower level need to
@@ -182,20 +178,17 @@ class Usaf1951Target {
   // Arguments:
   //  bounding_boxes  Input/Output: Tri-bar bounding boxes (no partial pairs).
   //                                Will be updated with inferred locations.
-  //  bb_centroids    Input/Output: The centroids of the bounding boxes. Will
-  //                                be updated with inferred locations.
   //  level           The level to be completed
-  void CompleteLowerLevel(std::vector<std::vector<BoundingBox>>& bounding_boxes,
-                          std::vector<std::vector<Vector2d>>& bb_centroids,
-                          int level) const;
+  void CompleteLowerLevel(cv::Mat_<double>& bounding_boxes, int level) const;
 
   // Determine whether the horizontal bars are the first group in bb_centroids
   // and the corresponding array. If not, everything should be swapped.
   //
   // Arguments:
-  //  bb_cenrtoids  The centroids of the bounding boxes.
+  //  bounding_boxes  Tri-bar bounding boxes (complete)
+  //  mean_vectors    The orientation vectors of the target.
   bool IsHorizontalFirst(
-       const std::vector<std::vector<Vector2d>>& bb_centroids,
+       const cv::Mat_<double>& bounding_boxes,
        const std::vector<Vector2d>& mean_vectors) const;
 
   // Get the region in which to measure a profile.
@@ -219,7 +212,7 @@ class Usaf1951Target {
  private:
   cv::Mat image_;
   int num_levels_;
-  std::vector<std::vector<BoundingBox>> bounding_boxes_;
+  cv::Mat_<double> bounding_boxes_;
   std::vector<Vector2d> mean_vectors_;
 };
 
