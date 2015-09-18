@@ -85,19 +85,29 @@ bool Usaf1951Target::RecognizeTarget() {
         });
   }
 
+  // Detect the missed tri-bar groups. This modifies bar_groups with blanks in
+  // the place of the missed groups.
   DetectMisses(bar_groups, cc_stats);
 
+  // Find the bounding boxes around each of the tri-bar groups. These bounding
+  // boxes are not axis-aligned, but oriented with the pattern.
   bounding_boxes_.clear();
   vector<vector<Vector2d>> bb_centroids;
   FindBoundingBoxes(bar_groups, cc_labels, cc_stats, mean_vectors_,
                     &bounding_boxes_, &bb_centroids);
 
+  // Infer the locations of the tri-bar groups where the horizontal or the
+  // vertical group was found, but not both.
   CompletePartialPairs(bounding_boxes_, bb_centroids);
 
+  // Infer the location of missing tri-bars in lower levels by using the
+  // locations in the biggest level.
   for (int i = 1; i < num_levels_; i++) {
     CompleteLowerLevel(bounding_boxes_, bb_centroids, i);
   }
 
+  // Make sure the horiontal tri-bars are first in bounding_boxes_ and
+  // mean_vectors_.
   if (!IsHorizontalFirst(bb_centroids, mean_vectors_)) {
     swap(bounding_boxes_[0], bounding_boxes_[1]);
     swap(mean_vectors_[0], mean_vectors_[1]);
