@@ -123,10 +123,19 @@ bool Usaf1951Target::RecognizeTarget() {
 }
 
 
+bool Usaf1951Target::FoundBarGroup(int bar_group) const {
+  return bounding_boxes_(bar_group, 8) != -1;
+}
+
+
 void Usaf1951Target::GetProfile(int bar_group,
                                 int orientation,
-                                vector<pair<double, double>>* profile) {
+                                vector<pair<double, double>>* profile) const {
+  CHECK(profile);
   CHECK(orientation == HORIZONTAL || orientation == VERTICAL);
+  CHECK(FoundBarGroup(bar_group));
+
+  profile->clear();
 
   BoundingBox box;
   GetProfileRegion(bar_group, orientation, &box);
@@ -524,7 +533,7 @@ void Usaf1951Target::DetectMisses(vector<vector<TriBar>>& bar_groups,
   area_ratio_spread = max(area_ratio_spread, 0.05);
 
 
-  const size_t kExpectedTriBars = num_levels_ * kNumTriBarsPerLevel;
+  const size_t kExpectedTriBars = num_levels_ * kTriBarPairsPerLevel;
   while (bar_groups[0].size() < kExpectedTriBars ||
          bar_groups[1].size() < kExpectedTriBars) {
     vector<double> first_areas;
@@ -590,7 +599,7 @@ void Usaf1951Target::FindBoundingBoxes(
     Mat_<double>* bounding_boxes) const {
 
   Mat_<double>& boxes = *bounding_boxes;
-  boxes.create(2 * num_levels_ * kNumTriBarsPerLevel, 10);
+  boxes.create(num_levels_ * kTriBarsPerLevel, 10);
   boxes = 0;
 
   Matx<double, 2, 2> rot(get<0>(mean_vectors[0]), get<1>(mean_vectors[0]),
@@ -747,9 +756,9 @@ void Usaf1951Target::CompletePartialPairs(Mat_<double>& bounding_boxes) const {
 
     int refl = dest == 0 ? -1 : 1;
     double dx = refl * pred_dist * mean_dx *
-                offset_orient[(i/2) % kNumTriBarsPerLevel];
+                offset_orient[(i/2) % kTriBarPairsPerLevel];
     double dy = refl * pred_dist * mean_dy *
-                offset_orient[(i/2) % kNumTriBarsPerLevel];
+                offset_orient[(i/2) % kTriBarPairsPerLevel];
 
     for (int j = 0; j < bounding_boxes.cols; j += 2) {
       bounding_boxes(dest, j) = bounding_boxes(src, j) + dx;
@@ -762,8 +771,8 @@ void Usaf1951Target::CompletePartialPairs(Mat_<double>& bounding_boxes) const {
 void Usaf1951Target::CompleteLowerLevel(
     Mat_<double>& bounding_boxes,
     int level) const {
-  const int kLowerStart = 2 * level * kNumTriBarsPerLevel;
-  const int kLowerEnd = 2 * (level + 1) * kNumTriBarsPerLevel;
+  const int kLowerStart = level * kTriBarsPerLevel;
+  const int kLowerEnd = (level + 1) * kTriBarsPerLevel;
 
   if (kLowerEnd > bounding_boxes.rows) {
     cerr << "Error: the given level was beyond the number of present levels."
@@ -776,7 +785,7 @@ void Usaf1951Target::CompleteLowerLevel(
   // levels. We need 3 to find the parameters.
   int num_correspondences = 0;
   vector<int> correspondences;
-  for (int i = 0; i < 2 * kNumTriBarsPerLevel; i++) {
+  for (int i = 0; i < kTriBarsPerLevel; i++) {
     if (bounding_boxes(i, 8) != -1 && bounding_boxes(i+kLowerStart, 8) != -1) {
       num_correspondences += 4;
       correspondences.emplace_back(i);
@@ -837,7 +846,7 @@ void Usaf1951Target::CompleteLowerLevel(
 bool Usaf1951Target::IsHorizontalFirst(
        const Mat_<double>& bounding_boxes,
        const vector<Vector2d>& mean_vectors) const {
-  CHECK(bounding_boxes.rows >= 2 * kNumTriBarsPerLevel);
+  CHECK(bounding_boxes.rows >= kTriBarsPerLevel);
 
   // The key feature here is that horizontal bars are always on the outside of
   // the target. We'll confine the analysis to the first group. We'll find the
@@ -857,16 +866,16 @@ bool Usaf1951Target::IsHorizontalFirst(
 
   double mean[2];
   mean[0] = 0; mean[1] = 0;
-  for (int i = 0; i < 2 * kNumTriBarsPerLevel; i++) {
+  for (int i = 0; i < kTriBarsPerLevel; i++) {
     mean[0] += bounding_boxes(i, 8);
     mean[1] += bounding_boxes(i, 9);
   }
-  mean[0] /= 2 * kNumTriBarsPerLevel; mean[1] /= 2 * kNumTriBarsPerLevel;
+  mean[0] /= kTriBarsPerLevel; mean[1] /= kTriBarsPerLevel;
 
   double dots[2];
   for (int i = 0; i < 2; i++) {
     dots[i] = 0;
-    for (int j = 0; j < kNumTriBarsPerLevel; j++) {
+    for (int j = 0; j < kTriBarPairsPerLevel; j++) {
       dots[i] += abs(
         get<0>(target_orientation) * (bounding_boxes(2*j + i, 8) - mean[0]) +
         get<1>(target_orientation) * (bounding_boxes(2*j + 1, 9) - mean[1]));

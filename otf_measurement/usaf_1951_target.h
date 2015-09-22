@@ -10,23 +10,61 @@
 
 class Usaf1951Target {
  public:
-  Usaf1951Target(const cv::Mat& image, int num_levels);
-
-  bool RecognizeTarget();
-
+  // Constants for the orientation in GetProfile().
   enum Orientation {
     HORIZONTAL = 0,
     VERTICAL = 1
   };
 
-  static const int kNumTriBarsPerLevel = 12;
+  // Standed number of tri bars in a level of the target.
+  static const int kTriBarsPerLevel = 24;
+  static const int kTriBarPairsPerLevel = 12;
 
+ public:
+  // Constructor
+  //
+  // Arguments:
+  //  image       An image of a USAF-1951 target. This can have a bit of
+  //              background in it, but should be clipped as close as possible.
+  //  num_levels  The number of target levels that are nested within each other.
+  Usaf1951Target(const cv::Mat& image, int num_levels);
+
+  // Returns the number of expected bar groups.
+  int num_bar_groups() const { return num_levels_ * kTriBarPairsPerLevel; }
+
+  // Perform recognition on the target so that profiles of the tri-bars may be
+  // taken.
+  //
+  // Returns:
+  //  Whether recognition wa successful.
+  bool RecognizeTarget();
+
+  // Returns whether or not a given bar group was found.
+  //
+  // Arguments:
+  //  bar_group  The tri-bar group of interest. Groups are sorted in decreasing
+  //             order of size and there are kTriBarsPairsPerLevel groups per
+  //             level of the target.
+  bool FoundBarGroup(int bar_group) const;
+
+  // Get a 1-dimenstional profile over a given tri-bar target, potentially at
+  // sub-pixel resolution.
+  //
+  // Arguments:
+  //  bar_group   The tri-bar group of interest. Groups are sorted in decreasing
+  //              order of size and there are kTriBarsPairsPerLevel groups per
+  //              level of the target.
+  //  orientation HORIZONTAL or VERTICAL
+  //  profile     Output: The profile over the requested tri-bar.
   void GetProfile(int bar_group,
                   int orientation,
-                  std::vector<std::pair<double, double>>* profile);
+                  std::vector<std::pair<double, double>>* profile) const;
 
+  // Get a visualization of the target with the bounding boxes overlaid.
   cv::Mat VisualizeBoundingBoxes() const;
 
+  // Get a visualization of the target with the ROIs marked that will be used
+  // for taking profiles.
   cv::Mat VisualizeProfileRegions() const;
 
  private:
@@ -210,9 +248,19 @@ class Usaf1951Target {
   bool PointInQuad(double x, double y, const BoundingBox& quad) const;
 
  private:
+  // The image of the target.
   cv::Mat image_;
+
+  // The number of levels of the target are nested within each other.
   int num_levels_;
+
+  // The bounding boxes of each tri-bar target. Even rows are horizontal
+  // tri-bars and odd rows are verticals. Elements 0-7 are the (x, y)
+  // coordinates of the box corners and elements 8 and 9 are the (x, y) of the
+  // box's centroid.
   cv::Mat_<double> bounding_boxes_;
+
+  // The mean vectors for horizontal and vertical tri-bar orientations.
   std::vector<Vector2d> mean_vectors_;
 };
 
