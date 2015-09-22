@@ -37,6 +37,12 @@ class Detector {
   double pixel_pitch() const { return det_params_.pixel_pitch(); }
   double detector_area() const { return pixel_pitch() * pixel_pitch(); }
 
+  // Get the gain of the detector [electrons / dig count]
+  double gain() const;
+
+  // Get the full well capacity of the detector [electrons]
+  double full_well_capacity() const;
+
   // Get the quantum efficiency of the detector at the requested wavelengths.
   //
   // Arguments:

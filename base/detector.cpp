@@ -46,6 +46,14 @@ Detector::Detector(const DetectorParameters& det_params,
   }
 }
 
+double Detector::gain() const {
+  return det_params_.electrons_per_adu();
+}
+
+double Detector::full_well_capacity() const {
+  return det_params_.full_well_capacity();
+}
+
 void Detector::GetQESpectrum(const vector<double>& wavelengths,
                              int band_index,
                              vector<double>* qe) const {
