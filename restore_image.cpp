@@ -22,6 +22,8 @@ DEFINE_double(smoothness, 1e-2, "Smoothness for the inverse filter.");
 DEFINE_int32(band, 0, "Band index for a multi-band system.");
 DEFINE_int32(simulation_id, -1, "Simulation ID in config_file "
                                 "(defaults to first).");
+DEFINE_string(output, "restored.png", "Filename for the output.");
+DEFINE_string(output_inv_filter, "", "Optional output for the inverse filter");
 
 int main(int argc, char** argv) {
   google::SetUsageMessage("Restores an image that has been degraded with a "
@@ -105,19 +107,22 @@ int main(int argc, char** argv) {
   cls.Deconvolve(image, otf, FLAGS_smoothness, &restored);
 
   // Write out the invese filters.
-  Mat inv_filter;
-  cls.GetInverseFilter(otf, FLAGS_smoothness, &inv_filter);
-  imwrite("inv_filter.png", ColorScale(GammaScale(FFTShift(
-      magnitude(inv_filter)), 1/2.2), COLORMAP_JET));
+  if (!FLAGS_output_inv_filter.empty()) {
+    Mat inv_filter;
+    cls.GetInverseFilter(otf, FLAGS_smoothness, &inv_filter);
+    imwrite(mats::ResolvePath(FLAGS_output_inv_filter),
+            ColorScale(GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2),
+                       COLORMAP_JET));
+  }
 
   // Inverse filtering tends to produce a lot of artifacts around the edges of
   // the image, so write out the center.
-  Range row_range(restored.rows / 4., 3 * restored.rows / 4.),
-        col_range(restored.cols / 4., 3 * restored.cols / 4.);
+  Range row_range(restored.rows / 8., 7 * restored.rows / 8.),
+        col_range(restored.cols / 8., 7 * restored.cols / 8.);
   Mat roi = restored(row_range, col_range);
   Mat output = roi * 255;
   output.convertTo(output, CV_8U);
-  imwrite("restored.png", output);
+  imwrite(mats::ResolvePath(FLAGS_output), output);
 
   return 0;
 }
