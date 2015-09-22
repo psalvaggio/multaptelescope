@@ -130,9 +130,9 @@ void Telescope::Image(const vector<Mat>& radiance,
   }
 
   vector<Mat> electrons;
-  //detector_->ResponseElectrons(blurred_irradiance, wavelength, &electrons);
-  //detector_->Quantize(electrons, image);
-  detector_->ResponseElectrons(blurred_irradiance, wavelength, image);
+  detector_->ResponseElectrons(blurred_irradiance, wavelength, &electrons);
+  detector_->Quantize(electrons, image);
+  //detector_->ResponseElectrons(blurred_irradiance, wavelength, image);
 }
 
 void Telescope::DegradeImage(const Mat& radiance,
