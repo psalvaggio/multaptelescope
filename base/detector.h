@@ -36,6 +36,7 @@ class Detector {
 
   double pixel_pitch() const { return det_params_.pixel_pitch(); }
   double detector_area() const { return pixel_pitch() * pixel_pitch(); }
+  int bit_depth() const { return det_params_.a_d_bit_depth(); }
 
   // Get the gain of the detector [electrons / dig count]
   double gain() const;
@@ -52,6 +53,16 @@ class Detector {
   void GetQESpectrum(const std::vector<double>& wavelengths,
                      int band_index,
                      std::vector<double>* qe) const;
+
+  // Get the effective quantum efficiency over a bandpass.
+  //
+  // Arguments:
+  //  wavelength          The wavelengths of the bandpass [m]
+  //  spectral_weighting  The spectral weighting function over the bandpass
+  //  band_index          The index of the band of interest
+  double GetEffectiveQE(const std::vector<double>& wavelengths,
+                        const std::vector<double>& spectral_weighting,
+                        int band_index) const;
 
   // Convert the radiance field reaching the system into electrons on the 
   // detector.

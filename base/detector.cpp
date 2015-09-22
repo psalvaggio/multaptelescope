@@ -10,6 +10,8 @@
 #include "io/logging.h"
 
 #include <iostream>
+#include <numeric>
+
 #include <fftw3.h>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -17,10 +19,6 @@ using namespace std;
 using cv::Mat;
 
 namespace mats {
-
-bool sort_qe_sample(const Detector::QESample& a, const Detector::QESample& b) {
-  return a.wavelength < b.wavelength;
-}
 
 Detector::Detector(const DetectorParameters& det_params,
                    const SimulationConfig& sim_params,
@@ -42,7 +40,10 @@ Detector::Detector(const DetectorParameters& det_params,
       qe_spectrums_[i][j].qe = band.quantum_efficiency(j);
     }
 
-    sort(qe_spectrums_[i].begin(), qe_spectrums_[i].end(), sort_qe_sample);
+    sort(qe_spectrums_[i].begin(), qe_spectrums_[i].end(),
+         [] (const QESample& a, const QESample& b) {
+           return a.wavelength < b.wavelength;
+         });
   }
 }
 
@@ -87,6 +88,22 @@ void Detector::GetQESpectrum(const vector<double>& wavelengths,
       qe->push_back(qe_spectrum[j-1].qe);
     }
   }
+}
+
+double Detector::GetEffectiveQE(const vector<double>& wavelengths,
+                                const vector<double>& spectral_weighting,
+                                int band_index) const {
+  vector<double> qe;
+  GetQESpectrum(wavelengths, band_index, &qe);
+
+  double eff_qe = 0;
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    eff_qe += spectral_weighting[i] * qe[i];
+  }
+  double total_weight = 
+      accumulate(begin(spectral_weighting), end(spectral_weighting), 0.);
+
+  return eff_qe / total_weight;
 }
 
 // The governing equation for the response of a pixel in electrons is
