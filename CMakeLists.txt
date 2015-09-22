@@ -167,6 +167,7 @@ set(EXES aberrated_otf
          genetic_optimization
          image_binary_target
          mats_main
+         mtf_plot
          mtf_statistics
          restore_image
          slant_edge
@@ -176,6 +177,7 @@ set(EXES aberrated_otf
          #get_rer_values
          #inverse_filter
          #perform_rer_comparison
+         #analyze_usaf_1951
          #slant_edge_esf
          )
 
