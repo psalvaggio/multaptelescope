@@ -161,6 +161,7 @@ list(APPEND MATS_LINK_LIBS ${LIB_NAME})
 set(EXES aberrated_otf
          acquire_images
          align_measured_profiles
+         analyze_usaf_1951
          center_mask
          create_spectral_weighting
          display_aperture
@@ -177,7 +178,6 @@ set(EXES aberrated_otf
          #get_rer_values
          #inverse_filter
          #perform_rer_comparison
-         #analyze_usaf_1951
          #slant_edge_esf
          )
 
