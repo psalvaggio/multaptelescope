@@ -5,6 +5,7 @@
 #include "mats.h"
 
 #include <gflags/gflags.h>
+#include <boost/filesystem.hpp>
 
 using namespace std;
 using namespace cv;
@@ -13,6 +14,7 @@ using namespace mats;
 DEFINE_string(image, "", "Image filename");
 DEFINE_int32(levels, 2, "Number of nested USAF targets.");
 DEFINE_string(output_dir, ".", "Directory into which to store the output.");
+DEFINE_bool(whole_image, false, "If specified, will not ask for an ROI.");
 
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -26,17 +28,23 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    vector<uint16_t> roi = GetRoi(image_full);
-    image_full(Range(roi[1], roi[1] + roi[3]),
-               Range(roi[0], roi[0] + roi[2])).copyTo(image);
+    if (FLAGS_whole_image) {
+      image_full.copyTo(image);
+    } else {
+      vector<uint16_t> roi = GetRoi(image_full);
+      image_full(Range(roi[1], roi[1] + roi[3]),
+                 Range(roi[0], roi[0] + roi[2])).copyTo(image);
+    }
   }
 
   // Validate the output directory
   string dir = ResolvePath(FLAGS_output_dir);
   if (!is_dir(dir)) {
-    cerr << "Output directory " << dir << " does not exist or is not a "
-         << "directory." << endl;
-    return 1;
+    if (!boost::filesystem::create_directories(dir)) {
+      cerr << "Output directory " << dir << " could not be created." << endl;
+      return 1;
+    }
+    dir = AppendSlash(dir);
   }
 
   // Perform recognition
