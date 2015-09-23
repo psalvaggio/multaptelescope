@@ -878,7 +878,7 @@ bool Usaf1951Target::IsHorizontalFirst(
     for (int j = 0; j < kTriBarPairsPerLevel; j++) {
       dots[i] += abs(
         get<0>(target_orientation) * (bounding_boxes(2*j + i, 8) - mean[0]) +
-        get<1>(target_orientation) * (bounding_boxes(2*j + 1, 9) - mean[1]));
+        get<1>(target_orientation) * (bounding_boxes(2*j + i, 9) - mean[1]));
     }
   }
 
