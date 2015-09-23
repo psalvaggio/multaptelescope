@@ -572,7 +572,7 @@ void Usaf1951Target::DetectMisses(vector<vector<TriBar>>& bar_groups,
       for (size_t j = 1; j < bar_groups[i].size(); j++) {
         double z_score = abs(area_ratios[i][j-1] - area_ratio_exp) /
                          area_ratio_spread;
-        if (z_score > 2) {
+        if (z_score > 1.5) {
           bar_groups[i].emplace(begin(bar_groups[i]) + j, -1, -1, -1);
           area_ratios[i].emplace(begin(area_ratios[i]) + j - 1, area_ratio_exp);
           area_ratios[i][j] /= area_ratio_exp;
@@ -754,7 +754,7 @@ void Usaf1951Target::CompletePartialPairs(Mat_<double>& bounding_boxes) const {
       dest = i + 1; src = i;
     } else continue;
 
-    int refl = dest == 0 ? -1 : 1;
+    int refl = dest == i ? -1 : 1;
     double dx = refl * pred_dist * mean_dx *
                 offset_orient[(i/2) % kTriBarPairsPerLevel];
     double dy = refl * pred_dist * mean_dy *
