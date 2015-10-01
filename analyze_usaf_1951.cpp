@@ -52,6 +52,11 @@ int main(int argc, char** argv) {
   if (!tribar.RecognizeTarget()) return 1;
 
   // Output the profiles
+  Gnuplot gp;
+  gp << "set xlabel \"Pixel Location\"\n"
+     << "set ylabel \"Digital Count\"\n"
+     << "unset key\n"
+     << "set terminal postscript eps enhanced color\n";
   for (int i = 0; i < tribar.num_bar_groups(); i++) {
     if (!tribar.FoundBarGroup(i)) continue;
 
@@ -59,9 +64,12 @@ int main(int argc, char** argv) {
     string filename;
 
     tribar.GetProfile(i, Usaf1951Target::HORIZONTAL, &profile);
-    filename = StringPrintf("%sgroup_%02d_horizontal.txt", dir.c_str(), i);
+    filename = StringPrintf("%sgroup_%02d_horizontal", dir.c_str(), i);
 
-    ofstream horiz_ofs(filename);
+    gp << "set output \"" << filename << ".eps\"\n"
+       << "plot" << gp.file1d(profile) << "w l\n" << endl;
+
+    ofstream horiz_ofs(filename + ".txt");
     if (!horiz_ofs.is_open()) continue;
 
     for (size_t j = 0; j < profile.size(); j++) {
@@ -69,9 +77,12 @@ int main(int argc, char** argv) {
     }
 
     tribar.GetProfile(i, Usaf1951Target::VERTICAL, &profile);
-    filename = StringPrintf("%s/group_%02d_vertical.txt", dir.c_str(), i);
+    filename = StringPrintf("%s/group_%02d_vertical", dir.c_str(), i);
 
-    ofstream vert_ofs(filename);
+    gp << "set output \"" << filename << ".eps\"\n"
+       << "plot" << gp.file1d(profile) << "w l\n" << endl;
+
+    ofstream vert_ofs(filename + ".txt");
     if (!vert_ofs.is_open()) continue;
 
     for (size_t j = 0; j < profile.size(); j++) {
