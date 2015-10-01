@@ -168,6 +168,11 @@ void Usaf1951Target::GetProfile(int bar_group,
     endpoint2_y = 0.5 * (box[5] + box[7]);
   }
 
+  // Make sure the profile is going in the positive-y direction
+  if (prof_y < 0) {
+    prof_x *= -1; prof_y *= -1;
+  }
+
   // Determine the start and end of the profile
   double prof_start_x, prof_start_y, prof_end_x, prof_end_y;
   double dot1 = endpoint1_x * prof_x + endpoint1_y * prof_y,
@@ -489,6 +494,9 @@ void Usaf1951Target::AnalyzeAreaRatios(const vector<vector<TriBar>>& bar_groups,
                                        vector<vector<double>>* area_ratios,
                                        double* median_ratio,
                                        double* ratio_spread) const {
+  CHECK(bar_groups.size() >= 2, "The two orientations of bars have not been "
+                                "detected.");
+
   vector<double> area_ratio_mdn_vec;
   *ratio_spread = 0;
   double ratio_mean = 0;
@@ -508,13 +516,15 @@ void Usaf1951Target::AnalyzeAreaRatios(const vector<vector<TriBar>>& bar_groups,
     }
   }
 
+  CHECK(!area_ratio_mdn_vec.empty(), "No area ratios could be computed.");
+
   // Calculate the standard deviation
   *ratio_spread = sqrt(*ratio_spread / ratio_count -
                        pow(ratio_mean / ratio_count, 2));
 
   // Find the median ratio
   size_t median_n = area_ratio_mdn_vec.size() / 2;
-  nth_element(area_ratio_mdn_vec.begin(), area_ratio_mdn_vec.begin() + median_n,
+  nth_element(begin(area_ratio_mdn_vec), end(area_ratio_mdn_vec) + median_n,
               area_ratio_mdn_vec.end());
   *median_ratio = area_ratio_mdn_vec[median_n];
 }
@@ -528,11 +538,6 @@ void Usaf1951Target::DetectMisses(vector<vector<TriBar>>& bar_groups,
   AnalyzeAreaRatios(bar_groups, cc_stats,
                     &area_ratios, &area_ratio_exp, &area_ratio_spread);
   
-  // It's possible we found all of them (wouldn't that be nice!), so set a
-  // minimum value for the spread.
-  area_ratio_spread = max(area_ratio_spread, 0.05);
-
-
   const size_t kExpectedTriBars = num_levels_ * kTriBarPairsPerLevel;
   while (bar_groups[0].size() < kExpectedTriBars ||
          bar_groups[1].size() < kExpectedTriBars) {
@@ -565,14 +570,16 @@ void Usaf1951Target::DetectMisses(vector<vector<TriBar>>& bar_groups,
     } else break;
   }
 
+  double area_ratio_exp2 = area_ratio_exp * area_ratio_exp;
+
   bool found_miss = true;
   while (found_miss) {
     found_miss = false;
     for (size_t i = 0; i < bar_groups.size(); i++) {
       for (size_t j = 1; j < bar_groups[i].size(); j++) {
-        double z_score = abs(area_ratios[i][j-1] - area_ratio_exp) /
-                         area_ratio_spread;
-        if (z_score > 1.5) {
+        double exp_error = abs(area_ratios[i][j-1] - area_ratio_exp);
+        double exp_error2 = abs(area_ratios[i][j-1] - area_ratio_exp2);
+        if (exp_error2 < exp_error) {
           bar_groups[i].emplace(begin(bar_groups[i]) + j, -1, -1, -1);
           area_ratios[i].emplace(begin(area_ratios[i]) + j - 1, area_ratio_exp);
           area_ratios[i][j] /= area_ratio_exp;
