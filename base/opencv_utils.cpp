@@ -339,3 +339,11 @@ cv::Mat_<double> CreateEdgeTarget(int width,
 
   return image;
 }
+
+void rotate(const cv::Mat& src, double angle, cv::Mat& dst) {
+  int len = std::max(src.cols, src.rows);
+  cv::Point2f pt(0.5 * len, 0.5 * len);
+  cv::Mat r = cv::getRotationMatrix2D(pt, angle, 1.0);
+
+  cv::warpAffine(src, dst, r, cv::Size(len, len));
+}

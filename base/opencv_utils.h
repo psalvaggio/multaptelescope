@@ -99,4 +99,6 @@ cv::Mat_<double> CreateEdgeTarget(int width,
                                   double bright,
                                   double noise);
 
+void rotate(const cv::Mat& src, double angle, cv::Mat& dst);
+
 #endif  // OPENCV_UTILS_H
