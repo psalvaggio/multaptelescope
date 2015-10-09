@@ -22,6 +22,7 @@
 // Author: Philip Salvaggio
 
 #include "mats.h"
+#include "otf_measurement/mtf_interpolator.h"
 
 #include <csignal>
 #include <cstdlib>
@@ -45,6 +46,8 @@ DEFINE_double(local_limit, 1, "Maximum deviation for a single profile [deg]");
 DEFINE_double(local_resolution, 0.2, "Search resolution on orientation [deg]");
 DEFINE_int32(reflection, 6, "The degree of angular symmetry (periodicity) in "
                             "the MTF.");
+DEFINE_string(output_mtf_image, "", "Optional: Output an MTF comparison "
+                                    "image.");
 
 // Accessors for the angle of a profile.
 const double& Angle(const MtfProfile& profile) { return get<0>(profile); }
@@ -104,6 +107,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  mats_io::Logging::Init();
+
   // Validate input
   CHECK(FLAGS_global_resolution >= 0);
   CHECK(FLAGS_local_limit >= 0);
@@ -119,10 +124,10 @@ int main(int argc, char** argv) {
   Mat mtf_2d = GetTheoreticalMtf(mats::ResolvePath(argv[1]));
 
   // Run the global alignment
-  cout << "Running global alignment..." << endl;
+  mainLog() << "Running global alignment..." << endl;
   double global_offset = RunGlobalAlignment(mtf_2d, profiles);
-  cout << "Global Alignment Done (offset = " << global_offset << " [deg])"
-       << endl;
+  mainLog() << "Global Alignment Done (offset = " << global_offset << " [deg])"
+            << endl;
   
   Gnuplot gp;
   gp << "set xlabel \"Spatial Frequency [cyc / pixel]\"\n"
@@ -135,7 +140,7 @@ int main(int argc, char** argv) {
 
   // Run the local alignment
   double average_rms = 0;
-  for (const auto& profile : profiles) {
+  for (auto& profile : profiles) {
     // Scan over the local neighborhood to find the minimum RMS error
     double min_rms = 1e10, min_angle = 0;
     for (int i = -kSearchRadius; i <= kSearchRadius; i++) {
@@ -160,18 +165,45 @@ int main(int argc, char** argv) {
     }
     average_rms += min_rms;
 
+    double old_angle = Angle(profile) + global_offset;
+    Angle(profile) = AngleBound(min_angle);
+
     // Record the found orienation.
     ofstream ofs(mats::AppendSlash(Path(profile)) + "orientation.txt");
     ofs << min_angle;
 
     // Print out the results.
-    cout << "Orientation "
-         << mats::StringPrintf("%.1f", Angle(profile) + global_offset)
-         << " -> " << mats::StringPrintf("%.1f", min_angle) << " (RMS = "
-         << min_rms << ")" << endl;
+    mainLog() << "Orientation "
+              << mats::StringPrintf("%.1f", old_angle) << " -> "
+              << mats::StringPrintf("%.1f", min_angle) << " (RMS = "
+              << min_rms << ")" << endl;
   }
 
-  cout << "Average RMS = " << average_rms / profiles.size() << endl;
+  mainLog() << "Average RMS = " << average_rms / profiles.size() << endl;
+
+  if (FLAGS_output_mtf_image != "") {
+    sort(begin(profiles), end(profiles),
+         [] (const MtfProfile& a, const MtfProfile& b) {
+           return Angle(a) < Angle(b);
+         });
+    MtfInterpolator interp;
+    vector<MtfInterpolator::MTF> profile_data;
+    vector<double> angles;
+    Mat mtf_meas;
+    for (size_t i = 0; i < profiles.size(); i++) {
+      profile_data.push_back(Profile(profiles[i]));
+      angles.push_back(Angle(profiles[i]) * M_PI / 180);
+    }
+    interp.GetMtf(profile_data, angles, mtf_2d.rows, mtf_2d.cols,
+                  FLAGS_reflection, &mtf_meas);
+
+    Mat output_mtf(mtf_2d.rows, mtf_2d.cols * 2, CV_64F);
+    mtf_2d.copyTo(output_mtf(Range(0, mtf_2d.rows), Range(0, mtf_2d.cols)));
+    mtf_meas.copyTo(output_mtf(Range(0, mtf_2d.rows),
+                               Range(mtf_2d.cols, output_mtf.cols)));
+    imwrite(FLAGS_output_mtf_image, ColorScale(GammaScale(output_mtf, 1/2.2),
+                                               COLORMAP_JET));
+  }
 
   return 0;
 }
@@ -205,8 +237,8 @@ void ReadProfiles(const string& base_dir, vector<MtfProfile>* profiles) {
     // Get the orientation estimate from the directory name.
     double theta = AngleBound(atof(file.c_str()));
 
-    cout << "Detected profile in " << file << " (" << theta
-         << " [deg])" << endl;
+    mainLog() << "Detected profile in " << file << " (" << theta
+              << " [deg])" << endl;
 
     profiles->emplace_back(theta, vector<vector<double>>(), path);
 
