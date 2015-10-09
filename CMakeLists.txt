@@ -175,9 +175,7 @@ set(EXES aberrated_otf
          slant_edge
          #coma_simulation
          #compare_tribar_profiles
-         #get_rer_values
          #perform_rer_comparison
-         #plot_mtf_profile
          )
 
 foreach(EXECUTABLE ${EXES})
