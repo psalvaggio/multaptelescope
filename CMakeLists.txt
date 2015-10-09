@@ -170,15 +170,14 @@ set(EXES aberrated_otf
          mats_main
          mtf_plot
          mtf_statistics
+         real_time_sbig_preview
          restore_image
          slant_edge
-         #sbig_preview
-         #jagged_edge_test
-         #plot_mtf_profile
+         #coma_simulation
+         #compare_tribar_profiles
          #get_rer_values
-         #inverse_filter
          #perform_rer_comparison
-         #slant_edge_esf
+         #plot_mtf_profile
          )
 
 foreach(EXECUTABLE ${EXES})
