@@ -19,6 +19,7 @@
 #include "base/pupil_function.h"
 #include "base/simulation_config.pb.h"
 #include "base/str_utils.h"
+#include "base/subprocess.h"
 #include "base/telescope.h"
 #include "base/wait_queue.h"
 
