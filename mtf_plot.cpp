@@ -27,7 +27,7 @@ static Gnuplot gp;
 
 void Plot(const string& command);
 
-int main(int argc, char** argv) {
+int main() {
   // Determine whether input is redirected or from the keyboard
   bool from_keyboard = isatty(STDIN_FILENO);
 
@@ -121,6 +121,7 @@ void GetMtfProfile(const mats::SimulationConfig& sim_config,
   telescope.detector()->set_rows(512);
   telescope.detector()->set_cols(512);
   telescope.set_parallelism(false);
+  telescope.set_include_detector_footprint(true);
 
   // Compute the theoretical 2D OTF of the telescope.
   Mat theoretical_otf;
