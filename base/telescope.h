@@ -16,6 +16,7 @@ namespace mats {
 class Detector;
 class DetectorParameters;
 class SimulationConfig;
+class Simulation;
 class ApertureParameters;
 
 class Telescope {
@@ -46,9 +47,17 @@ class Telescope {
   Aperture* aperture() { return aperture_.get(); }
 
   const SimulationConfig& sim_params() const;
+  const Simulation& simulation() const;
 
   bool parallelism() const { return parallelism_; }
   void set_parallelism(bool use) { parallelism_ = use; }
+
+  bool include_detector_footprint() const {
+    return include_detector_footprint_;
+  }
+  void set_include_detector_footprint(bool include) {
+    include_detector_footprint_ = include;
+  }
 
   // Gets the effective Q (lambda * F# / p) of the system over a bandpass
   //
@@ -125,6 +134,7 @@ class Telescope {
  private:
   std::unique_ptr<Aperture> aperture_;
   std::unique_ptr<Detector> detector_;
+  bool include_detector_footprint_;
   bool parallelism_;
 };
 

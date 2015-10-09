@@ -30,12 +30,17 @@ Telescope::Telescope(const SimulationConfig& sim_config,
                      const DetectorParameters& det_params)
     : aperture_(ApertureFactory::Create(sim_config, sim_index)),
       detector_(new Detector(det_params, sim_config, sim_index)),
+      include_detector_footprint_(false),
       parallelism_(false) {}
 
 Telescope::~Telescope() {}
 
 const SimulationConfig& Telescope::sim_params() const {
   return detector_->sim_params();
+}
+
+const Simulation& Telescope::simulation() const {
+  return detector_->simulation();
 }
 
 // In this model, the user specifies the pixel pitch of the detector, the
@@ -132,7 +137,6 @@ void Telescope::Image(const vector<Mat>& radiance,
   vector<Mat> electrons;
   detector_->ResponseElectrons(blurred_irradiance, wavelength, &electrons);
   detector_->Quantize(electrons, image);
-  //detector_->ResponseElectrons(blurred_irradiance, wavelength, image);
 }
 
 void Telescope::DegradeImage(const Mat& radiance,
@@ -220,6 +224,9 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   SystemOtf wave_invar_sys_otf;
   wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0, kOtfSize, kOtfSize));
   wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0, kOtfSize, kOtfSize));
+  if (include_detector_footprint_) {
+    wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf(kOtfSize, kOtfSize));
+  }
   Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
   for (size_t i = 0; i < wavelengths.size(); i++) {
