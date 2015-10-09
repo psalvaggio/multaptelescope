@@ -6,6 +6,7 @@
 #include "base/aperture_parameters.pb.h"
 #include "base/opencv_utils.h"
 #include "base/simulation_config.pb.h"
+#include "base/zernike_aberrations.h"
 #include "io/logging.h"
 #include "optical_designs/cassegrain.h"
 #include "optical_designs/compound_aperture_parameters.pb.h"
@@ -56,26 +57,8 @@ Golay6::Golay6(const mats::SimulationConfig& params, int sim_index)
   mats::Simulation* sim = conf.add_simulation();
   sim->CopyFrom(params.simulation(sim_index));
 
-  // Add the top-level compound aperture. This is the AND of the cassegrain
-  // subapertures (compound) and a circular aperture containing the shared
-  // wavefront error.
-  ApertureParameters* compound_params = sim->mutable_aperture_params();
-  compound_params->set_type(ApertureParameters::COMPOUND);
-  CompoundApertureParameters* compound_ext = 
-      compound_params->MutableExtension(compound_aperture_params);
-  compound_ext->set_combine_operation(CompoundApertureParameters::AND_WFE_ADD);
-
-  // Add the circular aperture with the wavefront error.
-  ApertureParameters* circular_mask = compound_ext->add_aperture();
-  circular_mask->set_type(ApertureParameters::CIRCULAR);
-  circular_mask->set_encircled_diameter(encircled_diameter());
-  for (int i = 0; i < aperture_params().aberration_size(); i++) {
-    mats::ZernikeCoefficient* tmp_ab = circular_mask->add_aberration();
-    tmp_ab->CopyFrom(aperture_params().aberration(i));
-  }
-
   // Add the Cassegrain array.
-  ApertureParameters* cassegrain_array = compound_ext->add_aperture();
+  ApertureParameters* cassegrain_array = sim->mutable_aperture_params();
   cassegrain_array->set_type(ApertureParameters::COMPOUND);
   CompoundApertureParameters* cassegrain_array_ext =
       cassegrain_array->MutableExtension(compound_aperture_params);
@@ -118,8 +101,20 @@ void Golay6::GetApertureTemplate(Mat_<double>* output) const {
 
 void Golay6::GetOpticalPathLengthDiff(Mat_<double>* output) const {
   compound_aperture_->GetWavefrontError(output->rows).copyTo(*output);
+
+  Mat_<double> global(output->size());
+  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+  ab_factory.aberrations(aberrations(), output->rows, &global);
+
+  *output += global;
 }
 
 void Golay6::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
   compound_aperture_->GetWavefrontErrorEstimate(output->rows).copyTo(*output);
+
+  Mat_<double> global(output->size());
+  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+  ab_factory.aberrations(aberrations(), output->rows, &global);
+
+  *output += global;
 }
