@@ -14,6 +14,7 @@ set(MATS_SRCS ${MATS_SRCS}
     pupil_function.cpp
     statistics.cpp
     str_utils.cpp
+    subprocess.cpp
     system_otf.cpp
     telescope.cpp
     zernike_aberrations.cpp
@@ -35,6 +36,7 @@ set(MATS_HDRS ${MATS_HDRS}
     pupil_function.h
     statistics.h
     str_utils.h
+    subprocess.h
     system_otf.h
     telescope.h
     wait_queue.h
