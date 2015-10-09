@@ -73,12 +73,17 @@ std::string ResolvePath(const std::string& path) {
   return new_path;
 }
 
-std::string Basename(const std::string& path) {
+std::string Basename(const std::string& path,
+                     const std::string& extension) {
   size_t found = path.find_last_of("/\\");
+  std::string basename = path;
   if (found != std::string::npos) {
-    return path.substr(found + 1);
+    basename = path.substr(found + 1);
   }
-  return path;
+  if (extension.size() > 0 && ends_with(basename, extension)) {
+    basename = basename.substr(0, basename.size() - extension.size());
+  }
+  return basename;
 }
 
 }
