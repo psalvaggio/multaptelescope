@@ -28,8 +28,6 @@ class Triarm9 : public Aperture {
   void GetOpticalPathLengthDiffEstimate(
       cv::Mat_<double>* output) const override;
 
-  cv::Mat OpticalPathLengthDiffPtt(const std::vector<double>& ptt_vals) const;
-
  // Class constants
  private:
   const static int kNumArms = 3;
@@ -38,12 +36,7 @@ class Triarm9 : public Aperture {
  private:
   Triarm9Parameters triarm9_params_;
 
-  double diameter_;
-  double subap_diameter_;
-  double subap_secondary_diameter_;
-
-  std::vector<int> subaperture_offsets_;
-  mutable std::vector<double> ptt_vals_;
+  std::unique_ptr<Aperture> compound_aperture_;
 };
 REGISTER_APERTURE(Triarm9, TRIARM9)
 

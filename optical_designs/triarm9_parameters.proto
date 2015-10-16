@@ -7,6 +7,12 @@ message Triarm9Parameters {
   // The ratio of the spacing between subapertures on a given arm and the
   // diameter of the subapertures.
   optional double s_to_d_ratio = 2;
+
+  message ApertureAberrations {
+    optional int32 ap_index = 1;
+    repeated mats.ZernikeCoefficient aberration = 2;
+  };
+  repeated ApertureAberrations aperture_aberrations = 3;
 }
 
 extend mats.ApertureParameters {

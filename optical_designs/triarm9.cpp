@@ -5,8 +5,10 @@
 
 #include "base/aperture_parameters.pb.h"
 #include "base/simulation_config.pb.h"
+#include "base/zernike_aberrations.h"
 #include "io/logging.h"
 #include "optical_designs/cassegrain.h"
+#include "optical_designs/compound_aperture_parameters.pb.h"
 #include "optical_designs/triarm9_parameters.pb.h"
 
 #include <algorithm>
@@ -20,194 +22,124 @@ using mats::ApertureParameters;
 
 Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
     : Aperture(params, sim_index),
-      diameter_(aperture_params().encircled_diameter()),
-      subap_diameter_(),
-      subap_secondary_diameter_(),
-      subaperture_offsets_(),
-      ptt_vals_() {
+      triarm9_params_(),
+      compound_aperture_() {
+      //diameter_(aperture_params().encircled_diameter()),
+      //subap_diameter_(),
+      //subap_secondary_diameter_(),
+      //subaperture_offsets_(),
+      //ptt_vals_() {
   // Copy over the Triarm9-specific parameters.
   triarm9_params_ = this->aperture_params().GetExtension(triarm9_params);
-
-  const int kSize = params.array_size();
-  const int kHalfSize = kSize / 2;
 
   // The fill factor of the overall aperture and each of the individual
   // Cassegrain subapertures.
   double fill_factor = aperture_params().fill_factor();
   double subap_fill_factor = triarm9_params_.subaperture_fill_factor();
 
-  const double kTargetRadius = kHalfSize;  // [pixels]
-
   // Compute the enclosed area and the area of each subapertures [pixels^2]
-  double area_enclosed = M_PI * kTargetRadius * kTargetRadius;
+  double diameter = aperture_params().encircled_diameter();
+  double area_enclosed = M_PI * diameter * diameter / 4;
   double area_subap = area_enclosed * fill_factor / kNumApertures;
 
   // Solve for the radius of the subapertures [pixels]
-  subap_diameter_ = 2 * sqrt(area_subap / (subap_fill_factor * M_PI));
-  subap_secondary_diameter_ = subap_diameter_ * sqrt(1 - subap_fill_factor);
-  double subap_r = subap_diameter_ / 2;
-
-  // Initialize the random piston/tip/tilt coefficients.
-  const int kNumPttCoeffs = 3 * kNumApertures;
-  Mat ptt_mat(kNumPttCoeffs, 1, CV_64FC1);
-  randn(ptt_mat, 0, 1);
-  for (int i = 0; i < kNumPttCoeffs; i++) {
-    ptt_vals_.push_back(ptt_mat.at<double>(i));
-  }
+  double subap_r = sqrt(area_subap / (subap_fill_factor * M_PI));
+  double subap_diameter = 2 * subap_r;
 
   // Compute the angle of each of the arms of the Triarm9.
-  const double kInitialAngle = -M_PI / 6;
+  double initial_angle = -M_PI / 6;
+  if (aperture_params().has_rotation()) {
+    initial_angle += aperture_params().rotation();
+  }
   vector<double> arm_angles;
   for (int i = 0; i < kNumArms; i++) {
-    arm_angles.push_back(kInitialAngle + i * 2 * M_PI / kNumArms);
+    arm_angles.push_back(initial_angle + i * 2 * M_PI / kNumArms);
   }
 
   // Compute the center pixel for each of the subapertures. The s-to-d ratio
   // is a parameter that tells us what the center-to-center distance, s,
   // relative to the subaperture diameter, d.
+  const double kTargetRadius = 0.5 * diameter;
   int apertures_per_arm = kNumApertures / kNumArms;
-  double padding = (triarm9_params_.s_to_d_ratio() - 1) * subap_diameter_;
+  double padding = (triarm9_params_.s_to_d_ratio() - 1) * subap_diameter;
+  vector<double> subaperture_offsets;
   for (int arm = 0; arm < kNumArms; arm++) {
     for (int ap = 0; ap < apertures_per_arm; ap++) {
       double dist_from_center = (kTargetRadius - (2*ap + 1) * subap_r) -
                                 ap * padding;
-      int x = (int) (kHalfSize + dist_from_center * cos(arm_angles[arm]));
-      int y = (int) (kHalfSize + dist_from_center * sin(arm_angles[arm]));
-      subaperture_offsets_.push_back(x);
-      subaperture_offsets_.push_back(y);
+      double x = dist_from_center * cos(arm_angles[arm]);
+      double y = dist_from_center * sin(arm_angles[arm]);
+      subaperture_offsets.push_back(x);
+      subaperture_offsets.push_back(y);
     }
   }
+  
+  // Make a copy of our SimulationConfig to give to the subapertures.
+  mats::SimulationConfig conf;
+  conf.CopyFrom(params);
+  conf.clear_simulation();
+  mats::Simulation* sim = conf.add_simulation();
+  sim->CopyFrom(params.simulation(sim_index));  // Rotation smuggled in here
+
+  // Add the Cassegrain array.
+  ApertureParameters* cassegrain_array = sim->mutable_aperture_params();
+  cassegrain_array->clear_rotation();
+  cassegrain_array->set_type(ApertureParameters::COMPOUND);
+  CompoundApertureParameters* cassegrain_array_ext =
+      cassegrain_array->MutableExtension(compound_aperture_params);
+  cassegrain_array_ext->set_combine_operation(CompoundApertureParameters::OR);
+  for (size_t i = 0; i < subaperture_offsets.size(); i += 2) {
+    ApertureParameters* cassegrain = cassegrain_array_ext->add_aperture();
+    cassegrain->set_type(ApertureParameters::CASSEGRAIN);
+    cassegrain->set_encircled_diameter(subap_diameter);
+    cassegrain->set_fill_factor(subap_fill_factor);
+    cassegrain->set_offset_x(subaperture_offsets[i]);
+    cassegrain->set_offset_y(subaperture_offsets[i+1]);
+
+    int ab_index = -1;
+    for (int j = 0; j < triarm9_params_.aperture_aberrations_size(); j++) {
+      if ((i/2) == (size_t)triarm9_params_.aperture_aberrations(j).ap_index()) {
+        ab_index = j;
+        break;
+      }
+    }
+
+    if (ab_index != -1) {
+      const Triarm9Parameters::ApertureAberrations& ap_aberrations(
+          triarm9_params_.aperture_aberrations(ab_index));
+      for (int j = 0; j < ap_aberrations.aberration_size(); j++) {
+        mats::ZernikeCoefficient* tmp_aberration = cassegrain->add_aberration();
+        tmp_aberration->CopyFrom(ap_aberrations.aberration(j));
+      }
+    }
+  }
+
+  // Construct the aperture.
+  compound_aperture_.reset(ApertureFactory::Create(conf, 0));
 }
 
 Triarm9::~Triarm9() {}
 
 void Triarm9::GetApertureTemplate(Mat_<double>* output) const {
-  Mat_<double>& mask = *output;
-
-  const int kSize = mask.rows;
-
-  double subap_r2 = subap_diameter_ * subap_diameter_ / 4.0;
-  double subap_sec_r2 = subap_secondary_diameter_ * subap_secondary_diameter_
-                        / 4.0;
-
-  for (int y = 0; y < kSize; y++) {
-    for (int x = 0; x < kSize; x++) {
-      for (int ap = 0; ap < kNumApertures; ap++) {
-        double x_diff = x - subaperture_offsets_[2*ap];
-        double y_diff = y - subaperture_offsets_[2*ap + 1];
-        double dist2 = x_diff*x_diff + y_diff*y_diff;
-
-        if (dist2 < subap_r2 && dist2 >= subap_sec_r2) {
-          mask(y, x) += 1;
-        }
-      }
-    }
-  }
-
-  double max_val;
-  minMaxIdx(mask, NULL, &max_val);
-  if (max_val > 1) {
-    mainLog() << "Error: Triarm9 subapertures are overlapping!" << endl;
-  }
+  compound_aperture_->GetApertureMask(output->rows).copyTo(*output);
 }
 
 void Triarm9::GetOpticalPathLengthDiff(Mat_<double>* output) const {
-  *output = 0;
-  /*
-  const int kSize = output->rows;
+  compound_aperture_->GetWavefrontError(output->rows).copyTo(*output);
 
-  Mat opd = OpticalPathLengthDiffPtt(ptt_vals_);
-  double* opd_data = (double*) opd.data;
+  Mat_<double> global(output->size());
+  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+  ab_factory.aberrations(aberrations(), output->rows, &global);
 
-  int total_elements = 0;
-  double total_wfe_sq = 0;
-  for (int i = 0; i < kSize*kSize; i++) {
-    if (fabs(opd_data[i]) > 1e-13) {
-      total_elements++;
-      total_wfe_sq += opd_data[i] * opd_data[i];
-    }
-  }
-  //double rms_ptt_mul = simulation_params().ptt_opd_rms() / rms;
-  double rms_ptt_mul = 1;
-
-  for (int i = 0; i < 3 * kNumApertures; i++) {
-    ptt_vals_[i] *= rms_ptt_mul;
-  }
-
-  opd *= rms_ptt_mul;
-
-  return opd;
-  */
+  *output += global;
 }
 
 void Triarm9::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
-  *output = 0;
-  /*
-  if (simulation_params().wfe_knowledge() == Simulation::NONE) {
-    return Mat(params().array_size(), params().array_size(), CV_64FC1);
-  }
+  compound_aperture_->GetWavefrontErrorEstimate(output->rows).copyTo(*output);
 
-  double knowledge_level = 0;
-  switch (simulation_params().wfe_knowledge()) {
-    case Simulation::HIGH: knowledge_level = 0.05; break;
-    case Simulation::MEDIUM: knowledge_level = 0.1; break;
-    default: knowledge_level = 0.2; break;
-  }
+  Mat_<double> global(output->size());
+  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+  ab_factory.aberrations(aberrations(), output->rows, &global);
 
-  mainLog() << "Error in the estimates of piston/tip/tilt: "
-            << knowledge_level << " [waves]" << std::endl;
-
-  vector<double> ptt_est;
-  for (size_t i = 0; i < ptt_vals_.size(); i++) {
-    ptt_est.push_back(ptt_vals_[i] + (2 * (rand() % 2) - 1) * knowledge_level);
-  }
-
-  return OpticalPathLengthDiffPtt(ptt_est);
-  */
+  *output += global;
 }
-
-/*
-Mat Triarm9::OpticalPathLengthDiffPtt(const vector<double>& ptt_vals) const {
-  const int kSize = params().array_size();
-  const int kPttSize = ceil(subap_diameter_);
-  const int kPttHalfSize = kPttSize / 2;
-
-  Mat opd(kSize, kSize, CV_64FC1);
-  double* opd_data = (double*) opd.data;
-
-  vector<Mat> ptts;
-  for (int i = 0; i < kNumApertures; i++) {
-    ptts.push_back(GetPistonTipTilt(ptt_vals[3*i],
-                                    ptt_vals[3*i + 1],
-                                    ptt_vals[3*i + 2],
-                                    kPttSize,
-                                    kPttSize));
-  }
-
-  double subap_r2 = subap_diameter_ * subap_diameter_ / 4.0;
-  double subap_sec_r2 = subap_secondary_diameter_ * subap_secondary_diameter_
-                        / 4.0;
-
-  for (int y = 0; y < kSize; y++) {
-    for (int x = 0; x < kSize; x++) {
-      for (int ap = 0; ap < kNumApertures; ap++) {
-        int x_diff = x - subaperture_offsets_[2*ap];
-        int y_diff = y - subaperture_offsets_[2*ap + 1];
-        double dist2 = x_diff*x_diff + y_diff*y_diff;
-
-        if (dist2 < subap_r2 && dist2 >= subap_sec_r2) {
-          int ptt_x = std::min(kPttSize - 1,
-                          std::max(0, x_diff + kPttHalfSize));
-          int ptt_y = std::min(kPttSize - 1,
-                          std::max(0, y_diff + kPttHalfSize));
-
-
-          opd_data[y*kSize + x] = ptts[ap].at<double>(ptt_y, ptt_x);
-        }
-      }
-    }
-  }
-
-  return opd;
-}
-*/
