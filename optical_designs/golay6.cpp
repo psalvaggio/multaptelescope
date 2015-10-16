@@ -55,7 +55,7 @@ Golay6::Golay6(const mats::SimulationConfig& params, int sim_index)
   conf.CopyFrom(params);
   conf.clear_simulation();
   mats::Simulation* sim = conf.add_simulation();
-  sim->CopyFrom(params.simulation(sim_index));
+  sim->CopyFrom(params.simulation(sim_index));  // Rotation smuggled in here
 
   // Add the Cassegrain array.
   ApertureParameters* cassegrain_array = sim->mutable_aperture_params();
