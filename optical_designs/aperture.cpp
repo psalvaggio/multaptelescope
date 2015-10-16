@@ -197,36 +197,6 @@ void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
 }
 
 
-// DEPRECATED TO BE REMOVED
-Mat Aperture::GetPistonTipTilt(double piston, double tip, double tilt,
-                               size_t rows, size_t cols) const {
-  const double kHalfRow = rows / 2.0;
-  const double kHalfCol = cols / 2.0;
-
-  Mat output(rows, cols, CV_64FC1);
-
-  double* output_data = (double*) output.data;
-
-  for (size_t i = 0; i < rows; i++) {
-    double y = (i - kHalfRow) / kHalfRow;
-    for (size_t j = 0; j < cols; j++) {
-      double x = (j - kHalfCol) / kHalfCol;
-
-      output_data[i*cols + j] = piston + tip * x + tilt * y;
-    }
-  }
-
-  return output;
-}
-
-/*
-Mat Aperture::GetPistonTipTilt(double piston, double tip, double tilt) const {
-  const size_t size = params_.array_size();
-  return GetPistonTipTilt(piston, tip, tilt, size, size);
-}
-*/
-
-
 // ApertureFactory Implementation.
 Aperture* ApertureFactory::Create(const mats::SimulationConfig& params, 
                                   int sim_index) {

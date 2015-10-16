@@ -35,11 +35,7 @@ class Aperture {
   virtual ~Aperture();
 
   // Accessors
-  //const mats::SimulationConfig& params() const { return params_; }
-  const mats::Simulation& simulation_params() const {
-    //return params_.simulation(0);
-    return sim_params_;
-  }
+  const mats::Simulation& simulation_params() const { return sim_params_; }
 
   const mats::ApertureParameters& aperture_params() const {
     return aperture_params_;
@@ -140,29 +136,6 @@ class Aperture {
       double wavelength,
       mats::PupilFunction* pupil,
       std::function<void(cv::Mat_<double>*)> wfe_generator) const;
-
- // Utility functions for subclasses
- protected:
-  // Given piston/tip/tilt coefficients, compute the optical path length
-  // differences (OPD).
-  //
-  // Arguments:
-  //  piston  Offset of the OPD for the aperture [waves]
-  //  tip     OPD between the center and edge of the aperture along the x-axis.
-  //  tilt    OPD between the center and edge of the aperture along the y-axis.
-  //  rows    The number of rows in the output array.
-  //  cols    The number of columns in the output array.
-  //
-  // Returns:
-  //  rows x cols array of data type CV_64FC1 that represents the PTT optical
-  //  path length difference in waves. This array will have to be scaled to
-  //  fit the RMS error desired for the simulation.
-  cv::Mat GetPistonTipTilt(double piston, double tip, double tilt,
-                           size_t rows, size_t cols) const;
-
-  // Utility method to get the piston/tip/tilt for a square array of size
-  // params_.array_size().
-  cv::Mat GetPistonTipTilt(double piston, double tip, double tilt) const;
 
  private:
   //mats::SimulationConfig params_;
