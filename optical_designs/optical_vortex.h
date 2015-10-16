@@ -11,7 +11,7 @@
 
 class OpticalVortex : public Circular {
  public:
-  OpticalVortex(const mats::SimulationConfig& params, int sim_index);
+  explicit OpticalVortex(const mats::Simulation& params);
 
   virtual ~OpticalVortex();
 

@@ -12,10 +12,9 @@
 
 using namespace cv;
 
-Hdf5Wfe::Hdf5Wfe(const mats::SimulationConfig& params, int sim_index)
-    : Aperture(params, sim_index) {
-  hdf5_wfe_params_ =
-      this->aperture_params().GetExtension(hdf5_wfe_params);
+Hdf5Wfe::Hdf5Wfe(const mats::Simulation& params)
+    : Aperture(params) {
+  hdf5_wfe_params_ = aperture_params().GetExtension(hdf5_wfe_params);
 }
 
 Hdf5Wfe::~Hdf5Wfe() {}

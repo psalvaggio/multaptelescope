@@ -20,11 +20,11 @@ using namespace std;
 using mats::Simulation;
 using mats::ApertureParameters;
 
-Golay6::Golay6(const mats::SimulationConfig& params, int sim_index)
-    : Aperture(params, sim_index),
+Golay6::Golay6(const Simulation& params)
+    : Aperture(params),
       compound_aperture_() {
   // Copy over the CassegrainRing-specific parameters.
-  golay6_params_ = this->aperture_params().GetExtension(golay6_params);
+  golay6_params_ = aperture_params().GetExtension(golay6_params);
 
   // The fill factor of the overall aperture and each of the individual
   // Cassegrain subapertures.
@@ -51,20 +51,18 @@ Golay6::Golay6(const mats::SimulationConfig& params, int sim_index)
   for (auto& tmp : subaperture_offsets) tmp *= diameter;
 
   // Make a copy of our SimulationConfig to give to the subapertures.
-  mats::SimulationConfig conf;
-  conf.CopyFrom(params);
-  conf.clear_simulation();
-  mats::Simulation* sim = conf.add_simulation();
-  sim->CopyFrom(params.simulation(sim_index));  // Rotation smuggled in here
+  mats::Simulation sim;
+  sim.CopyFrom(params);  // Rotation smuggled in here
 
   // Add the Cassegrain array.
-  ApertureParameters* cassegrain_array = sim->mutable_aperture_params();
+  auto cassegrain_array = sim.mutable_aperture_params();
   cassegrain_array->set_type(ApertureParameters::COMPOUND);
-  CompoundApertureParameters* cassegrain_array_ext =
+
+  auto cassegrain_array_ext =
       cassegrain_array->MutableExtension(compound_aperture_params);
   cassegrain_array_ext->set_combine_operation(CompoundApertureParameters::OR);
   for (size_t i = 0; i < subaperture_offsets.size(); i += 2) {
-    ApertureParameters* cassegrain = cassegrain_array_ext->add_aperture();
+    auto cassegrain = cassegrain_array_ext->add_aperture();
     cassegrain->set_type(ApertureParameters::CASSEGRAIN);
     cassegrain->set_encircled_diameter(subap_diameter);
     cassegrain->set_fill_factor(subap_fill_factor);
@@ -90,7 +88,7 @@ Golay6::Golay6(const mats::SimulationConfig& params, int sim_index)
   }
 
   // Construct the aperture.
-  compound_aperture_.reset(ApertureFactory::Create(conf, 0));
+  compound_aperture_.reset(ApertureFactory::Create(sim));
 }
 
 Golay6::~Golay6() {}

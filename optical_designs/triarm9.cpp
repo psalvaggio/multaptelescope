@@ -20,15 +20,8 @@ using namespace std;
 using mats::Simulation;
 using mats::ApertureParameters;
 
-Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
-    : Aperture(params, sim_index),
-      triarm9_params_(),
-      compound_aperture_() {
-      //diameter_(aperture_params().encircled_diameter()),
-      //subap_diameter_(),
-      //subap_secondary_diameter_(),
-      //subaperture_offsets_(),
-      //ptt_vals_() {
+Triarm9::Triarm9(const Simulation& params)
+    : Aperture(params), triarm9_params_(), compound_aperture_() {
   // Copy over the Triarm9-specific parameters.
   triarm9_params_ = this->aperture_params().GetExtension(triarm9_params);
 
@@ -75,21 +68,19 @@ Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
   }
   
   // Make a copy of our SimulationConfig to give to the subapertures.
-  mats::SimulationConfig conf;
-  conf.CopyFrom(params);
-  conf.clear_simulation();
-  mats::Simulation* sim = conf.add_simulation();
-  sim->CopyFrom(params.simulation(sim_index));  // Rotation smuggled in here
+  Simulation sim;
+  sim.CopyFrom(params);  // Rotation smuggled in here
 
   // Add the Cassegrain array.
-  ApertureParameters* cassegrain_array = sim->mutable_aperture_params();
+  auto cassegrain_array = sim.mutable_aperture_params();
   cassegrain_array->clear_rotation();
   cassegrain_array->set_type(ApertureParameters::COMPOUND);
-  CompoundApertureParameters* cassegrain_array_ext =
+
+  auto cassegrain_array_ext =
       cassegrain_array->MutableExtension(compound_aperture_params);
   cassegrain_array_ext->set_combine_operation(CompoundApertureParameters::OR);
   for (size_t i = 0; i < subaperture_offsets.size(); i += 2) {
-    ApertureParameters* cassegrain = cassegrain_array_ext->add_aperture();
+    auto cassegrain = cassegrain_array_ext->add_aperture();
     cassegrain->set_type(ApertureParameters::CASSEGRAIN);
     cassegrain->set_encircled_diameter(subap_diameter);
     cassegrain->set_fill_factor(subap_fill_factor);
@@ -115,7 +106,7 @@ Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
   }
 
   // Construct the aperture.
-  compound_aperture_.reset(ApertureFactory::Create(conf, 0));
+  compound_aperture_.reset(ApertureFactory::Create(sim));
 }
 
 Triarm9::~Triarm9() {}

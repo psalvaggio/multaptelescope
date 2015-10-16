@@ -16,7 +16,7 @@
 
 class Golay6 : public Aperture {
  public:
-  Golay6(const mats::SimulationConfig& params, int sim_index);
+  explicit Golay6(const mats::Simulation& params);
 
   virtual ~Golay6();
 

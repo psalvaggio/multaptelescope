@@ -29,7 +29,7 @@ class Aperture {
   //             run of the model.
   //  sim_index  The index in params.simulation() of the simulation for which 
   //             this aperture is being created.
-  Aperture(const mats::SimulationConfig& params, int sim_index);
+  explicit Aperture(const mats::Simulation& params);
 
   // Destructor
   virtual ~Aperture();
@@ -156,15 +156,15 @@ class Aperture {
 // the aperture_type() in the Simulation protobuf.
 class ApertureFactory {
  public:
-   static Aperture* Create(const mats::SimulationConfig& params, int sim_index);
+   static Aperture* Create(const mats::Simulation& params);
 
  NO_CONSTRUCTION(ApertureFactory)
 };
 
 using ApertureFactoryImpl =
-    registry::Registry<Aperture, const mats::SimulationConfig&, int>;
+    registry::Registry<Aperture, const mats::Simulation&>;
 #define REGISTER_APERTURE(class_name, ap_config_enum) \
   REGISTER_SUBCLASS_W_IDENTIFIER(Aperture, class_name, ap_config_enum, \
-                                 const mats::SimulationConfig&, int)
+                                 const mats::Simulation&)
 
 #endif  // APERTURE_H

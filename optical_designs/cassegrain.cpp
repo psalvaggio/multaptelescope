@@ -13,14 +13,11 @@
 #include <iostream>
 #include <vector>
 
-using mats::ApertureParameters;
-using mats::SimulationConfig;
 using mats::Simulation;
-using mats::PupilFunction;
 using namespace cv;
 
-Cassegrain::Cassegrain(const SimulationConfig& params, int sim_index)
-    : Aperture(params, sim_index) {}
+Cassegrain::Cassegrain(const Simulation& params)
+    : Aperture(params) {}
 
 Cassegrain::~Cassegrain() {}
 

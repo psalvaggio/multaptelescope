@@ -11,15 +11,11 @@
 #include <iostream>
 #include <vector>
 
-using mats::ApertureParameters;
-using mats::SimulationConfig;
 using mats::Simulation;
-using mats::PupilFunction;
 using namespace cv;
 
-OpticalVortex::OpticalVortex(const SimulationConfig& params, int sim_index)
-    : Circular(params, sim_index) {
-  vortex_params_ = this->aperture_params().GetExtension(optical_vortex_params);
+OpticalVortex::OpticalVortex(const Simulation& params) : Circular(params) {
+  vortex_params_ = aperture_params().GetExtension(optical_vortex_params);
 }
 
 OpticalVortex::~OpticalVortex() {}

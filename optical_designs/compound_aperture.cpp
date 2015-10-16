@@ -13,40 +13,28 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+using mats::Simulation;
 using namespace std;
 using namespace cv;
 
-CompoundAperture::CompoundAperture(const mats::SimulationConfig& params,
-                                   int sim_index)
-    : Aperture(params, sim_index),
+CompoundAperture::CompoundAperture(const Simulation& params)
+    : Aperture(params),
       compound_params_(
-          this->aperture_params().GetExtension(compound_aperture_params)),
+          aperture_params().GetExtension(compound_aperture_params)),
       apertures_(),
       sim_configs_(),
       opd_(),
       opd_est_() {
-
-  // To construct the subapertures, we need a SimulationConfig that makes it
-  // look like that is the top-level aperture (not ideal, I know).
-  // Make a copy of our SimulationConfig and Simulation.
-  mats::SimulationConfig conf;
-  conf.CopyFrom(params);
-  conf.clear_simulation();
-  mats::Simulation* sim = conf.add_simulation();
-  sim->CopyFrom(params.simulation(sim_index));
-
   // Construct each subaperture.
   for (int i = 0; i < compound_params_.aperture_size(); i++) {
-    sim_configs_.push_back(mats::SimulationConfig());
+    sim_configs_.emplace_back();
 
-    mats::SimulationConfig& tmp_conf(sim_configs_.back());
-    tmp_conf.CopyFrom(conf);
-    mats::ApertureParameters* ap_params =
-        tmp_conf.mutable_simulation(0)->mutable_aperture_params();
+    auto& tmp_conf(sim_configs_.back());
+    tmp_conf.CopyFrom(params);
+    auto ap_params = tmp_conf.mutable_aperture_params();
     ap_params->CopyFrom(compound_params_.aperture(i));
 
-    apertures_.push_back(move(unique_ptr<Aperture>(
-        ApertureFactory::Create(tmp_conf, 0))));
+    apertures_.emplace_back(ApertureFactory::Create(tmp_conf));
   }
 }
 

@@ -16,7 +16,7 @@
 
 class CassegrainRing : public Aperture {
  public:
-  CassegrainRing(const mats::SimulationConfig& params, int sim_index);
+  explicit CassegrainRing(const mats::Simulation& params);
 
   virtual ~CassegrainRing();
 

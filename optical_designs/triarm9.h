@@ -15,7 +15,7 @@ class Cassegrain;
 
 class Triarm9 : public Aperture {
  public:
-  Triarm9(const mats::SimulationConfig& params, int sim_index);
+  explicit Triarm9(const mats::Simulation& params);
 
   virtual ~Triarm9();
 

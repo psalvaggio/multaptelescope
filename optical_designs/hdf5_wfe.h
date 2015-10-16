@@ -11,7 +11,7 @@
 
 class Hdf5Wfe : public Aperture {
  public:
-  Hdf5Wfe(const mats::SimulationConfig& params, int sim_index);
+  explicit Hdf5Wfe(const mats::Simulation& params);
 
   virtual ~Hdf5Wfe();
 

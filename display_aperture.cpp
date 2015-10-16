@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  ap.reset(ApertureFactory::Create(sim_config, sim_index));
+  ap.reset(ApertureFactory::Create(sim_config.simulation(sim_index)));
   if (ap.get() == nullptr) {
     cerr << "Invalid aperture configuration" << endl;
     return 1;
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
   }
 
   sim_config.set_array_size(aperture_size);
-  ap.reset(ApertureFactory::Create(sim_config, sim_index));
+  ap.reset(ApertureFactory::Create(sim_config.simulation(sim_index)));
 
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);

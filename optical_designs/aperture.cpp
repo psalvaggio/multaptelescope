@@ -21,10 +21,9 @@ using mats::ApertureParameters;
 using namespace std;
 using namespace cv;
 
-Aperture::Aperture(const SimulationConfig& params, int sim_index)
-    : //params_(),
-      sim_params_(params.simulation(sim_index)),
-      aperture_params_(params.simulation(sim_index).aperture_params()),
+Aperture::Aperture(const Simulation& params)
+    : sim_params_(params),
+      aperture_params_(params.aperture_params()),
       aberrations_(),
       mask_(),
       opd_(),
@@ -198,18 +197,11 @@ void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
 
 
 // ApertureFactory Implementation.
-Aperture* ApertureFactory::Create(const mats::SimulationConfig& params, 
-                                  int sim_index) {
-  if (sim_index > params.simulation_size()) {
-    mainLog() << "ApertureFactory error: Given simulation index out of bounds."
-              << endl;
-    return NULL;
-  }
-
+Aperture* ApertureFactory::Create(const mats::Simulation& params) {
   ApertureParameters::ApertureType ap_type =
-      params.simulation(sim_index).aperture_params().type();
+      params.aperture_params().type();
   Aperture* ap = ApertureFactoryImpl::Create(
-      ApertureParameters::ApertureType_Name(ap_type), params, sim_index);
+      ApertureParameters::ApertureType_Name(ap_type), params);
   if (ap) return ap;
 
   mainLog() << "ApertureFactory error: Unsupported aperture type." << endl;

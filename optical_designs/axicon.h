@@ -11,7 +11,7 @@
 
 class Axicon : public Circular {
  public:
-  Axicon(const mats::SimulationConfig& params, int sim_index);
+  explicit Axicon(const mats::Simulation& params);
 
   virtual ~Axicon();
 

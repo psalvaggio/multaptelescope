@@ -20,16 +20,18 @@ using namespace std;
 using mats::Simulation;
 using mats::ApertureParameters;
 
-CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
-                               int sim_index)
-    : Aperture(params, sim_index),
+CassegrainRing::CassegrainRing(const mats::Simulation& params)
+    : Aperture(params),
       compound_aperture_() {
   // Copy over the CassegrainRing-specific parameters.
   ring_params_ = this->aperture_params().GetExtension(cassegrain_ring_params);
 
   // Aperture construction parameters.
   const int kNumApertures = ring_params_.num_apertures();
-  const double kInitialAngle = ring_params_.angle_offset();
+  double initial_angle = 0;
+  if (aperture_params().has_rotation()) {
+    initial_angle = aperture_params().rotation();
+  }
 
   // The fill factor of the overall aperture and each of the individual
   // Cassegrain subapertures.
@@ -49,7 +51,7 @@ CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
   // Compute the center pixel for each of the subapertures.
   vector<double> subaperture_offsets;
   for (int i = 0; i < kNumApertures; i++) {
-    double angle = kInitialAngle + i * 2 * M_PI / kNumApertures;
+    double angle = initial_angle + i * 2 * M_PI / kNumApertures;
 
     double dist_from_center = radius - subap_r;
     double x = dist_from_center * cos(angle);
@@ -59,16 +61,14 @@ CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
   }
 
   // Make a copy of our SimulationConfig to give to the subapertures.
-  mats::SimulationConfig conf;
-  conf.CopyFrom(params);
-  conf.clear_simulation();
-  mats::Simulation* sim = conf.add_simulation();
-  sim->CopyFrom(params.simulation(sim_index));
+  mats::Simulation sim;
+  sim.CopyFrom(simulation_params());
 
   // Add the top-level compound aperture. This is the AND of the cassegrain
   // subapertures (compound) and a circular aperture containing the shared
   // wavefront error.
-  ApertureParameters* compound_params = sim->mutable_aperture_params();
+  ApertureParameters* compound_params = sim.mutable_aperture_params();
+  compound_params->clear_rotation();
   compound_params->set_type(ApertureParameters::COMPOUND);
   CompoundApertureParameters* compound_ext = 
       compound_params->MutableExtension(compound_aperture_params);
@@ -117,7 +117,7 @@ CassegrainRing::CassegrainRing(const mats::SimulationConfig& params,
   }
 
   // Construct the aperture.
-  compound_aperture_.reset(ApertureFactory::Create(conf, 0));
+  compound_aperture_.reset(ApertureFactory::Create(sim));
 }
 
 CassegrainRing::~CassegrainRing() {}

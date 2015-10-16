@@ -13,7 +13,7 @@
 
 class CompoundAperture : public Aperture {
  public:
-  CompoundAperture(const mats::SimulationConfig& params, int sim_index);
+  CompoundAperture(const mats::Simulation& params);
 
   virtual ~CompoundAperture();
   
@@ -39,7 +39,7 @@ class CompoundAperture : public Aperture {
   CompoundApertureParameters compound_params_;
 
   mutable std::vector<std::unique_ptr<Aperture>> apertures_;
-  std::vector<mats::SimulationConfig> sim_configs_;
+  std::vector<mats::Simulation> sim_configs_;
 
  private:  // Cache variables
   mutable cv::Mat opd_;

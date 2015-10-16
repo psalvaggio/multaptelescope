@@ -10,7 +10,7 @@
 
 class Cassegrain : public Aperture {
  public:
-  Cassegrain(const mats::SimulationConfig& params, int sim_index);
+  explicit Cassegrain(const mats::Simulation& params);
 
   virtual ~Cassegrain();
 

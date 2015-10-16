@@ -11,15 +11,12 @@
 #include <iostream>
 #include <vector>
 
-using mats::ApertureParameters;
-using mats::SimulationConfig;
 using mats::Simulation;
-using mats::PupilFunction;
 using namespace cv;
 
-Axicon::Axicon(const SimulationConfig& params, int sim_index)
-    : Circular(params, sim_index) {
-  axicon_params_ = this->aperture_params().GetExtension(axicon_params);
+Axicon::Axicon(const Simulation& params)
+    : Circular(params) {
+  axicon_params_ = aperture_params().GetExtension(axicon_params);
 }
 
 Axicon::~Axicon() {}
