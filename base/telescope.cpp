@@ -29,8 +29,9 @@ Telescope::Telescope(const SimulationConfig& sim_config,
                      int sim_index,
                      const DetectorParameters& det_params)
     : sim_config_(sim_config),
-      aperture_(ApertureFactory::Create(sim_config, sim_index)),
-      detector_(new Detector(det_params, sim_config, sim_index)),
+      aperture_(ApertureFactory::Create(sim_config.simulation(sim_index))),
+      //detector_(new Detector(det_params, sim_config, sim_index)),
+      detector_(new Detector(det_params)),
       include_detector_footprint_(false),
       parallelism_(false) {}
 
@@ -41,19 +42,17 @@ const SimulationConfig& Telescope::sim_params() const {
 }
 
 const Simulation& Telescope::simulation() const {
-  return detector_->simulation();
+  return aperture_->simulation_params();
 }
 
 // In this model, the user specifies the pixel pitch of the detector, the
 // altitude at which the telescope is flying, and the pixel size on the ground.
 // Thus, the focal length must be a calculated parameter.
 double Telescope::FocalLength() const {
-  const mats::Simulation& sim = detector_->simulation();
+  const mats::Simulation& sim = aperture_->simulation_params();
   if (sim.has_focal_length()) return sim.focal_length();
 
-  return detector_->sim_params().altitude() *
-         detector_->det_params().pixel_pitch() /
-         detector_->simulation().gsd();  // [m]
+  return sim_config_.altitude() * detector_->pixel_pitch() / sim.gsd();  // [m]
 }
 
 double Telescope::FNumber() const {
@@ -136,7 +135,9 @@ void Telescope::Image(const vector<Mat>& radiance,
   }
 
   vector<Mat> electrons;
-  detector_->ResponseElectrons(blurred_irradiance, wavelength, &electrons);
+  double int_time = aperture_->simulation_params().integration_time();
+  detector_->ResponseElectrons(blurred_irradiance, wavelength, int_time,
+                               &electrons);
   detector_->Quantize(electrons, image);
 }
 
@@ -222,9 +223,13 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   vector<Mat> ap_otf;
   ComputeApertureOtf(wavelengths, &ap_otf);
 
+  double int_time = aperture_->simulation_params().integration_time();
+
   SystemOtf wave_invar_sys_otf;
-  wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0, kOtfSize, kOtfSize));
-  wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0, kOtfSize, kOtfSize));
+  wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0, int_time,
+                                                    kOtfSize, kOtfSize));
+  wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0, int_time,
+                                                     kOtfSize, kOtfSize));
   if (include_detector_footprint_) {
     wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf(kOtfSize, kOtfSize));
   }

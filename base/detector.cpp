@@ -20,12 +20,17 @@ using cv::Mat;
 
 namespace mats {
 
+  /*
 Detector::Detector(const DetectorParameters& det_params,
                    const SimulationConfig& sim_params,
                    int sim_index)
     : det_params_(det_params),
       sim_params_(sim_params),
       sim_index_(sim_index),
+      qe_spectrums_() {
+      */
+Detector::Detector(const DetectorParameters& det_params)
+    : det_params_(det_params),
       qe_spectrums_() {
   qe_spectrums_.reserve(det_params_.band_size());
   for (int i = 0; i < det_params_.band_size(); i++) {
@@ -115,6 +120,7 @@ double Detector::GetEffectiveQE(const vector<double>& wavelengths,
 // and attenuated by the optics.
 void Detector::ResponseElectrons(const vector<Mat>& irradiance,
                                  const vector<double>& wavelengths,
+                                 double int_time,
                                  vector<Mat>* electrons) {
   // Validate the input.
   if (!electrons) return;
@@ -124,12 +130,12 @@ void Detector::ResponseElectrons(const vector<Mat>& irradiance,
               << "as the detector." << endl;
   }
 
-  const Simulation& simulation(sim_params_.simulation(sim_index_));
+  //const Simulation& simulation(sim_params_.simulation(sim_index_));
 
   // Calculate the key scalar quantities in the governing equation.
   double det_area = det_params_.pixel_pitch() * det_params_.pixel_pitch() *
                     det_params_.fill_factor();
-  double int_time = simulation.integration_time();
+  //double int_time = simulation.integration_time();
   const double h = 6.62606957e-34;  // [J*s]
   const double c = 299792458;  // [m/s]
 
@@ -149,7 +155,8 @@ void Detector::ResponseElectrons(const vector<Mat>& irradiance,
   AggregateSignal(high_res_electrons, wavelengths, false, electrons);
 
   for (int i = 0; i < det_params_.band_size(); i++) {
-    electrons->at(i) += GetNoisePattern(electrons->at(i).rows,
+    electrons->at(i) += GetNoisePattern(int_time,
+                                        electrons->at(i).rows,
                                         electrons->at(i).cols);
   }
 }
@@ -245,17 +252,20 @@ Mat Detector::GetSamplingOtf(int rows, int cols) {
 
 Mat Detector::GetSmearOtf(double x_velocity,
                           double y_velocity,
+                          double int_time,
                           int rows,
                           int cols) {
   const int kRows = (rows > 0) ? rows : this->rows();
   const int kCols = (cols > 0) ? cols : this->cols();
   const double kSize = std::max(kRows, kCols);
   const double kPixelPitch = det_params_.pixel_pitch();
-  const double kIntTime =
-      sim_params_.simulation(sim_index_).integration_time();
+  //const double kIntTime =
+      //sim_params_.simulation(sim_index_).integration_time();
 
-  double xi_coeff = M_PI * x_velocity * kIntTime;
-  double eta_coeff = M_PI * y_velocity * kIntTime;
+  //double xi_coeff = M_PI * x_velocity * kIntTime;
+  //double eta_coeff = M_PI * y_velocity * kIntTime;
+  double xi_coeff = M_PI * x_velocity * int_time;
+  double eta_coeff = M_PI * y_velocity * int_time;
 
   vector<Mat> otf_planes;
   otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
@@ -281,14 +291,18 @@ Mat Detector::GetSmearOtf(double x_velocity,
   return otf;
 }
 
-Mat Detector::GetJitterOtf(double jitter_std_dev, int rows, int cols) {
+Mat Detector::GetJitterOtf(double jitter_std_dev,
+                           double int_time,
+                           int rows,
+                           int cols) {
   const int kRows = (rows > 0) ? rows : this->rows();
   const int kCols = (cols > 0) ? cols : this->cols();
   const int kNumTimesteps = 100;
-  const double kIntTime =
-      sim_params_.simulation(sim_index_).integration_time();
+  //const double kIntTime =
+      //sim_params_.simulation(sim_index_).integration_time();
 
-  double delta_freq = 1 / kIntTime;
+  //double delta_freq = 1 / kIntTime;
+  double delta_freq = 1 / int_time;
   vector<double> x_offset, y_offset;
 
   Mat phase(2, kNumTimesteps, CV_64FC1);
@@ -438,16 +452,17 @@ Mat Detector::GetJitterOtf(double jitter_std_dev, int rows, int cols) {
   return otf;
 }
 
-Mat Detector::GetNoisePattern(int rows, int cols) const {
+Mat Detector::GetNoisePattern(double int_time, int rows, int cols) const {
   const double kTemperature = det_params_.temperature();
-  const double kIntTime =
-      sim_params_.simulation(sim_index_).integration_time();
+  //const double kIntTime =
+      //sim_params_.simulation(sim_index_).integration_time();
 
   const double kRefTemp = det_params_.darkcurr_reference_temp();
   const double kRefRms = det_params_.darkcurr_reference_rms();
   const double kDoublingTemp = det_params_.darkcurr_doubling_temp();
 
-  double dark_rms = kRefRms * kIntTime *
+  //double dark_rms = kRefRms * kIntTime *
+  double dark_rms = kRefRms * int_time *
                     pow(2, (kTemperature - kRefTemp) / kDoublingTemp);
   Mat dark_noise(rows, cols, CV_64FC1);
   randn(dark_noise, 0, dark_rms);

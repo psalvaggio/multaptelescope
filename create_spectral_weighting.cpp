@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
       } else {
         if (units == kDetector) {
           mats::SimulationConfig sim_config;
-          mats::Detector det(det_params, sim_config, 0);
+          mats::Detector det(det_params);
           
           vector<double> qe;
           det.GetQESpectrum(wavelengths, 0, &qe);

@@ -14,19 +14,20 @@ namespace mats {
 
 class Detector {
  public:
-  Detector(const DetectorParameters& det_params,
-           const SimulationConfig& sim_params,
-           int sim_index);
+  explicit Detector(const DetectorParameters& det_params);
+  //Detector(const DetectorParameters& det_params,
+           //const SimulationConfig& sim_params,
+           //int sim_index);
 
   // Accessors/Mutators
   const DetectorParameters& det_params() const { return det_params_; }
-  const SimulationConfig& sim_params() const { return sim_params_; }
-  const Simulation& simulation() const {
-    return sim_params_.simulation(sim_index_);
-  }
+  //const SimulationConfig& sim_params() const { return sim_params_; }
+  //const Simulation& simulation() const {
+    //return sim_params_.simulation(sim_index_);
+  //}
 
-  int sim_index() const { return sim_index_; }
-  void set_sim_index(int idx) { sim_index_ = idx; }
+  //int sim_index() const { return sim_index_; }
+  //void set_sim_index(int idx) { sim_index_ = idx; }
 
 
   int rows() const { return det_params_.array_rows(); }
@@ -76,6 +77,7 @@ class Detector {
   //               spectral bands.
   void ResponseElectrons(const std::vector<cv::Mat>& radiance,
                          const std::vector<double>& wavelengths,
+                         double int_time,
                          std::vector<cv::Mat>* electrons);
 
   // Aggregate a spectral signal into the bands of the detector.
@@ -124,6 +126,7 @@ class Detector {
   //  number of pixels along a dimension.
   cv::Mat GetSmearOtf(double x_velocity,
                       double y_velocity,
+                      double int_time,
                       int rows = -1,
                       int cols = -1);
 
@@ -138,7 +141,10 @@ class Detector {
   //  Zero-frequency is at (0, 0) and the frequencies range from 0 
   //  cycles/detector to +/- N/2 cycles per detector, where N is the
   //  number of pixels along a dimension.
-  cv::Mat GetJitterOtf(double jitter_std_dev, int rows = -1, int cols = -1);
+  cv::Mat GetJitterOtf(double jitter_std_dev,
+                       double int_time,
+                       int rows = -1,
+                       int cols = -1);
 
   // Struct to hold samples of a QE spectrum.
   struct QESample {
@@ -147,12 +153,12 @@ class Detector {
   };
 
  private:
-  cv::Mat GetNoisePattern(int rows, int cols) const;
+  cv::Mat GetNoisePattern(double int_time, int rows, int cols) const;
 
  private:
   DetectorParameters det_params_;
-  SimulationConfig sim_params_;
-  int sim_index_;
+  //SimulationConfig sim_params_;
+  //int sim_index_;
 
   std::vector<std::vector<QESample> > qe_spectrums_;
 };
