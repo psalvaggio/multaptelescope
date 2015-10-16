@@ -12,16 +12,18 @@ namespace mats {
 
 class PupilFunction {
  public:
-  PupilFunction();
+  PupilFunction(int size, double reference_wavelength);
   ~PupilFunction();
 
-  cv::Mat& real_part() { return pupil_real_; }
-  cv::Mat& imaginary_part() { return pupil_imag_; }
-  const cv::Mat& real_part() const { return pupil_real_; }
-  const cv::Mat& imaginary_part() const { return pupil_imag_; }
+  cv::Mat_<double>& real_part() { return pupil_real_; }
+  cv::Mat_<double>& imaginary_part() { return pupil_imag_; }
+  const cv::Mat_<double>& real_part() const { return pupil_real_; }
+  const cv::Mat_<double>& imaginary_part() const { return pupil_imag_; }
 
   cv::Mat magnitude() const;
   cv::Mat phase() const;
+
+  double reference_wavelength() const { return reference_wavelength_; }
 
   double meters_per_pixel() const { return meters_per_pixel_; }
   void set_meters_per_pixel(double meters_per_pixel) {
@@ -33,8 +35,9 @@ class PupilFunction {
   cv::Mat ModulationTransferFunction();
 
  private:
-  cv::Mat pupil_real_;
-  cv::Mat pupil_imag_;
+  double reference_wavelength_;
+  cv::Mat_<double> pupil_real_;
+  cv::Mat_<double> pupil_imag_;
   double meters_per_pixel_;
 
   NO_COPY_OR_ASSIGN(PupilFunction);

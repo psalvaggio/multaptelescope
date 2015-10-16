@@ -35,9 +35,10 @@ class Aperture {
   virtual ~Aperture();
 
   // Accessors
-  const mats::SimulationConfig& params() const { return params_; }
+  //const mats::SimulationConfig& params() const { return params_; }
   const mats::Simulation& simulation_params() const {
-    return params_.simulation(0);
+    //return params_.simulation(0);
+    return sim_params_;
   }
 
   const mats::ApertureParameters& aperture_params() const {
@@ -164,7 +165,8 @@ class Aperture {
   cv::Mat GetPistonTipTilt(double piston, double tip, double tilt) const;
 
  private:
-  mats::SimulationConfig params_;
+  //mats::SimulationConfig params_;
+  mats::Simulation sim_params_;
   mats::ApertureParameters aperture_params_;
   std::vector<double> aberrations_;
 

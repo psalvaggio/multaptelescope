@@ -12,9 +12,10 @@ using namespace cv;
 
 namespace mats {
 
-PupilFunction::PupilFunction()
-    : pupil_real_(),
-      pupil_imag_(),
+PupilFunction::PupilFunction(int size, double reference_wavelength)
+    : reference_wavelength_(reference_wavelength),
+      pupil_real_(Mat_<double>::zeros(size, size)),
+      pupil_imag_(Mat_<double>::zeros(size, size)),
       meters_per_pixel_(0) {}
 
 PupilFunction::~PupilFunction() {}

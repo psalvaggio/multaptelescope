@@ -28,7 +28,7 @@ Triarm9::Triarm9(const mats::SimulationConfig& params, int sim_index)
   // Copy over the Triarm9-specific parameters.
   triarm9_params_ = this->aperture_params().GetExtension(triarm9_params);
 
-  const int kSize = this->params().array_size();
+  const int kSize = params.array_size();
   const int kHalfSize = kSize / 2;
 
   // The fill factor of the overall aperture and each of the individual
@@ -166,6 +166,7 @@ void Triarm9::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
   */
 }
 
+/*
 Mat Triarm9::OpticalPathLengthDiffPtt(const vector<double>& ptt_vals) const {
   const int kSize = params().array_size();
   const int kPttSize = ceil(subap_diameter_);
@@ -209,3 +210,4 @@ Mat Triarm9::OpticalPathLengthDiffPtt(const vector<double>& ptt_vals) const {
 
   return opd;
 }
+*/

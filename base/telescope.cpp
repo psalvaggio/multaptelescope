@@ -28,7 +28,8 @@ namespace mats {
 Telescope::Telescope(const SimulationConfig& sim_config,
                      int sim_index,
                      const DetectorParameters& det_params)
-    : aperture_(ApertureFactory::Create(sim_config, sim_index)),
+    : sim_config_(sim_config),
+      aperture_(ApertureFactory::Create(sim_config, sim_index)),
       detector_(new Detector(det_params, sim_config, sim_index)),
       include_detector_footprint_(false),
       parallelism_(false) {}
@@ -36,7 +37,7 @@ Telescope::Telescope(const SimulationConfig& sim_config,
 Telescope::~Telescope() {}
 
 const SimulationConfig& Telescope::sim_params() const {
-  return detector_->sim_params();
+  return sim_config_;
 }
 
 const Simulation& Telescope::simulation() const {
@@ -216,7 +217,7 @@ void Telescope::GetImagingRegion(const Mat& radiance, Mat* roi) const {
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
                            vector<Mat>* otf) const {
-  const int kOtfSize = aperture_->params().array_size();
+  const int kOtfSize = sim_config_.array_size();
 
   vector<Mat> ap_otf;
   ComputeApertureOtf(wavelengths, &ap_otf);
@@ -303,10 +304,10 @@ void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
 
 void Telescope::ComputeApertureOtf(double wavelength, Mat* otf) const {
   // Array sizes
-  const int kOtfSize = aperture_->params().array_size();
+  const int kOtfSize = sim_config_.array_size();
 
   // Get the aberrated pupil function from the aperture.
-  PupilFunction pupil_func;
+  PupilFunction pupil_func(kOtfSize, sim_config_.reference_wavelength());
   aperture_->GetPupilFunction(wavelength, &pupil_func);
 
   // The coherent OTF is given by p[lamda * f * xi, lamda * f * eta],

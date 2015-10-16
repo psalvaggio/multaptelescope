@@ -4,6 +4,8 @@
 #ifndef TELESCOPE_H
 #define TELESCOPE_H
 
+#include "base/simulation_config.pb.h"
+
 #include <opencv/cv.h>
 
 #include <memory>
@@ -15,9 +17,6 @@ namespace mats {
 
 class Detector;
 class DetectorParameters;
-class SimulationConfig;
-class Simulation;
-class ApertureParameters;
 
 class Telescope {
  public:
@@ -132,6 +131,7 @@ class Telescope {
                         cv::Mat* roi) const;
 
  private:
+  mats::SimulationConfig sim_config_;
   std::unique_ptr<Aperture> aperture_;
   std::unique_ptr<Detector> detector_;
   bool include_detector_footprint_;

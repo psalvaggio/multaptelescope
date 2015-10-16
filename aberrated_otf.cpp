@@ -59,7 +59,8 @@ int main(int argc, char** argv) {
             << endl;
 
 
-  mats::PupilFunction pupil;
+  mats::PupilFunction pupil(sim_config.array_size(),
+                            sim_config.reference_wavelength());
   telescope.aperture()->GetPupilFunction(
       sim_config.reference_wavelength(), &pupil);
 
