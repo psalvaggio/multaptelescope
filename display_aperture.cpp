@@ -31,7 +31,7 @@ using namespace cv;
 static unique_ptr<Aperture> ap;
 
 void draw() {
-  Mat mask = ap->GetApertureMask();
+  Mat mask = ap->GetApertureMask(512);
 
   Mat roi;
   if (mask.rows > FLAGS_rows || mask.cols > FLAGS_cols) {

@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
   mats::PupilFunction pupil(sim_config.array_size(),
                             sim_config.reference_wavelength());
   telescope.aperture()->GetPupilFunction(
-      sim_config.reference_wavelength(), &pupil);
+      sim_config.reference_wavelength(), 0, 0, &pupil);
 
   if (FLAGS_spectral_weighting == "") {
     vector<Mat> spectral_otf;

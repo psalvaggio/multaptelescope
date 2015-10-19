@@ -23,8 +23,7 @@ CompoundAperture::CompoundAperture(const Simulation& params)
           aperture_params().GetExtension(compound_aperture_params)),
       apertures_(),
       sim_configs_(),
-      opd_(),
-      opd_est_() {
+      opd_() {
   // Construct each subaperture.
   for (int i = 0; i < compound_params_.aperture_size(); i++) {
     sim_configs_.emplace_back();
@@ -88,7 +87,9 @@ void CompoundAperture::GetApertureTemplate(Mat_<double>* output) const {
   RotateArray(output);
 }
 
-void CompoundAperture::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+void CompoundAperture::GetOpticalPathLengthDiff(double image_height,
+                                                double angle,
+                                                Mat_<double>* output) const {
   Mat_<double>& opd = *output;
   const int kSize = opd.rows;
 
@@ -97,8 +98,8 @@ void CompoundAperture::GetOpticalPathLengthDiff(Mat_<double>* output) const {
 
   vector<Mat_<double>> wfes;
   GenerateSubapertureHelper(kSize, &wfes,
-      [] (const Aperture* subap, Mat_<double>* opd) {
-        subap->GetWavefrontError(opd->rows).copyTo(*opd);
+      [image_height, angle] (const Aperture* subap, Mat_<double>* opd) {
+        subap->GetWavefrontError(image_height, angle, opd);
       });
 
   if (combine_op == CompoundApertureParameters::AND) {
@@ -107,31 +108,6 @@ void CompoundAperture::GetOpticalPathLengthDiff(Mat_<double>* output) const {
              combine_op == CompoundApertureParameters::OR) {
     opd = 0;
     for (const auto& tmp_wfe : wfes) opd += tmp_wfe;
-  }
-
-  RotateArray(output);
-}
-
-void CompoundAperture::GetOpticalPathLengthDiffEstimate(
-    Mat_<double>* output) const {
-  Mat_<double>& opd_est = *output;
-  const int kSize = opd_est.rows;
-
-  // Determine how we will be combining the masks
-  int combine_op = compound_params_.combine_operation();
-
-  vector<Mat_<double>> wfes;
-  GenerateSubapertureHelper(kSize, &wfes,
-      [] (const Aperture* subap, Mat_<double>* opd) {
-        subap->GetWavefrontErrorEstimate(opd->rows).copyTo(*opd);
-      });
-
-  if (combine_op == CompoundApertureParameters::AND) {
-    opd_est = wfes[compound_params_.wfe_index()];
-  } else if (combine_op == CompoundApertureParameters::AND_WFE_ADD ||
-             combine_op == CompoundApertureParameters::OR) {
-    opd_est = 0;
-    for (const auto& tmp_wfe : wfes) opd_est += tmp_wfe;
   }
 
   RotateArray(output);

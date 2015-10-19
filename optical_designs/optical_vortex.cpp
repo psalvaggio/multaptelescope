@@ -20,7 +20,10 @@ OpticalVortex::OpticalVortex(const Simulation& params) : Circular(params) {
 
 OpticalVortex::~OpticalVortex() {}
 
-void OpticalVortex::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+void OpticalVortex::GetOpticalPathLengthDiff(double image_height,
+                                             double angle,
+                                             Mat_<double>* output) const {
+  ZernikeWavefrontError(image_height, angle, output);
   Mat_<double>& opd = *output;
 
   const size_t kSize = opd.rows;
@@ -39,15 +42,8 @@ void OpticalVortex::GetOpticalPathLengthDiff(Mat_<double>* output) const {
       if (r2 < kPrimaryR2) {
         double phase = atan2(y, x) / k2Pi;
         if (phase < 0) phase += 1;
-        opd(i, j) = phase * kNumCycles;
-      } else {
-        opd(i, j) = 0;
+        opd(i, j) += phase * kNumCycles;
       }
     }
   }
-}
-
-void OpticalVortex::GetOpticalPathLengthDiffEstimate(
-    Mat_<double>* output) const {
-  GetOpticalPathLengthDiff(output);
 }

@@ -17,10 +17,9 @@ class OpticalVortex : public Circular {
 
  // Virtual functions from Aperture
  private:
-  void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const override;
-
-  void GetOpticalPathLengthDiffEstimate(
-      cv::Mat_<double>* output) const override;
+  void GetOpticalPathLengthDiff(double image_height,
+                                double angle,
+                                cv::Mat_<double>* output) const override;
 
  private:
   OpticalVortexParameters vortex_params_;

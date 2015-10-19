@@ -21,7 +21,11 @@ Axicon::Axicon(const Simulation& params)
 
 Axicon::~Axicon() {}
 
-void Axicon::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+void Axicon::GetOpticalPathLengthDiff(double image_height,
+                                      double angle,
+                                      Mat_<double>* output) const {
+  ZernikeWavefrontError(image_height, angle, output);
+
   Mat_<double>& opd = *output;
 
   const size_t kSize = opd.rows;
@@ -36,11 +40,7 @@ void Axicon::GetOpticalPathLengthDiff(Mat_<double>* output) const {
       double x = j - kHalfSize;
       double r2 = (x*x + y*y) / kHalfSize2;
 
-      opd(i, j) = (r2 < kPrimaryR2) ? sqrt(r2) * kNumCycles : 0;
+      opd(i, j) += (r2 < kPrimaryR2) ? sqrt(r2) * kNumCycles : 0;
     }
   }
-}
-
-void Axicon::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
-  return GetOpticalPathLengthDiff(output);
 }

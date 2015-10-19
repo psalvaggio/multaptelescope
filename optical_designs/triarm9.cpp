@@ -115,22 +115,13 @@ void Triarm9::GetApertureTemplate(Mat_<double>* output) const {
   compound_aperture_->GetApertureMask(output->rows).copyTo(*output);
 }
 
-void Triarm9::GetOpticalPathLengthDiff(Mat_<double>* output) const {
-  compound_aperture_->GetWavefrontError(output->rows).copyTo(*output);
+void Triarm9::GetOpticalPathLengthDiff(double image_height,
+                                       double angle,
+                                       Mat_<double>* output) const {
+  compound_aperture_->GetWavefrontError(image_height, angle, output);
 
   Mat_<double> global(output->size());
-  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(aberrations(), output->rows, &global);
-
-  *output += global;
-}
-
-void Triarm9::GetOpticalPathLengthDiffEstimate(Mat_<double>* output) const {
-  compound_aperture_->GetWavefrontErrorEstimate(output->rows).copyTo(*output);
-
-  Mat_<double> global(output->size());
-  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(aberrations(), output->rows, &global);
+  ZernikeWavefrontError(image_height, angle, &global);
 
   *output += global;
 }

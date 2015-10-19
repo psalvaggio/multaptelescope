@@ -3,12 +3,15 @@ package mats;
 // Coefficients for Zernike aberrations.
 message ZernikeCoefficient {
   enum AberrationType {
+    option allow_alias = true;
     PISTON = 0;
     TILT_X = 1;
     TILT_Y = 2;
     DEFOCUS = 3;
+    ASTIGMATISM = 4;
     ASTIG_X = 4;
     ASTIG_Y = 5;
+    COMA = 6;
     COMA_X = 6;
     COMA_Y = 7;
     SPHERICAL = 8;

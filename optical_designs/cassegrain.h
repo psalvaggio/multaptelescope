@@ -17,11 +17,6 @@ class Cassegrain : public Aperture {
  // Virtual functions from Aperture
  private:
   void GetApertureTemplate(cv::Mat_<double>* output) const override;
-
-  void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const override;
-
-  void GetOpticalPathLengthDiffEstimate(
-      cv::Mat_<double>* output) const override;
 };
 REGISTER_APERTURE(Cassegrain, CASSEGRAIN)
 

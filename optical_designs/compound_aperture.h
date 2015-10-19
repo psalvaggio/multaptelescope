@@ -22,10 +22,9 @@ class CompoundAperture : public Aperture {
 
   void GetApertureTemplate(cv::Mat_<double>* output) const override;
 
-  void GetOpticalPathLengthDiff(cv::Mat_<double>* output) const override;
-
-  void GetOpticalPathLengthDiffEstimate(
-      cv::Mat_<double>* output) const override;
+  void GetOpticalPathLengthDiff(double image_height,
+                                double angle,
+                                cv::Mat_<double>* output) const override;
 
   void GenerateSubapertureHelper(
       int array_size,
@@ -43,7 +42,6 @@ class CompoundAperture : public Aperture {
 
  private:  // Cache variables
   mutable cv::Mat opd_;
-  mutable cv::Mat opd_est_;
 };
 REGISTER_APERTURE(CompoundAperture, COMPOUND)
 

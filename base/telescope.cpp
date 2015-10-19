@@ -313,7 +313,7 @@ void Telescope::ComputeApertureOtf(double wavelength, Mat* otf) const {
 
   // Get the aberrated pupil function from the aperture.
   PupilFunction pupil_func(kOtfSize, sim_config_.reference_wavelength());
-  aperture_->GetPupilFunction(wavelength, &pupil_func);
+  aperture_->GetPupilFunction(wavelength, 0, 0, &pupil_func);
 
   // The coherent OTF is given by p[lamda * f * xi, lamda * f * eta],
   // where xi and eta are in [cyc/m]. The pixel pitch factor converts from

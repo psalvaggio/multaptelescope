@@ -126,11 +126,12 @@ void CassegrainRing::GetApertureTemplate(Mat_<double>* output) const {
   compound_aperture_->GetApertureMask(output->rows).copyTo(*output);
 }
 
-void CassegrainRing::GetOpticalPathLengthDiff(Mat_<double>* output) const {
-  compound_aperture_->GetWavefrontError(output->rows).copyTo(*output);
-}
+void CassegrainRing::GetOpticalPathLengthDiff(double image_height,
+                                              double angle,
+                                              Mat_<double>* output) const {
+  Mat_<double> zernike(output->rows, output->cols);
+  ZernikeWavefrontError(image_height, angle, &zernike);
 
-void CassegrainRing::GetOpticalPathLengthDiffEstimate(
-    Mat_<double>* output) const {
-  compound_aperture_->GetWavefrontErrorEstimate(output->rows).copyTo(*output);
+  compound_aperture_->GetWavefrontError(image_height, angle, output);
+  *output += zernike;
 }

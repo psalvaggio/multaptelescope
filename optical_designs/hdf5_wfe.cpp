@@ -24,7 +24,7 @@ void Hdf5Wfe::GetApertureTemplate(Mat_<double>* output) const {
 
   const int kSize = mask.rows;
 
-  Mat_<double> opd = GetWavefrontError(kSize);
+  Mat_<double> opd = GetWavefrontError(kSize, 0, 0);
 
   CHECK(mask.rows == opd.rows && mask.cols == opd.cols);
 
@@ -35,7 +35,9 @@ void Hdf5Wfe::GetApertureTemplate(Mat_<double>* output) const {
   }
 }
 
-void Hdf5Wfe::GetOpticalPathLengthDiff(Mat_<double>* output) const {
+void Hdf5Wfe::GetOpticalPathLengthDiff(double /*image_height*/,
+                                       double /*angle*/,
+                                       Mat_<double>* output) const {
   Mat opd;
   CHECK(mats_io::HDF5Reader::Read(hdf5_wfe_params_.wfe_filename(),
                                   hdf5_wfe_params_.dataset(),
@@ -67,34 +69,4 @@ void Hdf5Wfe::GetOpticalPathLengthDiff(Mat_<double>* output) const {
   cv::Range row_range(first_row, last_row + 1),
             col_range(first_col, last_col + 1);
   cv::resize(opd(row_range, col_range), *output, output->size());
-}
-
-void Hdf5Wfe::GetOpticalPathLengthDiffEstimate(
-    Mat_<double>* output) const {
-  if (simulation_params().wfe_knowledge() == mats::Simulation::NONE) {
-    *output = 0;
-    return;
-  }
-
-  Mat_<double> opd = GetWavefrontError(output->rows);
-
-  double knowledge_level = 0;
-  switch (simulation_params().wfe_knowledge()) {
-    case mats::Simulation::HIGH: knowledge_level = 0.05; break;
-    case mats::Simulation::MEDIUM: knowledge_level = 0.1; break;
-    default: knowledge_level = 0.2; break;
-  }
-
-  Mat coeffs_mat(9, 1, CV_64FC1);
-  cv::randn(coeffs_mat, 0, knowledge_level);
-  std::vector<double> aberrations;
-  for (int i = 0; i < 9; i++) {
-    aberrations.push_back(coeffs_mat.at<double>(i, 0));
-  }
-
-  Mat opd_est;
-  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(aberrations, output->rows, output);
-
-  *output += opd;
 }

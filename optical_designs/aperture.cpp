@@ -5,6 +5,7 @@
 
 #include "base/pupil_function.h"
 #include "base/opencv_utils.h"
+#include "base/zernike_aberrations.h"
 #include "io/logging.h"
 
 #include <opencv2/opencv.hpp>
@@ -18,33 +19,35 @@ using mats::SimulationConfig;
 using mats::Simulation;
 using mats::PupilFunction;
 using mats::ApertureParameters;
+using mats::ZernikeCoefficient;
 using namespace std;
 using namespace cv;
 
 Aperture::Aperture(const Simulation& params)
     : sim_params_(params),
       aperture_params_(params.aperture_params()),
-      aberrations_(),
+      on_axis_aberrations_(),
+      off_axis_aberrations_(),
       mask_(),
-      opd_(),
-      opd_est_(),
+      on_axis_opd_(),
+      on_axis_opd_est_(),
       encircled_diameter_(-1),
       fill_factor_(-1) {
-
-  //params_.CopyFrom(params);
-  //params_.clear_simulation();
-  //params_.add_simulation()->CopyFrom(params.simulation(sim_index));
-
   int size = 0;
   for (int i = 0; i < aperture_params_.aberration_size(); i++) {
     size = std::max(size,
         static_cast<int>(aperture_params_.aberration(i).type()) + 1);
   }
 
-  aberrations_.resize(size, 0);
+  on_axis_aberrations_.resize(size, 0);
+  off_axis_aberrations_.resize(size, 0);
   for (int i = 0; i < aperture_params_.aberration_size(); i++) {
-    aberrations_[aperture_params_.aberration(i).type()] =
-      aperture_params_.aberration(i).value();
+    auto type = aperture_params_.aberration(i).type();
+    if (IsOffAxis(type)) {
+      off_axis_aberrations_[type] = aperture_params_.aberration(i).value();
+    } else {
+      on_axis_aberrations_[type] = aperture_params_.aberration(i).value();
+    }
   }
 }
 
@@ -57,7 +60,7 @@ double Aperture::fill_factor() const {
   if (aperture_params_.has_fill_factor()) {
     fill_factor_ = aperture_params_.fill_factor();
   } else {
-    Mat mask = GetApertureMask();
+    Mat mask = GetApertureMask(512);
     Scalar sum = cv::sum(mask);
     fill_factor_ = sum[0] / (M_PI * pow(mask.rows / 2, 2));
   }
@@ -77,19 +80,44 @@ double Aperture::GetEncircledDiameter() const {
 }
 
 
-void Aperture::GetPupilFunction(double wavelength,
-                                PupilFunction* pupil) const {
-  GetPupilFunctionHelper(wavelength, pupil, [this] (Mat_<double>* output) {
-    GetWavefrontError(output);
-  });
+bool Aperture::IsOffAxis(ZernikeCoefficient::AberrationType type) const {
+  return type == ZernikeCoefficient::ASTIG_X ||
+         type == ZernikeCoefficient::ASTIG_Y ||
+         type == ZernikeCoefficient::COMA_X ||
+         type == ZernikeCoefficient::COMA_Y;
 }
 
-void Aperture::GetPupilFunctionEstimate(double wavelength,
-                                        PupilFunction* pupil) const {
-  GetPupilFunctionHelper(wavelength, pupil, [this] (Mat_<double>* output) {
-    GetWavefrontErrorEstimate(output);
-  });
+
+bool Aperture::HasAberration(ZernikeCoefficient::AberrationType type) const {
+  if (IsOffAxis(type)) {
+    return off_axis_aberrations_.size() > type &&
+           abs(off_axis_aberrations_[type]) > 1e-10;
+  } else {
+    return on_axis_aberrations_.size() > type &&
+           abs(off_axis_aberrations_[type]) > 1e-10;
+  }
 }
+
+
+double Aperture::GetAberration(ZernikeCoefficient::AberrationType type) const {
+  if (HasAberration(type)) {
+    return IsOffAxis(type) ? off_axis_aberrations_[type]
+                           : on_axis_aberrations_[type];
+  }
+  return 0;
+}
+
+
+void Aperture::GetPupilFunction(double wavelength,
+                                double image_height,
+                                double angle,
+                                PupilFunction* pupil) const {
+  GetPupilFunctionHelper(wavelength, pupil,
+      [this, image_height, angle] (Mat_<double>* output) {
+         GetWavefrontError(image_height, angle, output);
+      });
+}
+
 
 void Aperture::GetPupilFunctionHelper(
     double wavelength,
@@ -134,50 +162,22 @@ void Aperture::GetPupilFunctionHelper(
 
 
 // Accessors for wavefront error.
-Mat Aperture::GetWavefrontError(int size) const {
-  //size = (size == -1) ? params_.array_size() : size;
-  if (opd_.rows != size) {
-    opd_.create(size, size);
-    GetOpticalPathLengthDiff(&opd_);
-  }
-  Mat opd;
-  opd_.copyTo(opd);
-  return opd_;
+Mat Aperture::GetWavefrontError(int size,
+                                double image_height,
+                                double angle) const {
+  Mat_<double> opd(size, size);
+  GetOpticalPathLengthDiff(image_height, angle, &opd);
+  return opd;
 }
 
-void Aperture::GetWavefrontError(cv::Mat_<double>* output) const {
-  if (output->rows > 0 && output->rows != opd_.rows) {
-    opd_.create(output->rows, output->rows);
-    GetOpticalPathLengthDiff(&opd_);
-  }
-  opd_.copyTo(*output);
+void Aperture::GetWavefrontError(double image_height,
+                                 double angle,
+                                 cv::Mat_<double>* output) const {
+  GetOpticalPathLengthDiff(image_height, angle, output);
 }
-
-
-// Accessors for wavefron error estimates.
-Mat Aperture::GetWavefrontErrorEstimate(int size) const {
-  //size = (size == -1) ? params_.array_size() : size;
-  if (opd_est_.rows != size) {
-    opd_est_.create(size, size);
-    GetOpticalPathLengthDiffEstimate(&opd_est_);
-  }
-  Mat opd_est;
-  opd_est_.copyTo(opd_est);
-  return opd_est;
-}
-
-void Aperture::GetWavefrontErrorEstimate(cv::Mat_<double>* output) const {
-  if (output->rows > 0 && output->rows != opd_est_.rows) {
-    opd_est_.create(output->rows, output->rows);
-    GetOpticalPathLengthDiffEstimate(&opd_est_);
-  }
-  opd_est_.copyTo(*output);
-}
-
 
 // Accessors for aperture masks.
 Mat Aperture::GetApertureMask(int size) const {
-  //size = (size == -1) ? params_.array_size() : size;
   if (size > 0 && size != mask_.rows) {
     mask_.create(size, size);
     GetApertureTemplate(&mask_);
@@ -186,6 +186,7 @@ Mat Aperture::GetApertureMask(int size) const {
   mask_.copyTo(mask);
   return mask;
 }
+
 
 void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
   if (output->rows > 0 && output->rows != mask_.rows) {
@@ -196,10 +197,43 @@ void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
 }
 
 
+void Aperture::ZernikeWavefrontError(double image_height,
+                                     double angle,
+                                     cv::Mat_<double>* output) const {
+  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+  ab_factory.aberrations(on_axis_aberrations_, output->rows, output);
+
+  // If we are on axis, we're done.
+  if (abs(image_height) < 1e-10) return;
+
+  if (HasAberration(ZernikeCoefficient::ASTIGMATISM) ||
+      HasAberration(ZernikeCoefficient::COMA)) {
+    double coma_mag = GetAberration(ZernikeCoefficient::COMA) * image_height;
+    double astig_mag = GetAberration(ZernikeCoefficient::ASTIGMATISM) *
+                       pow(image_height, 2);
+
+    double cos_angle = cos(angle), sin_angle = sin(angle);
+    vector<double> tmp_ab(8, 0);
+    tmp_ab[ZernikeCoefficient::COMA_X] = cos_angle * coma_mag;
+    tmp_ab[ZernikeCoefficient::COMA_Y] = sin_angle * coma_mag;
+    tmp_ab[ZernikeCoefficient::ASTIG_X] = cos_angle * astig_mag;
+    tmp_ab[ZernikeCoefficient::ASTIG_Y] = sin_angle * astig_mag;
+
+    Mat_<double> off_axis;
+    ab_factory.aberrations(tmp_ab, output->rows, &off_axis);
+    *output += off_axis;
+  }
+}
+
+void Aperture::GetOpticalPathLengthDiff(double image_height,
+                                        double angle,
+                                        cv::Mat_<double>* output) const {
+  ZernikeWavefrontError(image_height, angle, output);
+}
+
 // ApertureFactory Implementation.
 Aperture* ApertureFactory::Create(const mats::Simulation& params) {
-  ApertureParameters::ApertureType ap_type =
-      params.aperture_params().type();
+  auto ap_type = params.aperture_params().type();
   Aperture* ap = ApertureFactoryImpl::Create(
       ApertureParameters::ApertureType_Name(ap_type), params);
   if (ap) return ap;
