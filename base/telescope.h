@@ -100,9 +100,6 @@ class Telescope {
   void GetTransmissionSpectrum(const std::vector<double>& wavelengths,
                                std::vector<double>* transmission) const;
 
-  void IsoplanaticRegion(int radial_idx,
-                         int angular_idx,
-                         cv::Mat_<double>* isoplanatic_region) const;
  private:
   // Computes the monochromatic OTF of the telescope at the provided
   // wavelengths.
@@ -135,6 +132,16 @@ class Telescope {
   void GetImagingRegion(const cv::Mat& radiance,
                         cv::Mat* roi) const;
 
+  // Computes the interpolation weights for an isoplanatic region.
+  //
+  // Arguments:
+  //  radila_idx          The radial index of the region
+  //  angular_idx         The angular index of the region
+  //  isoplanatic_region  Allocated output array of the desired size. Will be
+  //                      filled with interpolation weights (0-1).
+  void IsoplanaticRegion(int radial_idx,
+                         int angular_idx,
+                         cv::Mat_<double>* isoplanatic_region) const;
  private:
   mats::SimulationConfig sim_config_;
   std::unique_ptr<Aperture> aperture_;
