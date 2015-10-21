@@ -66,8 +66,8 @@ class Telescope {
   //
   // Returns:
   //  The effective Q of the system
-  double GetEffectiveQ(const std::vector<double>& wavelengths,
-                       const std::vector<double>& spectral_weighting) const;
+  double EffectiveQ(const std::vector<double>& wavelengths,
+                    const std::vector<double>& spectral_weighting) const;
 
   // Simulate an image through the telescope.
   //

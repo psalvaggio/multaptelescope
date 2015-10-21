@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     const vector<double>& wavelengths(raw_weighting[0]),
                           spectral_weighting(raw_weighting[1]);
 
-    double q = telescope.GetEffectiveQ(wavelengths, spectral_weighting);
+    double q = telescope.EffectiveQ(wavelengths, spectral_weighting);
     cout << "F/#: " << telescope.FNumber() << endl;
     cout << "Effective Q: " << q << endl;
 

@@ -65,9 +65,8 @@ double Telescope::GNumber(double lambda) const {
          (M_PI * transmission[0] * aperture_->fill_factor());
 }
 
-double Telescope::GetEffectiveQ(
-    const vector<double>& wavelengths,
-    const vector<double>& spectral_weighting) const {
+double Telescope::EffectiveQ(const vector<double>& wavelengths,
+                             const vector<double>& spectral_weighting) const {
   double fnumber = FNumber();
   double p = detector_->pixel_pitch();
   double q = 0;
