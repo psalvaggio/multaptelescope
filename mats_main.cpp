@@ -71,9 +71,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < sim_config.simulation_size(); i++) {
     mainLog() << "Simulation " << (i+1) << " of "
               << sim_config.simulation_size() << endl
-              << mats_io::PrintSimulation(sim_config.simulation(i))
-              << mats_io::PrintAperture(
-                  sim_config.simulation(i).aperture_params());
+              << mats_io::PrintSimulation(sim_config.simulation(i));
 
     mats::Telescope telescope(sim_config, i, detector_params);
 

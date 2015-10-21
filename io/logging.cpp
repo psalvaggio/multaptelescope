@@ -52,8 +52,8 @@ string PrintConfig(const SimulationConfig& config) {
   stringstream output;
   output << "Base directory: " << config.base_directory() << endl
          << "Altitude: " << config.altitude() << " [m]" << endl
-         << "Reference Wavelength: " << config.reference_wavelength() << endl
          << "Array Size: " << config.array_size() << endl
+         << "Reference Wavelength: " << config.reference_wavelength() << endl
          << "Number of simulations: " << config.simulation_size() << endl;
 
   return output.str();
@@ -62,28 +62,37 @@ string PrintConfig(const SimulationConfig& config) {
 string PrintSimulation(const Simulation& simulation) {
   stringstream output;
   
-  output << "Simulation ID: " << simulation.simulation_id() << endl
-         << "Integration Time: " << simulation.integration_time()
-         << " [s]" << endl
-         << "Ground Sample Distance: " << simulation.gsd()
-         << " [m/pixel]" << endl;
+  output << "Simulation ID: " << simulation.simulation_id() << endl;
 
-  return output.str();
-}
+  if (simulation.has_name()) {
+    output << "Name: " << simulation.name() << endl;
+  }
 
-string PrintAperture(const ApertureParameters& ap_params) {
-  stringstream output;
+  output << "Integration Time: " << simulation.integration_time()
+         << " [s]" << endl;
 
-  output << "Type: " << ApertureParameters::ApertureType_Name(ap_params.type())
+  if (simulation.has_focal_length()) {
+    output << "Focal length: " << simulation.focal_length() << " [m]" << endl;
+  } else if (simulation.has_gsd()) {
+    output << "Ground Sample Distance: " << simulation.gsd()
+           << " [m/pixel]" << endl;
+  }
+  output << "Radial zones: " << simulation.radial_zones() << endl
+         << "Angular zones: " << simulation.angular_zones() << endl
+         << "Aperture:" << endl;
+
+  const auto& ap = simulation.aperture_params();
+  output << "  Type: " << ApertureParameters::ApertureType_Name(ap.type())
          << endl
-         << "Encircled Diameter: " << ap_params.encircled_diameter() << endl
-         << "Fill Factor: " << ap_params.fill_factor() << endl
-         << "Aberrations: " << endl;
+         << "  Encircled Diameter: " << ap.encircled_diameter() << " [m]"
+         << endl
+         << "  Fill Factor: " << ap.fill_factor() << endl
+         << "  Aberrations: " << endl;
 
-  for (int i = 0; i < ap_params.aberration_size(); i++) {
-    const ZernikeCoefficient& ab(ap_params.aberration(i));
+  for (int i = 0; i < ap.aberration_size(); i++) {
+    const ZernikeCoefficient& ab(ap.aberration(i));
 
-    output << "  " << ZernikeCoefficient::AberrationType_Name(ab.type())
+    output << "    " << ZernikeCoefficient::AberrationType_Name(ab.type())
            << ": " << ab.value() << endl;
   }
 

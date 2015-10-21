@@ -55,9 +55,7 @@ int main(int argc, char** argv) {
   mats::Telescope telescope(sim_config, sim_index, detector_params);
   Mat otf;
 
-  mainLog() << mats_io::PrintAperture(telescope.aperture()->aperture_params())
-            << endl;
-
+  mainLog() << mats_io::PrintSimulation(telescope.simulation()) << endl;
 
   vector<mats::PupilFunction> pupil;
   vector<double> tmp_wavelength{sim_config.reference_wavelength()};
