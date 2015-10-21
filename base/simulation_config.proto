@@ -35,19 +35,11 @@ message SimulationConfig {
 
 message Simulation {
   optional int32 simulation_id = 1;
-
+  
+  // Optional name of the simulation, used in displays, plot titles, etc.
   optional string name = 11;
   
   optional ApertureParameters aperture_params = 3;
-
-  // How much knowledge of the wavefront error to use in image reconstruction.
-  enum WfeKnowledge {
-    LOW = 0;
-    MEDIUM = 1;
-    HIGH = 2;
-    NONE = -1;
-  }
-  optional WfeKnowledge wfe_knowledge = 5 [default = NONE];
 
   // Integration time [seconds]
   optional double integration_time = 6;
@@ -57,6 +49,12 @@ message Simulation {
 
   // Focal length, if specfied, overrides the gsd/altitude. [m]
   optional double focal_length = 10;
+
+  // If the telescope is going to have off-axis aberrations, how many samples to
+  // use in the radial and angular dimensions. The multiplier on run-time is
+  // (radial_zones - 1) * angular_zones + 1.
+  optional int32 radial_zones = 12 [default = 3];
+  optional int32 angular_zones = 13 [default = 6];
 
   // Some aperture type choices may require additional parameters.
   // Protobuf extensions are a nice way to smuggle them in without changing the
