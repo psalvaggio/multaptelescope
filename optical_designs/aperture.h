@@ -12,7 +12,6 @@
 #include "registry/registry.h"
 
 namespace mats {
-class SimulationConfig;
 class Simulation;
 class PupilFunction;
 }
@@ -25,10 +24,8 @@ class Aperture {
   // Constructor
   //
   // Arguments:
-  //  params     The SimulationConfig object containing the parameters for this
+  //  params     The Simulation object containing the parameters for this
   //             run of the model.
-  //  sim_index  The index in params.simulation() of the simulation for which 
-  //             this aperture is being created.
   explicit Aperture(const mats::Simulation& params);
 
   // Destructor
@@ -136,7 +133,6 @@ class Aperture {
                                         cv::Mat_<double>* output) const;
 
  private:
-  //mats::SimulationConfig params_;
   mats::Simulation sim_params_;
   mats::ApertureParameters aperture_params_;
   std::vector<double> on_axis_aberrations_;
