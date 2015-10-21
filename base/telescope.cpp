@@ -246,13 +246,13 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   }
 }
 
-void Telescope::ComputeEffectiveOtf(const vector<double>& wavelengths,
-                                    const vector<double>& weights,
-                                    double image_height,
-                                    double angle,
-                                    cv::Mat* otf) const {
+void Telescope::EffectiveOtf(const vector<double>& wavelengths,
+                             const vector<double>& weights,
+                             double image_height,
+                             double angle,
+                             cv::Mat* otf) const {
   if (!otf || wavelengths.size() == 0 || weights.size() < wavelengths.size()) {
-    cerr << "Telescope::ComputeEffectiveOtf: Invalid Input" << endl;
+    cerr << "Telescope::EffectiveOtf: Invalid Input" << endl;
     return;
   }
 

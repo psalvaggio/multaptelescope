@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
 
   // Get the effective OTF.
   Mat otf;
-  telescope.ComputeEffectiveOtf(wavelengths, spectral_weighting, 0, 0, &otf);
+  telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0, &otf);
 
   // Restore the image.
   Mat restored;

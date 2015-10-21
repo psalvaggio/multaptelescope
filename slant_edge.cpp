@@ -93,10 +93,8 @@ int main(int argc, char** argv) {
     cout << "Effective Q: " << q << endl;
 
     Mat theoretical_otf;
-    telescope.ComputeEffectiveOtf(wavelengths,
-                                  spectral_weighting,
-                                  0, 0,
-                                  &theoretical_otf);
+    telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0,
+                           &theoretical_otf);
     Mat theoretical_2d_mtf = magnitude(theoretical_otf);
 
     // Grab the radial profile of the OTF and convert to MTF.

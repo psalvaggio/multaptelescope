@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
         weighting[j] *= illumination[j];
       }
       Mat otf;
-      telescope.ComputeEffectiveOtf(wavelengths, weighting, 0, 0, &otf);
+      telescope.EffectiveOtf(wavelengths, weighting, 0, 0, &otf);
 
       Mat deconvolved;
       cls.Deconvolve(output_image[band], otf, kSmoothness, &deconvolved);

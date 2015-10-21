@@ -137,8 +137,7 @@ int main(int argc, char** argv) {
       // Compute and output the effective OTF over the bandpass
       Mat deconvolved;
       Mat eff_otf;
-      telescope.ComputeEffectiveOtf(wavelengths, spectral_weighting, 0, 0,
-                                    &eff_otf);
+      telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0, &eff_otf);
       resize(eff_otf, eff_otf, output_image[band].size());
       imwrite(mats::StringPrintf("sim_%d_mtf_%d.png", i, band),
               GammaScale(FFTShift(magnitude(eff_otf)), 1/2.2));

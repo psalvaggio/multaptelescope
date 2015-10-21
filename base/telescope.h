@@ -100,11 +100,11 @@ class Telescope {
   //  wavelengths  Wavelength domain of the bandpass [m]
   //  weights      The spectral weighting function of the bandpass.
   //  otf          Output: Output OTF (see ComputeOtf())
-  void ComputeEffectiveOtf(const std::vector<double>& wavelengths,
-                           const std::vector<double>& weights,
-                           double image_height,
-                           double angle,
-                           cv::Mat* otf) const;
+  void EffectiveOtf(const std::vector<double>& wavelengths,
+                    const std::vector<double>& weights,
+                    double image_height,
+                    double angle,
+                    cv::Mat* otf) const;
 
   // Get the transmission spectrum of the telescope optics.
   //

@@ -59,10 +59,8 @@ void RunMTFAnalysis(WaitQueue<Mat>* image_queue,
 
   // Compute the theoretical 2D OTF of the telescope.
   Mat theoretical_otf;
-  telescope->ComputeEffectiveOtf(wavelengths,
-                                 spectral_weighting,
-                                 0, 0,
-                                 &theoretical_otf);
+  telescope->EffectiveOtf(wavelengths, spectral_weighting, 0, 0,
+                          &theoretical_otf);
   Mat theoretical_2d_mtf = magnitude(theoretical_otf);
 
   // Grab the radial profile of the OTF and convert to MTF.
