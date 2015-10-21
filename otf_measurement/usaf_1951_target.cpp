@@ -8,7 +8,7 @@
 #include "otf_measurement/slant_edge_mtf.h"
 
 #include <iostream>
-#include <opencv2/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 
 using namespace std;
 using namespace cv;
