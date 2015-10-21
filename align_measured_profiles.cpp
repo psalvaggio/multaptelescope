@@ -283,6 +283,7 @@ Mat GetTheoreticalMtf(const string& config_file) {
   Mat theoretical_otf;
   telescope.ComputeEffectiveOtf(wavelengths,
                                 spectral_weighting,
+                                0, 0,
                                 &theoretical_otf);
   return magnitude(FFTShift(theoretical_otf));
 }
