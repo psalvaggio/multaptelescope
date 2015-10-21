@@ -16,19 +16,10 @@
 #include <opencv2/highgui/highgui.hpp>
 
 using namespace std;
-using cv::Mat;
+using namespace cv;
 
 namespace mats {
 
-  /*
-Detector::Detector(const DetectorParameters& det_params,
-                   const SimulationConfig& sim_params,
-                   int sim_index)
-    : det_params_(det_params),
-      sim_params_(sim_params),
-      sim_index_(sim_index),
-      qe_spectrums_() {
-      */
 Detector::Detector(const DetectorParameters& det_params)
     : det_params_(det_params),
       qe_spectrums_() {
@@ -36,8 +27,8 @@ Detector::Detector(const DetectorParameters& det_params)
   for (int i = 0; i < det_params_.band_size(); i++) {
     const DetectorBandpass& band(det_params_.band(i));
 
-    size_t qe_size = std::min(band.wavelength_size(),
-                              band.quantum_efficiency_size());
+    size_t qe_size = min(band.wavelength_size(),
+                         band.quantum_efficiency_size());
     qe_spectrums_.push_back(vector<QESample>(qe_size));
 
     for (size_t j = 0; j < qe_size; j++) {
@@ -161,7 +152,7 @@ void Detector::ResponseElectrons(const vector<Mat>& irradiance,
   }
 }
 
-void Detector::AggregateSignal(const vector<cv::Mat>& signal,
+void Detector::AggregateSignal(const vector<Mat>& signal,
                                const vector<double>& wavelengths,
                                bool normalize,
                                vector<Mat>* output) const {
@@ -216,29 +207,29 @@ void Detector::Quantize(const vector<Mat>& electrons,
 
   for (size_t i = 0; i < electrons.size(); i++) {
     Mat tmp = gain * electrons[i];
-    tmp = cv::min(tmp, max_dig_count);
+    tmp = min(tmp, max_dig_count);
     tmp.convertTo(tmp, data_type);
     tmp.convertTo(tmp, CV_64FC1);
     dig_counts->push_back(tmp);
   }
 }
 
-Mat Detector::GetSamplingOtf(int rows, int cols) {
+Mat_<complex<double>> Detector::GetSamplingOtf(int rows, int cols) {
   const int kRows = (rows > 0) ? rows : this->rows();
   const int kCols = (cols > 0) ? cols : this->cols();
   const int kDetRows = this->rows();
   const int kDetCols = this->cols();
 
-  cv::Mat_<complex<double>> otf(kRows, kCols);
+  Mat_<complex<double>> otf(kRows, kCols);
 
   for (int r = 0; r < kRows; r++) {
-    int y = std::min(r, kRows - r);
+    int y = min(r, kRows - r);
     double eta = double(y) / kDetRows;  // [cyc / pixel]
     double pi_eta = M_PI * eta;
     double eta_sinc = (y == 0) ? 1 : sin(pi_eta) / pi_eta;
 
     for (int c = 0; c < kCols; c++) {
-      int x = std::min(c, kCols - c);
+      int x = min(c, kCols - c);
       double xi = double(x) / kDetCols;
       double pi_xi = M_PI * xi;
       double xi_sinc = (x == 0) ? 1 : sin(pi_xi) / pi_xi;
@@ -250,58 +241,46 @@ Mat Detector::GetSamplingOtf(int rows, int cols) {
   return otf;
 }
 
-Mat Detector::GetSmearOtf(double x_velocity,
-                          double y_velocity,
-                          double int_time,
-                          int rows,
-                          int cols) {
+Mat_<complex<double>> Detector::GetSmearOtf(double x_velocity,
+                                            double y_velocity,
+                                            double int_time,
+                                            int rows,
+                                            int cols) {
   const int kRows = (rows > 0) ? rows : this->rows();
   const int kCols = (cols > 0) ? cols : this->cols();
-  const double kSize = std::max(kRows, kCols);
+  const double kSize = max(kRows, kCols);
   const double kPixelPitch = det_params_.pixel_pitch();
-  //const double kIntTime =
-      //sim_params_.simulation(sim_index_).integration_time();
 
-  //double xi_coeff = M_PI * x_velocity * kIntTime;
-  //double eta_coeff = M_PI * y_velocity * kIntTime;
   double xi_coeff = M_PI * x_velocity * int_time;
   double eta_coeff = M_PI * y_velocity * int_time;
 
-  vector<Mat> otf_planes;
-  otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
-  otf_planes.push_back(Mat::zeros(kRows, kCols, CV_64FC1));
+  Mat_<complex<double>> otf(kRows, kCols);
 
-  double* real_data = (double*) otf_planes[0].data;
   for (int r = 0; r < kRows; r++) {
-    int y = std::min(r, kRows - r);
+    int y = min(r, kRows - r);
     double eta = (1 / kPixelPitch) * (y / kSize);
                             
     for (int c = 0; c < kCols; c++) {
-      int x = std::min(c, kCols - c);
+      int x = min(c, kCols - c);
       double xi = (1 / kPixelPitch) * (x / kSize);
 
       double sinc_param = xi_coeff * xi + eta_coeff * eta;
-      real_data[r*kCols + c] = (sinc_param == 0) ? 1 :
-                               sin(sinc_param) / sinc_param;
+      otf(r, c) = (sinc_param == 0) ? complex<double>(1, 0) :
+                  complex<double>(sin(sinc_param) / sinc_param, 0);
     }            
   }              
 
-  Mat otf;       
-  merge(otf_planes, otf);
   return otf;
 }
 
-Mat Detector::GetJitterOtf(double jitter_std_dev,
-                           double int_time,
-                           int rows,
-                           int cols) {
+Mat_<complex<double>> Detector::GetJitterOtf(double jitter_std_dev,
+                                             double int_time,
+                                             int rows,
+                                             int cols) {
   const int kRows = (rows > 0) ? rows : this->rows();
   const int kCols = (cols > 0) ? cols : this->cols();
   const int kNumTimesteps = 100;
-  //const double kIntTime =
-      //sim_params_.simulation(sim_index_).integration_time();
 
-  //double delta_freq = 1 / kIntTime;
   double delta_freq = 1 / int_time;
   vector<double> x_offset, y_offset;
 
@@ -437,7 +416,7 @@ Mat Detector::GetJitterOtf(double jitter_std_dev,
   jitter_psf = FFTShift(jitter_psf);
 
   Mat otf;
-  dft(jitter_psf, otf, cv::DFT_COMPLEX_OUTPUT);
+  dft(jitter_psf, otf, DFT_COMPLEX_OUTPUT);
   vector<Mat> otf_planes;
   split(otf, otf_planes);
 
