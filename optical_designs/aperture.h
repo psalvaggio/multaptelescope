@@ -49,6 +49,8 @@ class Aperture {
     return off_axis_aberrations_;
   }
 
+  bool HasOffAxisAberration() const;
+
   double fill_factor() const;
   double encircled_diameter() const;
 
@@ -63,6 +65,13 @@ class Aperture {
                         double image_height,
                         double angle,
                         mats::PupilFunction* pupil) const;
+
+  void GetPupilFunction(const std::vector<double>& wavelength,
+                        double image_height,
+                        double angle,
+                        int size,
+                        double reference_wavelength,
+                        std::vector<mats::PupilFunction>* pupil) const;
 
   // Get the true wavefront error across the aperture.
   //
@@ -126,13 +135,6 @@ class Aperture {
                                         double angle,
                                         cv::Mat_<double>* output) const;
 
-  // Internal helper function for GetPupilFunction() and
-  // GetPupilFunctionEstimate().
-  void GetPupilFunctionHelper(
-      double wavelength,
-      mats::PupilFunction* pupil,
-      std::function<void(cv::Mat_<double>*)> wfe_generator) const;
-
  private:
   //mats::SimulationConfig params_;
   mats::Simulation sim_params_;
@@ -143,7 +145,6 @@ class Aperture {
  private:  // Cache variables
   mutable cv::Mat_<double> mask_;
   mutable cv::Mat_<double> on_axis_opd_;
-  mutable cv::Mat_<double> on_axis_opd_est_;
   mutable double encircled_diameter_;
   mutable double fill_factor_;
 };

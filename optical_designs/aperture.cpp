@@ -30,7 +30,6 @@ Aperture::Aperture(const Simulation& params)
       off_axis_aberrations_(),
       mask_(),
       on_axis_opd_(),
-      on_axis_opd_est_(),
       encircled_diameter_(-1),
       fill_factor_(-1) {
   int size = 0;
@@ -108,21 +107,17 @@ double Aperture::GetAberration(ZernikeCoefficient::AberrationType type) const {
 }
 
 
+bool Aperture::HasOffAxisAberration() const {
+  return HasAberration(ZernikeCoefficient::COMA) ||
+         HasAberration(ZernikeCoefficient::ASTIGMATISM);
+}
+
+
+/*
 void Aperture::GetPupilFunction(double wavelength,
                                 double image_height,
                                 double angle,
                                 PupilFunction* pupil) const {
-  GetPupilFunctionHelper(wavelength, pupil,
-      [this, image_height, angle] (Mat_<double>* output) {
-         GetWavefrontError(image_height, angle, output);
-      });
-}
-
-
-void Aperture::GetPupilFunctionHelper(
-    double wavelength,
-    PupilFunction* pupil,
-    function<void(Mat_<double>*)> wfe_generator) const {
   // Create the aberrated pupil function. This consists of putting the
   // wavefront error into the phase of the complex pupil function.
   auto& pupil_real = pupil->real_part();
@@ -145,7 +140,7 @@ void Aperture::GetPupilFunctionHelper(
                wfe_center = pupil_imag(mid_range, mid_range);
 
   GetApertureMask(&mask_center);
-  wfe_generator(&wfe_center);
+  GetWavefrontError(image_height, angle, &wfe_center);
 
   // The wavefront error is in units of the reference wavelength. So, we need
   // to scale it to be in terms of the requested wavelength.
@@ -156,6 +151,52 @@ void Aperture::GetPupilFunctionHelper(
       double mask_val = pupil_real(i, j);
       pupil_real(i, j) = mask_val * cos(2 * M_PI * pupil_imag(i, j));
       pupil_imag(i, j) = mask_val * sin(2 * M_PI * pupil_imag(i, j));
+    }
+  }
+}
+*/
+
+void Aperture::GetPupilFunction(const vector<double>& wavelength,
+                                double image_height,
+                                double angle,
+                                int size,
+                                double reference_wavelength,
+                                vector<PupilFunction>* output) const {
+
+  // We want to pupil function to take up the center half of the array. This
+  // is a decent tradeoff so the user has enough resolution to upsample and a
+  // decent range (2x) over which to upsample.
+  int target_diameter = size / 2;
+  Range mid_range(size / 4, size / 4 + target_diameter);
+
+  Mat_<double> mask(target_diameter, target_diameter),
+               wfe(target_diameter, target_diameter);
+  GetApertureMask(&mask);
+  GetWavefrontError(image_height, angle, &wfe);
+
+  for (const auto& lambda : wavelength) {
+    // Set the scale of the pupil function, so the user can rescale the
+    // function with physical units if they need to.
+    output->emplace_back(size, reference_wavelength);
+    auto& pupil = output->back();
+    pupil.set_meters_per_pixel(encircled_diameter() / target_diameter);
+
+    // Extract the center part of the arrays
+    auto& pupil_real = pupil.real_part();
+    auto& pupil_imag = pupil.imaginary_part();
+    mask.copyTo(pupil_real(mid_range, mid_range));
+    wfe.copyTo(pupil_imag(mid_range, mid_range));
+
+    // The wavefront error is in units of the reference wavelength. So, we need
+    // to scale it to be in terms of the requested wavelength.
+    pupil_imag(mid_range, mid_range) *= reference_wavelength / lambda;
+
+    for (int i = mid_range.start; i < mid_range.end; i++) {
+      for (int j = mid_range.start; j < mid_range.end; j++) {
+        double mask_val = pupil_real(i, j);
+        pupil_real(i, j) = mask_val * cos(2 * M_PI * pupil_imag(i, j));
+        pupil_imag(i, j) = mask_val * sin(2 * M_PI * pupil_imag(i, j));
+      }
     }
   }
 }
@@ -200,14 +241,16 @@ void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
 void Aperture::ZernikeWavefrontError(double image_height,
                                      double angle,
                                      cv::Mat_<double>* output) const {
-  ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-  ab_factory.aberrations(on_axis_aberrations_, output->rows, output);
+  if (on_axis_opd_.rows != output->rows) {
+    ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+    ab_factory.aberrations(on_axis_aberrations_, output->rows, &on_axis_opd_);
+  }
+  on_axis_opd_.copyTo(*output);
 
   // If we are on axis, we're done.
   if (abs(image_height) < 1e-10) return;
 
-  if (HasAberration(ZernikeCoefficient::ASTIGMATISM) ||
-      HasAberration(ZernikeCoefficient::COMA)) {
+  if (HasOffAxisAberration()) {
     double coma_mag = GetAberration(ZernikeCoefficient::COMA) * image_height;
     double astig_mag = GetAberration(ZernikeCoefficient::ASTIGMATISM) *
                        pow(image_height, 2);
@@ -220,6 +263,7 @@ void Aperture::ZernikeWavefrontError(double image_height,
     tmp_ab[ZernikeCoefficient::ASTIG_Y] = sin_angle * astig_mag;
 
     Mat_<double> off_axis;
+    ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
     ab_factory.aberrations(tmp_ab, output->rows, &off_axis);
     *output += off_axis;
   }
