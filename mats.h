@@ -6,9 +6,7 @@
 
 // Core headers of the library.
 #include "base/assertions.h"
-#include "base/aperture_parameters.pb.h"
 #include "base/detector.h"
-#include "base/detector_parameters.pb.h"
 #include "base/filesystem.h"
 #include "base/linear_interpolator.h"
 #include "base/math_utils.h"
