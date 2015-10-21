@@ -12,6 +12,7 @@
 #define SYSTEM_OTF_H
 
 #include <opencv/cv.h>
+#include <complex>
 
 namespace mats {
 
@@ -19,12 +20,13 @@ class SystemOtf {
  public:
   SystemOtf();
 
-  void PushOtf(const cv::Mat& otf);
+  void PushOtf(const cv::Mat_<std::complex<double>>& otf);
+  void PushOtf(const cv::Mat_<double>& mtf);
 
-  cv::Mat GetOtf() const;
+  cv::Mat_<std::complex<double>> GetOtf() const { return otf_; }
 
  private:
-  cv::Mat mtf_, ptf_;
+  cv::Mat_<std::complex<double>> otf_;
 };
 
 }
