@@ -59,27 +59,30 @@ int main(int argc, char** argv) {
             << endl;
 
 
-  mats::PupilFunction pupil(sim_config.array_size(),
-                            sim_config.reference_wavelength());
+  vector<mats::PupilFunction> pupil;
+  vector<double> tmp_wavelength{sim_config.reference_wavelength()};
   telescope.aperture()->GetPupilFunction(
-      sim_config.reference_wavelength(), 0, 0, &pupil);
+      tmp_wavelength, 0, 0,
+      sim_config.array_size(),
+      sim_config.reference_wavelength(),
+      &pupil);
+  imwrite("mask.png", ByteScale(pupil[0].magnitude()));
+  imwrite("wfe.png", ByteScale(pupil[0].phase()));
 
   if (FLAGS_spectral_weighting == "") {
     vector<Mat> spectral_otf;
-    telescope.ComputeOtf({sim_config.reference_wavelength()}, &spectral_otf);
+    telescope.ComputeOtf({sim_config.reference_wavelength()}, 0, 0,
+                         &spectral_otf);
     otf = spectral_otf[0];
   } else {
     vector<vector<double>> data;
     if (mats_io::TextFileReader::Parse(
           mats::ResolvePath(FLAGS_spectral_weighting), &data)) {
-      telescope.ComputeEffectiveOtf(data[0], data[1], &otf);
+      telescope.ComputeEffectiveOtf(data[0], data[1], 0, 0, &otf);
     } else {
       cerr << "Could not read spectral weighting file." << endl;
     }
   }
-
-  imwrite("mask.png", ByteScale(pupil.magnitude()));
-  imwrite("wfe.png", ByteScale(pupil.phase()));
 
   Mat output_mtf = GammaScale(FFTShift(magnitude(otf)), 1/2.2);
   if (FLAGS_colormap >= 0) {
@@ -100,7 +103,9 @@ int main(int argc, char** argv) {
   }
 
   if (FLAGS_output_psf) {
-    Mat psf = GammaScale(FFTShift(pupil.PointSpreadFunction()), 1/2.2);
+    Mat psf;
+    dft(otf, psf, DFT_COMPLEX_OUTPUT);
+    psf = GammaScale(FFTShift(magnitude(psf)), 1/2.2);
     if (FLAGS_colormap >= 0) {
       psf = ColorScale(psf, FLAGS_colormap);
     }
