@@ -63,8 +63,6 @@ string PrintSimulation(const Simulation& simulation) {
   stringstream output;
   
   output << "Simulation ID: " << simulation.simulation_id() << endl
-         << "Wavefront Error Knowledge Used in Reconstruction: "
-         << Simulation::WfeKnowledge_Name(simulation.wfe_knowledge()) << endl
          << "Integration Time: " << simulation.integration_time()
          << " [s]" << endl
          << "Ground Sample Distance: " << simulation.gsd()
