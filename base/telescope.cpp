@@ -85,40 +85,43 @@ void Telescope::Image(const vector<Mat>& radiance,
                       vector<Mat>* image,
                       vector<Mat>* otf) {
   vector<Mat> blurred_irradiance(radiance.size());
+
+  // If we have off-axis aberration, we need to compute the output image in
+  // various isoplanatic regions and then reconstruct the image
   if (aperture_->HasOffAxisAberration()) {
     const int kRadialZones = simulation().radial_zones();
     const int kAngularZones = simulation().angular_zones();
     const double kRadialZoneWidth = 1 / max(1., kRadialZones - 1.);
     const double kAngularZoneWidth = 2 * M_PI / kAngularZones;
 
+    // Allocate the blurred irradiance, we'll be building up the result one
+    // isoplanatic region at a time
     for (size_t i = 0; i < radiance.size(); i++) {
       blurred_irradiance[i] = Mat::zeros(radiance[i].size(), CV_64F);
     }
 
+    // Loop through each isoplanatic region
     Mat_<double> isoplanatic_region(radiance[0].size());
     for (int i = 0; i < kRadialZones; i++) {
       for (int j = 0; j < kAngularZones; j++) {
         cout << "Processing zone r " << (i+1) << "/" << kRadialZones
              << ", theta " << (j+1) << "/" << kAngularZones << endl;
+        // Compute the interpolation weights for this region
         IsoplanaticRegion(i, j, &isoplanatic_region);
 
-        // Compute the OTF for each of the spectral points in the input data.
+        // Compute the spactral OTF in the current isoplanatic region
         vector<Mat> spectral_otfs;
         ComputeOtf(wavelength, i * kRadialZoneWidth, j * kAngularZoneWidth,
                    &spectral_otfs);
 
+        // Perform image degradation and add to the total blurred image
         Mat degraded;
-        Mat_<double> average_mtf(spectral_otfs[0].size());
-        average_mtf = 0;
         for (size_t k = 0; k < radiance.size(); k++) {
           DegradeImage(radiance[k], spectral_otfs[k], &degraded);
           multiply(degraded, isoplanatic_region, degraded,
               1 / GNumber(wavelength[k]));
           blurred_irradiance[k] += degraded;
-          average_mtf += magnitude(spectral_otfs[k]);
         }
-        imwrite(StringPrintf("mtf_%d_%d.png", i, j),
-            ColorScale(GammaScale(FFTShift(average_mtf), 1/2.2), COLORMAP_JET));
 
         if (i == 0) j = kAngularZones;
       }
@@ -134,23 +137,7 @@ void Telescope::Image(const vector<Mat>& radiance,
     }
   }
                      
-  /*
-  if (otf != NULL) {
-    otf->clear();
-    
-    // Get the transmission spectrum of the optics.
-    vector<double> transmittances;
-    GetTransmissionSpectrum(wavelength, &transmittances);
-
-    for (size_t i = 0; i < wavelength.size(); i++) {
-      spectral_otfs[i] *= transmittances[i];
-    }
-    detector_->AggregateSignal(spectral_otfs, wavelength, true, otf);
-
-    for (auto& tmp : *otf) tmp /= std::abs(tmp.at<complex<double>>(0, 0));
-  }
-  */
-
+  // Compute the detector response
   vector<Mat> electrons;
   double int_time = simulation().integration_time();
   detector_->ResponseElectrons(blurred_irradiance, wavelength, int_time,
@@ -391,31 +378,40 @@ void Telescope::IsoplanaticRegion(int radial_idx,
 
   *isoplanatic_region = 0;
 
+  // Loop through every pixel, determining the interpolation weight for the
+  // given region
   for (int i = 0; i < kRows; i++) {
     double y = i - 0.5 * kRows;
     for (int j = 0; j < kCols; j++) {
       double x = j - 0.5 * kCols;
+
+      // Compute polar coordinates from the center of the image
       double r = sqrt(x*x + y*y) / (0.5 * max(kRows, kCols));
       double theta = atan2(y, x);
       while (theta < 0) theta += 2 * M_PI;
 
+      // Find the two bounding radial regions
       double r_index = r / kRadialZoneWidth;
-      double theta_index = theta / kAngularZoneWidth;
-
       int r_lt_index = min(max(int(floor(r_index)), 0), kNumRadialZones - 1);
       int r_gt_index = min(int(ceil(r_index)), kNumRadialZones - 1);
 
+      // Compute r weight if we're in the given region
       if (r_lt_index != radial_idx && r_gt_index != radial_idx) continue;
       double r_blend = r_index - r_lt_index;
       double r_weight = 0;
       if (radial_idx == r_lt_index) r_weight += 1 - r_blend;
       if (radial_idx == r_gt_index) r_weight += r_blend;
 
+      // If we're in the r=0 region, there is no off-axis wavefront error, so
+      // there's no need to look at theta
       double theta_weight = 1;
       if (radial_idx > 0) {
+        // Compute the two bounding angular region
+        double theta_index = theta / kAngularZoneWidth;
         int theta_lt_index = max(int(floor(theta_index)), 0);
         int theta_gt_index = int(ceil(theta_index)) % kNumAngularZones;
 
+        // Compute the theta weight if we're in the given region
         if (theta_lt_index != angular_idx && theta_gt_index != angular_idx)
           continue;
         theta_weight = 0;
