@@ -76,12 +76,9 @@ class Telescope {
   //  wavelength  The wavelengths associated with each spectral band in
   //              radiance.
   //  image       The output of each band of the detector.
-  //  otf         The effective OTF for each of the spectral bands of the
-  //              detector.
   void Image(const std::vector<cv::Mat>& radiance,
              const std::vector<double>& wavelength,
-             std::vector<cv::Mat>* image,
-             std::vector<cv::Mat>* otf = NULL);
+             std::vector<cv::Mat>* image);
 
   // Computes the monochromatic OTF of the telescope at the provided
   // wavelengths.

@@ -82,8 +82,7 @@ double Telescope::GetEffectiveQ(
 
 void Telescope::Image(const vector<Mat>& radiance,
                       const vector<double>& wavelength,
-                      vector<Mat>* image,
-                      vector<Mat>* otf) {
+                      vector<Mat>* image) {
   vector<Mat> blurred_irradiance(radiance.size());
 
   // If we have off-axis aberration, we need to compute the output image in

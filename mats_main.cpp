@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 
   const double kGain = 10;
 
-  vector<double> hyp_band_wavelengths;
+  vector<double> wavelengths;
   for (int i = 0; i < hyp_header.band_size(); i++) {
     hyp_planes[i].convertTo(hyp_planes[i], CV_64F);
 
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
     if (is_wavenumber) wave_val = 1 / wave_val;
     wave_val *= wave_multiplier;
 
-    hyp_band_wavelengths.push_back(wave_val);
+    wavelengths.push_back(wave_val);
   }
 
   mainLog() << "Read input hyperspectral image with "
@@ -60,6 +60,13 @@ int main(int argc, char** argv) {
 
   cout << "Ready to process " << sim_config.simulation_size()
        << " simulations" << endl;
+
+  vector<double> illumination;
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    illumination.push_back(sum(hyp_planes[i])[0]);
+  }
+  double hyp_sum = accumulate(begin(illumination), end(illumination), 0.);
+  for (auto& tmp : illumination) tmp /= hyp_sum;
 
   for (int i = 0; i < sim_config.simulation_size(); i++) {
     mainLog() << "Simulation " << (i+1) << " of "
@@ -72,20 +79,28 @@ int main(int argc, char** argv) {
 
     mainLog() << "Focal Length: " << telescope.FocalLength() << " [m]" << endl;
 
-    vector<Mat> output_image, otfs, output_ref, ref_otfs;
-    telescope.Image(hyp_planes, hyp_band_wavelengths, &output_image, &otfs);
+    vector<Mat> output_image, output_ref;
+    telescope.Image(hyp_planes, wavelengths, &output_image);
 
     vector<Mat> low_res_hyp;
-    telescope.detector()->AggregateSignal(hyp_planes, hyp_band_wavelengths,
-                                          false, &low_res_hyp);
+    telescope.detector()->AggregateSignal(hyp_planes, wavelengths, false,
+                                          &low_res_hyp);
 
     ConstrainedLeastSquares cls;
 
     cout << "Restoring..." << endl;
     const double kSmoothness = 1e-3;
     for (size_t band = 0; band < output_image.size(); band++) {
+      vector<double> weighting;
+      telescope.detector()->GetQESpectrum(wavelengths, band, &weighting);
+      for (size_t j = 0; j < wavelengths.size(); j++) {
+        weighting[j] *= illumination[j];
+      }
+      Mat otf;
+      telescope.ComputeEffectiveOtf(wavelengths, weighting, 0, 0, &otf);
+
       Mat deconvolved;
-      cls.Deconvolve(output_image[band], otfs[band], kSmoothness, &deconvolved);
+      cls.Deconvolve(output_image[band], otf, kSmoothness, &deconvolved);
       imwrite(mats::StringPrintf("output_band_%d.png", band),
             ByteScale(output_image[band]));
       imwrite(mats::StringPrintf("processed_band_%d.png", band),
@@ -94,7 +109,7 @@ int main(int argc, char** argv) {
             ByteScale(low_res_hyp[band]));
       imwrite(mats::StringPrintf("mtf_%d.png",
             (int)(detector_params.band(band).center_wavelength() * 1e9)), 
-            GammaScale(FFTShift(magnitude(otfs[band])), 1/2.2));
+            GammaScale(FFTShift(magnitude(otf)), 1/2.2));
     }
   }
 
