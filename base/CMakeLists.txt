@@ -1,6 +1,3 @@
-find_package(FFTW REQUIRED)
-find_package(Curses REQUIRED)
-
 set(MATS_SRCS ${MATS_SRCS}
     circshift.cpp
     detector.cpp
@@ -41,10 +38,4 @@ set(MATS_HDRS ${MATS_HDRS}
     telescope.h
     wait_queue.h
     zernike_aberrations.h
-    PARENT_SCOPE)
-
-set(MATS_LINK_LIBS ${MATS_LINK_LIBS}
-    ${FFTW_LIBRARIES}
-    ${CURSES_LIBRARIES}
-    "-lmenu"
     PARENT_SCOPE)

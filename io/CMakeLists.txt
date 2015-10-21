@@ -1,5 +1,3 @@
-find_package(HDF5 REQUIRED)
-
 set(MATS_HDRS ${MATS_HDRS}
     logging.h
     detector_writer.h
@@ -25,13 +23,3 @@ set(MATS_SRCS ${MATS_SRCS}
     stl_writer.cpp
     text_file_reader.cpp
     PARENT_SCOPE)
-
-set(LINK_LIBS hdf5 hdf5_hl)
-
-if (APPLE)
-  set(LINK_LIBS ${LINK_LIBS} "-framework SBIGUDrv")
-else()
-  set(LINK_LIBS ${LINK_LIBS} "-lsbigudrv")
-endif()
-
-set(MATS_LINK_LIBS ${MATS_LINK_LIBS} ${LINK_LIBS} PARENT_SCOPE)

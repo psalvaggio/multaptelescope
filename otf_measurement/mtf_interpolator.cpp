@@ -51,7 +51,7 @@ void MtfInterpolator::GetMtf(const std::vector<MTF>& profiles,
 
       // If the angle is greater than our last profile, interpolate between the
       // last and the first.
-      if (ang_gt_index == angles.size()) {
+      if (ang_gt_index == int(angles.size())) {
         double diff = theta - angles[ang_lt_index];
         double blend = diff / ((angles[0] + kAngleUpper) - angles.back());
         interp_weights.emplace_back(angles.size() - 1, 1 - blend);
@@ -83,7 +83,7 @@ void MtfInterpolator::GetMtf(const std::vector<MTF>& profiles,
         int r_lt_index = r_gt_index - 1;
 
         // If we're beyond the smaples, assume 0.
-        if (r_gt_index == profile[0].size()) {
+        if (r_gt_index == int(profile[0].size())) {
           mtf_val += 0;
         } else if (r_lt_index < 0) {  // Just here for -0s.
           mtf_val += angle_weight.second;

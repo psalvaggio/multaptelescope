@@ -1,24 +1,29 @@
 project (MATS)
 
 cmake_minimum_required (VERSION 2.6)
+set(CMAKE_MACOSX_RPATH 1)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${MATS_SOURCE_DIR}/cmake)
 
 set(LIB_MACROS "")
 
 # Find external libraries
-find_package(OpenCV)
+find_package(OpenCV 3.0.0 REQUIRED)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 find_package(Gflags REQUIRED)
-find_package(OpenGL)
-find_package(GLUT)
 include_directories(${PROTOBUF_INCLUDE_DIR})
+find_package(Boost REQUIRED COMPONENTS iostreams system filesystem regex)
+find_package(FFTW REQUIRED)
+find_package(Curses REQUIRED)
+find_package(HDF5 REQUIRED)
 
+# Respect environment variables
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} $ENV{CXXFLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} $ENV{LDFLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} $ENV{LDFLAGS}")
 
+# Make sure we have C++11 support
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
@@ -31,32 +36,35 @@ else()
                   support. Please use a different C++ compiler.")
 endif()
 
-find_package(Boost REQUIRED COMPONENTS iostreams system filesystem regex)
-
-set(PROTOBUF_IMPORT_DIRS ${PROTOBUF_IMPORT_DIRS} ${MATS_SOURCE_DIR})
-
-if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "Debug"))
+# Check the build type
+if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR
+         CMAKE_BUILD_TYPE STREQUAL "Debug"))
   set(CMAKE_BUILD_TYPE "Release")
 endif()
-
-if ("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-endif()
-
 string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
 if(    NOT cmake_build_type_tolower STREQUAL "debug"
    AND NOT cmake_build_type_tolower STREQUAL "release")
   message(FATAL_ERROR "Unknown build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release (case-insensitive).")
 endif()
 
-include_directories(${MATS_SOURCE_DIR})
-include_directories(${MATS_BINARY_DIR})
-
+# Set compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 if (cmake_build_type_tolower STREQUAL "release")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 endif()
 
+if ("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+endif()
+
+# Allow top-level include paths. Binary directory allows top-level includes to
+# also work for protobuf headers.
+include_directories(${MATS_SOURCE_DIR})
+include_directories(${MATS_BINARY_DIR})
+
+# List of submodules
 set(MODULES base
             #aperture_optimization
             deconvolution
@@ -68,6 +76,7 @@ set(MODULES base
 
 set(MATS_LINK_LIBS "")
 foreach(TMP_LIB ${MODULES})
+  # Grab the proto files in the submodule
   unset(ProtoFiles)
   file(GLOB_RECURSE ProtoFiles
        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -76,6 +85,7 @@ foreach(TMP_LIB ${MODULES})
   set(${TMP_LIB}_ProtoSources CACHE STRING ${TMP_LIB}_ProtoFiles)
   set(${TMP_LIB}_ProtoHeaders CACHE STRING ${TMP_LIB}_ProtoHeaders)
 
+  # Generate proto source files
   if (${TMP_LIB}_ProtoFiles)
     foreach (PROTO_FILE ${${TMP_LIB}_ProtoFiles})
       get_filename_component(ABS_FIL ${PROTO_FILE} ABSOLUTE)
@@ -100,15 +110,8 @@ foreach(TMP_LIB ${MODULES})
   endif()
 endforeach(TMP_LIB)
 
-foreach(TMP_LIB ${MODULES})
-  if (${TMP_LIB}_ProtoFiles)
-    add_library(mats_${TMP_LIB}_proto SHARED ${${TMP_LIB}_ProtoSources}
-                                             ${${TMP_LIB}_ProtoHeaders})
-    target_link_libraries(mats_${TMP_LIB}_proto ${PROTOBUF_LIBRARIES})
-  endif()
-endforeach()
-target_link_libraries(mats_optical_designs_proto mats_base_proto)
-
+# Create a list of all the source and headers. Grab each submodule's proto files
+# and include their CMakeLists.txt, which adds their C++ files.
 set(SRCS "")
 set(HDRS "")
 foreach(TMP_LIB ${MODULES})
@@ -129,18 +132,31 @@ foreach(TMP_LIB ${MODULES})
   endforeach()
 endforeach(TMP_LIB)
 
+# Aggregate our dependencies
 list(APPEND MATS_LINK_LIBS ${Boost_LIBRARIES}
                            ${OpenCV_LIBRARIES}
                            ${PROTOBUF_LIBRARIES}
-                           ${OPENGL_LIBRARIES}
-                           ${GLUT_LIBRARY}
-                           gflags)
+                           ${GFLAGS_LIBRARIES}
+                           ${FFTW_LIBRARIES}
+                           ${CURSES_LIBRARIES}
+                           "-lmenu"
+                           hdf5
+                           hdf5_hl
+                           )
+if (APPLE)
+  list(APPEND MATS_LINK_LIBS "-framework SBIGUDrv")
+else()
+  list(APPEND MATS_LINK_LIBS "-lsbigudrv")
+endif()
 
 set (LIB_NAME mats)
 
+# Create a shared library with all of our source files
 add_library(${LIB_NAME} SHARED ${SRCS} ${HDRS})
 target_link_libraries(${LIB_NAME} ${MATS_LINK_LIBS})
 
+# To make registries work, we need to force all (even unused) symbols to be
+# loaded.
 if (APPLE)
   set(LIB_NAME -Wl,-force_load ${LIB_NAME})
 else()
@@ -149,13 +165,13 @@ endif()
 
 list(APPEND MATS_LINK_LIBS ${LIB_NAME})
 
+# List of executables
 set(EXES aberrated_otf
          acquire_images
          align_measured_profiles
          analyze_usaf_1951
          center_mask
          create_spectral_weighting
-         #display_aperture
          #genetic_optimization
          image_binary_target
          mats_main
@@ -168,6 +184,7 @@ set(EXES aberrated_otf
          #perform_rer_comparison
          )
 
+# Build each executable
 foreach(EXECUTABLE ${EXES})
   add_executable(${EXECUTABLE} ${EXECUTABLE}.cpp)
   target_link_libraries(${EXECUTABLE} ${MATS_LINK_LIBS})
