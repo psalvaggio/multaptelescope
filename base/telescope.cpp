@@ -30,16 +30,11 @@ Telescope::Telescope(const SimulationConfig& sim_config,
                      const DetectorParameters& det_params)
     : sim_config_(sim_config),
       aperture_(ApertureFactory::Create(sim_config.simulation(sim_index))),
-      //detector_(new Detector(det_params, sim_config, sim_index)),
       detector_(new Detector(det_params)),
       include_detector_footprint_(false),
       parallelism_(false) {}
 
 Telescope::~Telescope() {}
-
-const SimulationConfig& Telescope::sim_params() const {
-  return sim_config_;
-}
 
 const Simulation& Telescope::simulation() const {
   return aperture_->simulation_params();
@@ -49,7 +44,7 @@ const Simulation& Telescope::simulation() const {
 // altitude at which the telescope is flying, and the pixel size on the ground.
 // Thus, the focal length must be a calculated parameter.
 double Telescope::FocalLength() const {
-  const mats::Simulation& sim = aperture_->simulation_params();
+  const auto& sim = simulation();
   if (sim.has_focal_length()) return sim.focal_length();
 
   return sim_config_.altitude() * detector_->pixel_pitch() / sim.gsd();  // [m]
@@ -63,7 +58,7 @@ double Telescope::GNumber(double lambda) const {
   double f_number = FNumber();
 
   vector<double> transmission;
-  vector<double> wavelengths(1, lambda);
+  vector<double> wavelengths{lambda};
   GetTransmissionSpectrum(wavelengths, &transmission);
 
   return (1 + 4 * f_number * f_number) /
@@ -78,8 +73,7 @@ double Telescope::GetEffectiveQ(
   double q = 0;
   double total_weight = 0;
   for (size_t i = 0; i < wavelengths.size(); i++) {
-    double weight =
-        spectral_weighting[max(i, spectral_weighting.size() - 1)];
+    double weight = spectral_weighting[max(i, spectral_weighting.size() - 1)];
     q += wavelengths[i] * fnumber * weight / p;
     total_weight += weight;
   }
@@ -90,35 +84,57 @@ void Telescope::Image(const vector<Mat>& radiance,
                       const vector<double>& wavelength,
                       vector<Mat>* image,
                       vector<Mat>* otf) {
-  // Compute the OTF for each of the spectral points in the input data.
-  vector<Mat> spectral_otfs;
-  ComputeOtf(wavelength, &spectral_otfs);
-
   vector<Mat> blurred_irradiance(radiance.size());
+  if (aperture_->HasOffAxisAberration()) {
+    const int kRadialZones = simulation().radial_zones();
+    const int kAngularZones = simulation().angular_zones();
+    const double kRadialZoneWidth = 1 / max(1., kRadialZones - 1.);
+    const double kAngularZoneWidth = 2 * M_PI / kAngularZones;
 
-  if (!parallelism_) {
+    for (size_t i = 0; i < radiance.size(); i++) {
+      blurred_irradiance[i] = Mat::zeros(radiance[i].size(), CV_64F);
+    }
+
+    Mat_<double> isoplanatic_region(radiance[0].size());
+    for (int i = 0; i < kRadialZones; i++) {
+      for (int j = 0; j < kAngularZones; j++) {
+        cout << "Processing zone r " << (i+1) << "/" << kRadialZones
+             << ", theta " << (j+1) << "/" << kAngularZones << endl;
+        IsoplanaticRegion(i, j, &isoplanatic_region);
+
+        // Compute the OTF for each of the spectral points in the input data.
+        vector<Mat> spectral_otfs;
+        ComputeOtf(wavelength, i * kRadialZoneWidth, j * kAngularZoneWidth,
+                   &spectral_otfs);
+
+        Mat degraded;
+        Mat_<double> average_mtf(spectral_otfs[0].size());
+        average_mtf = 0;
+        for (size_t k = 0; k < radiance.size(); k++) {
+          DegradeImage(radiance[k], spectral_otfs[k], &degraded);
+          multiply(degraded, isoplanatic_region, degraded,
+              1 / GNumber(wavelength[k]));
+          blurred_irradiance[k] += degraded;
+          average_mtf += magnitude(spectral_otfs[k]);
+        }
+        imwrite(StringPrintf("mtf_%d_%d.png", i, j),
+            ColorScale(GammaScale(FFTShift(average_mtf), 1/2.2), COLORMAP_JET));
+
+        if (i == 0) j = kAngularZones;
+      }
+    }
+  } else {
+    // Compute the OTF for each of the spectral points in the input data.
+    vector<Mat> spectral_otfs;
+    ComputeOtf(wavelength, 0, 0, &spectral_otfs);
+
     for (size_t i = 0; i < radiance.size(); i++) {
       DegradeImage(radiance[i], spectral_otfs[i], &(blurred_irradiance[i]));
       blurred_irradiance[i] /= GNumber(wavelength[i]);
     }
-  } else {
-    struct {
-      const Telescope* self;
-      const vector<Mat>* radiance;
-      const vector<Mat>* spectral_otfs;
-      const vector<double>* wavelength;
-      vector<Mat>* degraded;
-      void operator()(const tbb::blocked_range<int>& range) const {
-        for (int i = range.begin(); i != range.end(); i++) {
-          self->DegradeImage((*radiance)[i], (*spectral_otfs)[i],
-                             &((*degraded)[i]));
-          (*degraded)[i] /= self->GNumber((*wavelength)[i]);
-        }
-      }
-    } worker{this, &radiance, &spectral_otfs, &wavelength, &blurred_irradiance};
-    tbb::parallel_for(tbb::blocked_range<int>(0, wavelength.size()), worker);
   }
                      
+  /*
   if (otf != NULL) {
     otf->clear();
     
@@ -133,9 +149,10 @@ void Telescope::Image(const vector<Mat>& radiance,
 
     for (auto& tmp : *otf) tmp /= std::abs(tmp.at<complex<double>>(0, 0));
   }
+  */
 
   vector<Mat> electrons;
-  double int_time = aperture_->simulation_params().integration_time();
+  double int_time = simulation().integration_time();
   detector_->ResponseElectrons(blurred_irradiance, wavelength, int_time,
                                &electrons);
   detector_->Quantize(electrons, image);
@@ -217,13 +234,15 @@ void Telescope::GetImagingRegion(const Mat& radiance, Mat* roi) const {
 
 
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
+                           double image_height,
+                           double angle,
                            vector<Mat>* otf) const {
   const int kOtfSize = sim_config_.array_size();
 
-  vector<Mat> ap_otf;
-  ComputeApertureOtf(wavelengths, &ap_otf);
+  vector<Mat_<complex<double>>> ap_otf;
+  ComputeApertureOtf(wavelengths, image_height, angle, &ap_otf);
 
-  double int_time = aperture_->simulation_params().integration_time();
+  double int_time = simulation().integration_time();
 
   SystemOtf wave_invar_sys_otf;
   wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0, int_time,
@@ -233,18 +252,18 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   if (include_detector_footprint_) {
     wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf(kOtfSize, kOtfSize));
   }
-  Mat wave_invariant_otf = wave_invar_sys_otf.GetOtf();
+  Mat_<complex<double>> wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
   for (size_t i = 0; i < wavelengths.size(); i++) {
-    SystemOtf sys_otf;
-    sys_otf.PushOtf(ap_otf[i]);
-    sys_otf.PushOtf(wave_invariant_otf);
-    otf->push_back(sys_otf.GetOtf());
+    otf->emplace_back();
+    mulSpectrums(ap_otf[i], wave_invariant_otf, otf->back(), 0);
   }
 }
 
 void Telescope::ComputeEffectiveOtf(const vector<double>& wavelengths,
                                     const vector<double>& weights,
+                                    double image_height,
+                                    double angle,
                                     cv::Mat* otf) const {
   if (!otf || wavelengths.size() == 0 || weights.size() < wavelengths.size()) {
     cerr << "Telescope::ComputeEffectiveOtf: Invalid Input" << endl;
@@ -252,7 +271,7 @@ void Telescope::ComputeEffectiveOtf(const vector<double>& wavelengths,
   }
 
   vector<Mat> spectral_otf;
-  ComputeOtf(wavelengths, &spectral_otf);
+  ComputeOtf(wavelengths, image_height, angle, &spectral_otf);
 
   double total_weight = accumulate(begin(weights), end(weights), 0.0);
 
@@ -275,107 +294,139 @@ void Telescope::GetTransmissionSpectrum(
 }
 
 void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
-                                   vector<Mat>* otf) const {
+                                   double image_height,
+                                   double angle,
+                                   vector<Mat_<complex<double>>>* otf) const {
   otf->clear();
-  for (size_t i = 0; i < wavelengths.size(); i++) {
-    otf->emplace_back();
-  }
 
-  // The OTF varies drastically with respect to wavelength. So, we will be
-  // calculating an OTF for each spectral band in our input radiance data.
-  if (!parallelism_) {
-    for (size_t i = 0; i < wavelengths.size(); i++) {
-      ComputeApertureOtf(wavelengths[i], &(otf->at(i)));
-    }
-  } else {
-    struct ComputeApertureOtfWorker {
-      const Telescope* self;
-      const vector<double>* wavelengths;
-      vector<Mat>* otf;
-      void operator()(const tbb::blocked_range<int>& range) const {
-        for (int i = range.begin(); i != range.end(); i++) {
-          self->ComputeApertureOtf(wavelengths->at(i), &(otf->at(i)));
-        }
-      }
-    };
-
-    ComputeApertureOtfWorker worker;
-    worker.self = this;
-    worker.wavelengths = &wavelengths;
-    worker.otf = otf;
-    tbb::parallel_for(tbb::blocked_range<int>(0, wavelengths.size()), worker);
-  }
-}
-
-void Telescope::ComputeApertureOtf(double wavelength, Mat* otf) const {
   // Array sizes
   const int kOtfSize = sim_config_.array_size();
 
   // Get the aberrated pupil function from the aperture.
-  PupilFunction pupil_func(kOtfSize, sim_config_.reference_wavelength());
-  aperture_->GetPupilFunction(wavelength, 0, 0, &pupil_func);
+  vector<PupilFunction> pupil_funcs;
+  aperture_->GetPupilFunction(wavelengths, image_height, angle,
+                              kOtfSize, sim_config_.reference_wavelength(),
+                              &pupil_funcs);
 
-  // The coherent OTF is given by p[lamda * f * xi, lamda * f * eta],
-  // where xi and eta are in [cyc/m]. The pixel pitch factor converts from
-  // [cyc/pixel], which we want for degrading the image, and [cyc/m], which
-  // is what is used by the pupil function.
-  double pupil_scale = wavelength * FocalLength() / detector_->pixel_pitch();
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    otf->emplace_back();
+
+    // The coherent OTF is given by p[lamda * f * xi, lamda * f * eta],
+    // where xi and eta are in [cyc/m]. The pixel pitch factor converts from
+    // [cyc/pixel], which we want for degrading the image, and [cyc/m], which
+    // is what is used by the pupil function.
+    double pupil_scale = wavelengths[i] * FocalLength() /
+                         detector_->pixel_pitch();
     
-  // Get the scale of the aperture, how many meters does each pixel represent
-  // on the aperture plane [m/pix]
-  double aperture_scale = pupil_func.meters_per_pixel();
+    // Get the scale of the aperture, how many meters does each pixel represent
+    // on the aperture plane [m/pix]
+    double aperture_scale = pupil_funcs[i].meters_per_pixel();
 
-  // Determine the region of the pupil function OTF that we need. This may
-  // be smaller or larger than the original array. If it is smaller, we are
-  // getting rid of the padding around the non-zero OTF, meaning the OTF
-  // will be wider and we will have better resolution. This occurs are
-  // wavelengths shorter than the reference. If the region is larger, we
-  // are adding zero padding, the OTF will be smaller and resolution will
-  // suffer. This occurs at wavelengths larger than the reference.
-  Range otf_range;
-  otf_range.start = kOtfSize / 2 -
-                    int(0.5 * pupil_scale / aperture_scale);
-  otf_range.end = kOtfSize / 2 +
-                  int(0.5 * pupil_scale / aperture_scale) + 1;
+    // Determine the region of the pupil function OTF that we need. This may
+    // be smaller or larger than the original array. If it is smaller, we are
+    // getting rid of the padding around the non-zero OTF, meaning the OTF
+    // will be wider and we will have better resolution. This occurs are
+    // wavelengths shorter than the reference. If the region is larger, we
+    // are adding zero padding, the OTF will be smaller and resolution will
+    // suffer. This occurs at wavelengths larger than the reference.
+    Range otf_range;
+    otf_range.start = kOtfSize / 2 -
+                      int(0.5 * pupil_scale / aperture_scale);
+    otf_range.end = kOtfSize / 2 +
+                    int(0.5 * pupil_scale / aperture_scale) + 1;
 
-  // We don't want to deal with the wrapping that occurs with FFT's, so we
-  // will shift zero frequency to the middle of the array, so cropping can
-  // be done in a single operation.
-  Mat unscaled_otf = FFTShift(pupil_func.OpticalTransferFunction());
-  Mat scaled_otf;
+    // We don't want to deal with the wrapping that occurs with FFT's, so we
+    // will shift zero frequency to the middle of the array, so cropping can
+    // be done in a single operation.
+    Mat unscaled_otf = FFTShift(pupil_funcs[i].OpticalTransferFunction());
+    Mat scaled_otf;
 
-  // If the range is larger than the image, we need to add zero-padding.
-  // Essentially, we will be downsampling the OTF and copying it into the
-  // middle of a new array. If the range is smaller, it's a simple upscaling
-  // to the required resolution.
-  if (otf_range.start < 0 || otf_range.end > kOtfSize) {
-    double scaling_size = otf_range.end - otf_range.start;
-    int new_width = int(kOtfSize*kOtfSize / scaling_size);
-    otf_range.start = kOtfSize / 2 - (new_width + 1) / 2;
-    otf_range.end = kOtfSize / 2 + new_width / 2;
+    // If the range is larger than the image, we need to add zero-padding.
+    // Essentially, we will be downsampling the OTF and copying it into the
+    // middle of a new array. If the range is smaller, it's a simple upscaling
+    // to the required resolution.
+    if (otf_range.start < 0 || otf_range.end > kOtfSize) {
+      double scaling_size = otf_range.end - otf_range.start;
+      int new_width = int(kOtfSize*kOtfSize / scaling_size);
+      otf_range.start = kOtfSize / 2 - (new_width + 1) / 2;
+      otf_range.end = kOtfSize / 2 + new_width / 2;
 
-    scaled_otf = Mat::zeros(kOtfSize, kOtfSize, CV_64FC2);
+      scaled_otf = Mat::zeros(kOtfSize, kOtfSize, CV_64FC2);
 
-    vector<Mat> unscaled_planes, scaled_planes;
-    split(unscaled_otf, unscaled_planes);
-    for (int i = 0; i < 2; i++) {
-      Mat tmp_scaled;
-      resize(unscaled_planes[i], tmp_scaled, Size(new_width, new_width),
-             0, 0, INTER_NEAREST);
+      vector<Mat> unscaled_planes, scaled_planes;
+      split(unscaled_otf, unscaled_planes);
+      for (int i = 0; i < 2; i++) {
+        Mat tmp_scaled;
+        resize(unscaled_planes[i], tmp_scaled, Size(new_width, new_width),
+               0, 0, INTER_NEAREST);
 
-      scaled_planes.push_back(Mat::zeros(kOtfSize, kOtfSize, CV_64FC1));
-      tmp_scaled.copyTo(scaled_planes[i](otf_range, otf_range));
+        scaled_planes.push_back(Mat::zeros(kOtfSize, kOtfSize, CV_64FC1));
+        tmp_scaled.copyTo(scaled_planes[i](otf_range, otf_range));
+      }
+
+      merge(scaled_planes, scaled_otf);
+    } else {
+      resize(unscaled_otf(otf_range, otf_range), scaled_otf,
+             Size(kOtfSize, kOtfSize), 0, 0, INTER_NEAREST);
     }
 
-    merge(scaled_planes, scaled_otf);
-  } else {
-    resize(unscaled_otf(otf_range, otf_range), scaled_otf,
-           Size(kOtfSize, kOtfSize), 0, 0, INTER_NEAREST);
+    Mat& spectral_otf = otf->back();
+    spectral_otf = IFFTShift(scaled_otf);
+
+    spectral_otf.at<complex<double>>(0, 0) /=
+        std::abs(spectral_otf.at<complex<double>>(0, 0));
   }
+}
 
-  *otf = IFFTShift(scaled_otf);
 
-  otf->at<complex<double>>(0, 0) /= std::abs(otf->at<complex<double>>(0, 0));
+void Telescope::IsoplanaticRegion(int radial_idx,
+                                  int angular_idx,
+                                  Mat_<double>* isoplanatic_region) const {
+  const int kNumRadialZones = simulation().radial_zones();
+  const int kNumAngularZones = simulation().angular_zones();
+  const double kRadialZoneWidth = 1 / max(1., kNumRadialZones - 1.);
+  const double kAngularZoneWidth = 2 * M_PI / kNumAngularZones;
+  const int kRows = isoplanatic_region->rows;
+  const int kCols = isoplanatic_region->cols;
+
+  *isoplanatic_region = 0;
+
+  for (int i = 0; i < kRows; i++) {
+    double y = i - 0.5 * kRows;
+    for (int j = 0; j < kCols; j++) {
+      double x = j - 0.5 * kCols;
+      double r = sqrt(x*x + y*y) / (0.5 * max(kRows, kCols));
+      double theta = atan2(y, x);
+      while (theta < 0) theta += 2 * M_PI;
+
+      double r_index = r / kRadialZoneWidth;
+      double theta_index = theta / kAngularZoneWidth;
+
+      int r_lt_index = min(max(int(floor(r_index)), 0), kNumRadialZones - 1);
+      int r_gt_index = min(int(ceil(r_index)), kNumRadialZones - 1);
+
+      if (r_lt_index != radial_idx && r_gt_index != radial_idx) continue;
+      double r_blend = r_index - r_lt_index;
+      double r_weight = 0;
+      if (radial_idx == r_lt_index) r_weight += 1 - r_blend;
+      if (radial_idx == r_gt_index) r_weight += r_blend;
+
+      double theta_weight = 1;
+      if (radial_idx > 0) {
+        int theta_lt_index = max(int(floor(theta_index)), 0);
+        int theta_gt_index = int(ceil(theta_index)) % kNumAngularZones;
+
+        if (theta_lt_index != angular_idx && theta_gt_index != angular_idx)
+          continue;
+        theta_weight = 0;
+        double theta_blend = theta_index - theta_lt_index;
+        if (angular_idx == theta_lt_index) theta_weight += 1 - theta_blend;
+        if (angular_idx == theta_gt_index) theta_weight += theta_blend;
+      }
+
+      (*isoplanatic_region)(i, j) = r_weight * theta_weight;
+    }
+  }
 }
 
 }

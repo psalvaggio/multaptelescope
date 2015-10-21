@@ -45,7 +45,7 @@ class Telescope {
   const Aperture* aperture() const { return aperture_.get(); }
   Aperture* aperture() { return aperture_.get(); }
 
-  const SimulationConfig& sim_params() const;
+  const SimulationConfig& sim_config() const { return sim_config_; }
   const Simulation& simulation() const;
 
   bool parallelism() const { return parallelism_; }
@@ -93,6 +93,8 @@ class Telescope {
   //                       will be centered at (0,0) and go to detector Nyquist.
   //                       Frequency units are [cyc/pixel].
   void ComputeOtf(const std::vector<double>& wavelengths,
+                  double image_height,
+                  double angle,
                   std::vector<cv::Mat>* otf) const;
 
   // Compute the effective OTF over a bandpass.
@@ -103,6 +105,8 @@ class Telescope {
   //  otf          Output: Output OTF (see ComputeOtf())
   void ComputeEffectiveOtf(const std::vector<double>& wavelengths,
                            const std::vector<double>& weights,
+                           double image_height,
+                           double angle,
                            cv::Mat* otf) const;
 
   // Get the transmission spectrum of the telescope optics.
@@ -113,11 +117,15 @@ class Telescope {
   void GetTransmissionSpectrum(const std::vector<double>& wavelengths,
                                std::vector<double>* transmission) const;
 
+  void IsoplanaticRegion(int radial_idx,
+                         int angular_idx,
+                         cv::Mat_<double>* isoplanatic_region) const;
  private:
-  void ComputeApertureOtf(const std::vector<double>& wavelengths,
-                          std::vector<cv::Mat>* otf) const;
-
-  void ComputeApertureOtf(double wavelength, cv::Mat* otf) const;
+  void ComputeApertureOtf(
+      const std::vector<double>& wavelengths,
+      double image_height,
+      double angle,
+      std::vector<cv::Mat_<std::complex<double>>>* otf) const;
 
   void DegradeImage(const cv::Mat& radiance,
                     const cv::Mat& spectral_otf,
