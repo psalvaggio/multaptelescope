@@ -31,15 +31,6 @@ else()
                   support. Please use a different C++ compiler.")
 endif()
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  find_package(CUDA)
-  include_directories(${CUDA_INCLUDE_DIRS})
- 
-  #set(CUDA_NVCC_FLAGS "-g -G")
-  set(CUDA_NVCC_FLAGS
-      "${CUDA_NVCC_FLAGS} -gencode arch=compute_35,code=sm_35")
-endif()
-
 find_package(Boost REQUIRED COMPONENTS iostreams system filesystem regex)
 
 set(PROTOBUF_IMPORT_DIRS ${PROTOBUF_IMPORT_DIRS} ${MATS_SOURCE_DIR})
@@ -67,7 +58,7 @@ if (cmake_build_type_tolower STREQUAL "release")
 endif()
 
 set(MODULES base
-            aperture_optimization
+            #aperture_optimization
             deconvolution
             io
             genetic
@@ -164,8 +155,8 @@ set(EXES aberrated_otf
          analyze_usaf_1951
          center_mask
          create_spectral_weighting
-         display_aperture
-         genetic_optimization
+         #display_aperture
+         #genetic_optimization
          image_binary_target
          mats_main
          mtf_plot
@@ -173,7 +164,6 @@ set(EXES aberrated_otf
          real_time_sbig_preview
          restore_image
          slant_edge
-         #coma_simulation
          #compare_tribar_profiles
          #perform_rer_comparison
          )
