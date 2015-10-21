@@ -127,6 +127,7 @@ void GetMtfProfile(const mats::SimulationConfig& sim_config,
   Mat theoretical_otf;
   telescope.ComputeEffectiveOtf(wavelengths,
                                 spectral_weighting,
+                                0, 0,
                                 &theoretical_otf);
   Mat theoretical_2d_mtf = magnitude(theoretical_otf);
 

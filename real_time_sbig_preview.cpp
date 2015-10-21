@@ -52,7 +52,7 @@ void RunMTFAnalysis(WaitQueue<Mat>* image_queue,
   // Set up the spectral resolution of the simulation.
   vector<vector<double>> raw_weighting;
   mats_io::TextFileReader::Parse(
-      telescope->sim_params().spectral_weighting_filename(),
+      telescope->sim_config().spectral_weighting_filename(),
       &raw_weighting);
   const vector<double>& wavelengths(raw_weighting[0]);
   const vector<double>& spectral_weighting(raw_weighting[1]);
@@ -61,6 +61,7 @@ void RunMTFAnalysis(WaitQueue<Mat>* image_queue,
   Mat theoretical_otf;
   telescope->ComputeEffectiveOtf(wavelengths,
                                  spectral_weighting,
+                                 0, 0,
                                  &theoretical_otf);
   Mat theoretical_2d_mtf = magnitude(theoretical_otf);
 
