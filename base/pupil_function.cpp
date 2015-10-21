@@ -8,6 +8,7 @@
 #include <fftw3.h>
 #include <vector>
 
+using namespace std;
 using namespace cv;
 
 namespace mats {
@@ -17,6 +18,12 @@ PupilFunction::PupilFunction(int size, double reference_wavelength)
       pupil_real_(Mat_<double>::zeros(size, size)),
       pupil_imag_(Mat_<double>::zeros(size, size)),
       meters_per_pixel_(0) {}
+
+PupilFunction::PupilFunction(PupilFunction&& other)
+    : reference_wavelength_(other.reference_wavelength_),
+      pupil_real_(move(other.pupil_real_)),
+      pupil_imag_(move(other.pupil_imag_)),
+      meters_per_pixel_(other.meters_per_pixel_) {}
 
 PupilFunction::~PupilFunction() {}
 
@@ -33,12 +40,12 @@ Mat PupilFunction::phase() const {
 }
 
 Mat PupilFunction::PointSpreadFunction() {
-  std::vector<Mat> pupil_planes{pupil_real_, pupil_imag_};
+  vector<Mat> pupil_planes{pupil_real_, pupil_imag_};
   Mat pupil, pupil_fft;
   merge(pupil_planes, pupil);
   dft(pupil, pupil_fft, DFT_COMPLEX_OUTPUT);
 
-  std::vector<Mat> pupil_fft_planes;
+  vector<Mat> pupil_fft_planes;
   split(pupil_fft, pupil_fft_planes);
 
   Mat psf = pupil_fft_planes[0].mul(pupil_fft_planes[0]) +
@@ -62,7 +69,7 @@ Mat PupilFunction::ModulationTransferFunction() {
 
   dft(psf, otf, DFT_COMPLEX_OUTPUT);
 
-  std::vector<Mat> otf_planes;
+  vector<Mat> otf_planes;
   split(otf, otf_planes);
 
   Mat mtf;

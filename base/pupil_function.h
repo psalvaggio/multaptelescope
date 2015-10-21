@@ -13,6 +13,7 @@ namespace mats {
 class PupilFunction {
  public:
   PupilFunction(int size, double reference_wavelength);
+  PupilFunction(PupilFunction&& other);
   ~PupilFunction();
 
   cv::Mat_<double>& real_part() { return pupil_real_; }
