@@ -12,14 +12,50 @@ DEFINE_string(target_file, "", "Target image filename.");
 DEFINE_double(smoothness, 1e-2, "Inverse filtering smoothness.");
 DEFINE_double(orientation, 0, "Aperture orientation.");
 DEFINE_bool(parallelism, false, "Specify for parallel computation.");
-DEFINE_double(full_well_frac, 0.75, "Fraction of the full-well capacity for the"
-                                    " bright regions.");
+DEFINE_double(full_well_frac, 0.8, "Fraction of the full-well capacity for the"
+                                   " bright regions.");
 using namespace std;
 using namespace cv;
 using namespace mats;
 
 static const double h = 6.62606957e-34;  // [J*s]
 static const double c = 299792458;  // [m/s]
+
+void CorrectExposure(const Mat& image,
+                     const vector<double>& wavelengths,
+                     const vector<double>& illumination,
+                     const Telescope& telescope,
+                     vector<Mat>* output) {
+  const Detector& det = *(telescope.detector());
+
+  // Compute the central wavelength
+  double central_wavelength = 0;
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    central_wavelength += wavelengths[i] * illumination[i];
+  }
+
+  // Do some radiometry to determine the correct exposure for the telescope.
+  // Compute the desired irradiance [W/m^2] incident upon the detector.
+  double target_electrons = FLAGS_full_well_frac * det.full_well_capacity();
+  double eff_qe = det.GetEffectiveQE(wavelengths, illumination, 0);
+  double target_photons = target_electrons / eff_qe;
+  double int_time = telescope.simulation().integration_time();
+  double target_flux = target_photons * h * c / central_wavelength;
+  double target_irradiance = target_flux / (det.detector_area() * int_time);
+
+  // Compute the effective G/# to convert the detector irradiance to
+  // entrance-pupil reaching radiance.
+  double eff_g_num = 0;
+  for (size_t i = 0; i < illumination.size(); i++) {
+    eff_g_num += illumination[i] * telescope.GNumber(wavelengths[i]);
+  }
+
+  // Construct the hyperspectral input at the proper light level
+  output->clear();
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    output->push_back(image * target_irradiance * eff_g_num * illumination[i]);
+  }
+}
 
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -47,12 +83,6 @@ int main(int argc, char** argv) {
   // Normalize the illumination function
   double total_weight = accumulate(begin(illumination), end(illumination), 0.);
   for (auto& tmp : illumination) tmp /= total_weight;
-
-  // Compute the central wavelength
-  double central_wavelength = 0;
-  for (size_t i = 0; i < wavelengths.size(); i++) {
-    central_wavelength += wavelengths[i] * illumination[i];
-  }
 
   // Read in the input image and peak normalize
   Mat image = imread(ResolvePath(FLAGS_target_file), 0);
@@ -83,34 +113,13 @@ int main(int argc, char** argv) {
 
     // Create the telescope
     mats::Telescope telescope(sim_config, i, detector_params);
-    const Detector& det = *(telescope.detector());
     telescope.set_parallelism(FLAGS_parallelism);
-
-    // Do some radiometry to determine the correct exposure for the telescope.
-    // Compute the desired irradiance [W/m^2] incident upon the detector.
-    double target_electrons = FLAGS_full_well_frac * det.full_well_capacity();
-    double eff_qe = det.GetEffectiveQE(wavelengths, illumination, 0);
-    double target_photons = target_electrons / eff_qe;
-    double int_time = sim_config.simulation(i).integration_time();
-    double target_flux = target_photons * h * c / central_wavelength;
-    double target_irradiance = target_flux / (det.detector_area() * int_time);
-
-    // Compute the effective G/# to convert the detector irradiance to
-    // entrance-pupil reaching radiance.
-    double eff_g_num = 0;
-    for (size_t i = 0; i < illumination.size(); i++) {
-      eff_g_num += illumination[i] * telescope.GNumber(wavelengths[i]);
-    }
-
-    // Construct the hyperspectral input at the proper light level
     vector<Mat> spectral_radiance;
-    for (size_t i = 0; i < wavelengths.size(); i++) {
-      spectral_radiance.push_back(image * target_irradiance * 
-          eff_g_num * illumination[i]);
-    }
+    CorrectExposure(image, wavelengths, illumination, telescope,
+                    &spectral_radiance);
 
     // Image the input target
-    vector<Mat> output_image, output_ref;
+    vector<Mat> output_image;
     telescope.Image(spectral_radiance, wavelengths, &output_image);
 
     cout << "Restoring..." << endl;
@@ -128,7 +137,8 @@ int main(int argc, char** argv) {
       // Compute and output the effective OTF over the bandpass
       Mat deconvolved;
       Mat eff_otf;
-      telescope.ComputeEffectiveOtf(wavelengths, spectral_weighting, &eff_otf);
+      telescope.ComputeEffectiveOtf(wavelengths, spectral_weighting, 0, 0,
+                                    &eff_otf);
       resize(eff_otf, eff_otf, output_image[band].size());
       imwrite(mats::StringPrintf("sim_%d_mtf_%d.png", i, band),
               GammaScale(FFTShift(magnitude(eff_otf)), 1/2.2));
@@ -136,7 +146,7 @@ int main(int argc, char** argv) {
       // Convert the raw image to the 0-1 range
       Mat raw_image;
       output_image[band].convertTo(raw_image, CV_64F,
-                                   1 / pow(2., det.bit_depth()));
+          1 / pow(2., telescope.detector()->bit_depth()));
 
       // Deconvolve the image
       cls.Deconvolve(raw_image, eff_otf, FLAGS_smoothness, &deconvolved);
