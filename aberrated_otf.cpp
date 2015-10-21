@@ -69,20 +69,18 @@ int main(int argc, char** argv) {
   imwrite("mask.png", ByteScale(pupil[0].magnitude()));
   imwrite("wfe.png", ByteScale(pupil[0].phase()));
 
+  vector<double> wavelengths, spectral_weighting;
   if (FLAGS_spectral_weighting == "") {
-    vector<Mat> spectral_otf;
-    telescope.ComputeOtf({sim_config.reference_wavelength()}, 0, 0,
-                         &spectral_otf);
-    otf = spectral_otf[0];
+    wavelengths.push_back(sim_config.reference_wavelength());
+    spectral_weighting.push_back(1);
   } else {
     vector<vector<double>> data;
-    if (mats_io::TextFileReader::Parse(
-          mats::ResolvePath(FLAGS_spectral_weighting), &data)) {
-      telescope.EffectiveOtf(data[0], data[1], 0, 0, &otf);
-    } else {
-      cerr << "Could not read spectral weighting file." << endl;
-    }
+    CHECK(mats_io::TextFileReader::Parse(
+          mats::ResolvePath(FLAGS_spectral_weighting), &data));
+    wavelengths = move(data[0]);
+    spectral_weighting = move(data[1]);
   }
+  telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0, &otf);
 
   Mat output_mtf = GammaScale(FFTShift(magnitude(otf)), 1/2.2);
   if (FLAGS_colormap >= 0) {

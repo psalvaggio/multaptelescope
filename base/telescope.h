@@ -80,20 +80,6 @@ class Telescope {
              const std::vector<double>& wavelength,
              std::vector<cv::Mat>* image);
 
-  // Computes the monochromatic OTF of the telescope at the provided
-  // wavelengths.
-  //
-  // Arguments:
-  //  wavelengths  Desired wavelengths for MTF computation [m]
-  //  otf          Output: Will be populated with the OTFs. The size will be
-  //                       the array_size() field in SimulationConfig. The OTF
-  //                       will be centered at (0,0) and go to detector Nyquist.
-  //                       Frequency units are [cyc/pixel].
-  void ComputeOtf(const std::vector<double>& wavelengths,
-                  double image_height,
-                  double angle,
-                  std::vector<cv::Mat>* otf) const;
-
   // Compute the effective OTF over a bandpass.
   //
   // Arguments:
@@ -118,6 +104,20 @@ class Telescope {
                          int angular_idx,
                          cv::Mat_<double>* isoplanatic_region) const;
  private:
+  // Computes the monochromatic OTF of the telescope at the provided
+  // wavelengths.
+  //
+  // Arguments:
+  //  wavelengths  Desired wavelengths for MTF computation [m]
+  //  otf          Output: Will be populated with the OTFs. The size will be
+  //                       the array_size() field in SimulationConfig. The OTF
+  //                       will be centered at (0,0) and go to detector Nyquist.
+  //                       Frequency units are [cyc/pixel].
+  void ComputeOtf(const std::vector<double>& wavelengths,
+                  double image_height,
+                  double angle,
+                  std::vector<cv::Mat>* otf) const;
+
   void ComputeApertureOtf(
       const std::vector<double>& wavelengths,
       double image_height,
