@@ -22,8 +22,7 @@ CompoundAperture::CompoundAperture(const Simulation& params)
       compound_params_(
           aperture_params().GetExtension(compound_aperture_params)),
       apertures_(),
-      sim_configs_(),
-      opd_() {
+      sim_configs_() {
   // Construct each subaperture.
   for (int i = 0; i < compound_params_.aperture_size(); i++) {
     sim_configs_.emplace_back();

@@ -11,8 +11,8 @@
 #ifndef SYSTEM_OTF_H
 #define SYSTEM_OTF_H
 
-#include <opencv/cv.h>
 #include <complex>
+#include <opencv2/core/core.hpp>
 
 namespace mats {
 

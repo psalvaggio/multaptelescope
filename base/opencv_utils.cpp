@@ -4,6 +4,8 @@
 #include "opencv_utils.h"
 #include "io/logging.h"
 
+#include <opencv2/highgui/highgui.hpp>
+
 #include <iostream>
 #include <random>
 

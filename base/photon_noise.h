@@ -1,10 +1,10 @@
-// File Description
+// A class for adding photon noise to data.
 // Author: Philip Salvaggio
 
 #ifndef PHOTON_NOISE_H
 #define PHOTON_NOISE_H
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 namespace mats {
 

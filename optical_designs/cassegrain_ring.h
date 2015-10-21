@@ -10,7 +10,7 @@
 #include "aperture.h"
 #include "optical_designs/cassegrain_ring_parameters.pb.h"
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 #include <memory>
 #include <vector>
 

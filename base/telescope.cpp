@@ -11,7 +11,7 @@
 #include "io/logging.h"
 #include "optical_designs/aperture.h"
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
 #include <algorithm>

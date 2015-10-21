@@ -4,7 +4,7 @@
 #ifndef CIRCULAR_H
 #define CIRCULAR_H
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 #include "aperture.h"
 

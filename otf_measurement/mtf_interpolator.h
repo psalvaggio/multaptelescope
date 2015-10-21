@@ -5,7 +5,7 @@
 #define MTF_INTERPOLATOR_H
 
 #include <vector>
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 class MtfInterpolator {
  public:  // Types

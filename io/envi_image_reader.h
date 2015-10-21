@@ -11,7 +11,7 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 namespace mats_io {
 

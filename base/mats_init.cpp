@@ -9,7 +9,6 @@
 #include "io/envi_image_header.pb.h"
 #include "io/envi_image_reader.h"
 #include "io/input_reader.h"
-#include <opencv/cv.h>
 
 using namespace std;
 using cv::Mat;

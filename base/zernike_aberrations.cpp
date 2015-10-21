@@ -2,7 +2,6 @@
 // Author: Philip Salvaggio
 
 #include "zernike_aberrations.h"
-#include "zernike_cuda.h"
 
 #include <cmath>
 #include <iostream>

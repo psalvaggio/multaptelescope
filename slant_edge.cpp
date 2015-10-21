@@ -6,8 +6,8 @@
 #include <iostream>
 
 #include <gflags/gflags.h>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 DEFINE_string(image_file, "", "REQUIRED: Image filename.");
 DEFINE_string(config_file, "", "Optional: SimulationConfig filename for a "

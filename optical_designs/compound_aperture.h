@@ -9,7 +9,7 @@
 #include "optical_designs/compound_aperture_parameters.pb.h"
 
 #include <memory>
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 class CompoundAperture : public Aperture {
  public:
@@ -39,9 +39,6 @@ class CompoundAperture : public Aperture {
 
   mutable std::vector<std::unique_ptr<Aperture>> apertures_;
   std::vector<mats::Simulation> sim_configs_;
-
- private:  // Cache variables
-  mutable cv::Mat opd_;
 };
 REGISTER_APERTURE(CompoundAperture, COMPOUND)
 

@@ -10,9 +10,8 @@
 #include "aperture.h"
 #include "optical_designs/golay6_parameters.pb.h"
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 #include <memory>
-#include <vector>
 
 class Golay6 : public Aperture {
  public:

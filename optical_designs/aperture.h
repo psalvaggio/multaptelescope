@@ -4,7 +4,7 @@
 #ifndef APERTURE_H
 #define APERTURE_H
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 #include "base/macros.h"
 #include "base/simulation_config.pb.h"

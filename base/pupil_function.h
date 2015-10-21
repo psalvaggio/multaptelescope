@@ -6,7 +6,7 @@
 
 #include "macros.h"
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 namespace mats {
 

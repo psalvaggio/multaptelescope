@@ -13,7 +13,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <opencv/highgui.h>
 
 using namespace cv;
 using namespace std;

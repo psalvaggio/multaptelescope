@@ -4,8 +4,9 @@
 
 #include "mats.h"
 
-#include <gflags/gflags.h>
 #include <boost/filesystem.hpp>
+#include <gflags/gflags.h>
+#include <opencv2/highgui/highgui.hpp>
 
 using namespace std;
 using namespace cv;

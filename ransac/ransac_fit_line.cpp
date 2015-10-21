@@ -4,7 +4,7 @@
 #include "ransac_fit_line.h"
 
 #include <cmath>
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 RansacFitLine::RansacFitLine(double threshold) : threshold_(threshold) {}
 

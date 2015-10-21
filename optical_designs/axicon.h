@@ -4,7 +4,7 @@
 #ifndef AXICON_H
 #define AXICON_H
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 #include "circular.h"
 #include "optical_designs/axicon_parameters.pb.h"

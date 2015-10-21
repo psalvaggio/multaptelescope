@@ -4,7 +4,8 @@
 #ifndef OPENCV_UTILS_H
 #define OPENCV_UTILS_H
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
 
 cv::Mat ByteScale(const cv::Mat& input,

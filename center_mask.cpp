@@ -3,15 +3,14 @@
 // looking at a relatively constant region.
 // Author: Philip Salvaggio
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-
 #include "mats.h"
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <csignal>
 #include <iostream>
 #include <thread>
-#include <queue>
 #include <unistd.h>
 
 #include <gflags/gflags.h>

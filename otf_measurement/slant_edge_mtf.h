@@ -5,7 +5,7 @@
 #define SLANT_EDGE_MTF_H
 
 #include <vector>
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 #include "third_party/gnuplot-iostream/gnuplot-iostream.h"
 
 class SlantEdgeMtf {

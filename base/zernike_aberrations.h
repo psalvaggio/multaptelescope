@@ -4,7 +4,7 @@
 #ifndef ZERNIKE_ABERRATIONS_H
 #define ZERNIKE_ABERRATIONS_H
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 #include <vector>
 
 #include "base/macros.h"

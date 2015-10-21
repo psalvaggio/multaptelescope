@@ -7,7 +7,7 @@
 #include "aperture.h"
 #include "optical_designs/hdf5_wfe_parameters.pb.h"
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 class Hdf5Wfe : public Aperture {
  public:

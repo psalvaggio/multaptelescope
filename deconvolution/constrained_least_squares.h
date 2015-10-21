@@ -4,7 +4,7 @@
 #ifndef CONSTRAINED_LEAST_SQUARES_H
 #define CONSTRAINED_LEAST_SQUARES_H
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 class ConstrainedLeastSquares {
  public:

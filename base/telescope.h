@@ -6,7 +6,7 @@
 
 #include "base/simulation_config.pb.h"
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 #include <memory>
 #include <vector>

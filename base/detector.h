@@ -1,33 +1,23 @@
-// File Description
+// A simple reprensentation for an imaging detector. Linearity of the detector
+// is assumed.
 // Author: Philip Salvaggio
 
 #ifndef DETECTOR_H
 #define DETECTOR_H
 
 #include "base/detector_parameters.pb.h"
-#include "base/simulation_config.pb.h"
 
 #include <vector>
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 namespace mats {
 
 class Detector {
  public:
   explicit Detector(const DetectorParameters& det_params);
-  //Detector(const DetectorParameters& det_params,
-           //const SimulationConfig& sim_params,
-           //int sim_index);
 
   // Accessors/Mutators
   const DetectorParameters& det_params() const { return det_params_; }
-  //const SimulationConfig& sim_params() const { return sim_params_; }
-  //const Simulation& simulation() const {
-    //return sim_params_.simulation(sim_index_);
-  //}
-
-  //int sim_index() const { return sim_index_; }
-  //void set_sim_index(int idx) { sim_index_ = idx; }
 
 
   int rows() const { return det_params_.array_rows(); }
@@ -157,10 +147,7 @@ class Detector {
 
  private:
   DetectorParameters det_params_;
-  //SimulationConfig sim_params_;
-  //int sim_index_;
-
-  std::vector<std::vector<QESample> > qe_spectrums_;
+  std::vector<std::vector<QESample>> qe_spectrums_;
 };
 
 }

@@ -4,7 +4,7 @@
 #ifndef OPTICAL_VORTEX_H
 #define OPTICAL_VORTEX_H
 
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 
 #include "circular.h"
 #include "optical_designs/optical_vortex_parameters.pb.h"

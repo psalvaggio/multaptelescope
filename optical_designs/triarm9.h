@@ -7,11 +7,7 @@
 #include "aperture.h"
 #include "optical_designs/triarm9_parameters.pb.h"
 
-#include <opencv/cv.h>
-#include <vector>
-
-
-class Cassegrain;
+#include <opencv2/core/core.hpp>
 
 class Triarm9 : public Aperture {
  public:
