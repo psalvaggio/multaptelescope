@@ -48,9 +48,6 @@ class Telescope {
   const SimulationConfig& sim_config() const { return sim_config_; }
   const Simulation& simulation() const;
 
-  bool parallelism() const { return parallelism_; }
-  void set_parallelism(bool use) { parallelism_ = use; }
-
   bool include_detector_footprint() const {
     return include_detector_footprint_;
   }
@@ -147,7 +144,6 @@ class Telescope {
   std::unique_ptr<Aperture> aperture_;
   std::unique_ptr<Detector> detector_;
   bool include_detector_footprint_;
-  bool parallelism_;
 };
 
 }

@@ -11,7 +11,6 @@ DEFINE_string(config_file, "", "SimulationConfig filename.");
 DEFINE_string(target_file, "", "Target image filename.");
 DEFINE_double(smoothness, 1e-2, "Inverse filtering smoothness.");
 DEFINE_double(orientation, 0, "Aperture orientation.");
-DEFINE_bool(parallelism, false, "Specify for parallel computation.");
 DEFINE_double(full_well_frac, 0.8, "Fraction of the full-well capacity for the"
                                    " bright regions.");
 using namespace std;
@@ -113,7 +112,6 @@ int main(int argc, char** argv) {
 
     // Create the telescope
     mats::Telescope telescope(sim_config, i, detector_params);
-    telescope.set_parallelism(FLAGS_parallelism);
     vector<Mat> spectral_radiance;
     CorrectExposure(image, wavelengths, illumination, telescope,
                     &spectral_radiance);

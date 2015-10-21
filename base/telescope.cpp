@@ -14,9 +14,6 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#include <tbb/parallel_for.h>
-#include <tbb/blocked_range.h>
-
 #include <algorithm>
 #include <numeric>
 
@@ -31,8 +28,7 @@ Telescope::Telescope(const SimulationConfig& sim_config,
     : sim_config_(sim_config),
       aperture_(ApertureFactory::Create(sim_config.simulation(sim_index))),
       detector_(new Detector(det_params)),
-      include_detector_footprint_(false),
-      parallelism_(false) {}
+      include_detector_footprint_(false) {}
 
 Telescope::~Telescope() {}
 

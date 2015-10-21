@@ -120,7 +120,6 @@ void GetMtfProfile(const mats::SimulationConfig& sim_config,
   mats::Telescope telescope(sim_config, sim_index, det_params);
   telescope.detector()->set_rows(512);
   telescope.detector()->set_cols(512);
-  telescope.set_parallelism(false);
   telescope.set_include_detector_footprint(true);
 
   // Compute the theoretical 2D OTF of the telescope.
