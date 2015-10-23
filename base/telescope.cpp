@@ -3,6 +3,7 @@
 
 #include "telescope.h"
 
+#include "base/assertions.h"
 #include "base/detector.h"
 #include "base/opencv_utils.h"
 #include "base/pupil_function.h"
@@ -32,9 +33,11 @@ Telescope::Telescope(const SimulationConfig& sim_config,
 
 Telescope::~Telescope() {}
 
+
 const Simulation& Telescope::simulation() const {
   return aperture_->simulation_params();
 }
+
 
 // In this model, the user specifies the pixel pitch of the detector, the
 // altitude at which the telescope is flying, and the pixel size on the ground.
@@ -46,9 +49,11 @@ double Telescope::FocalLength() const {
   return sim_config_.altitude() * detector_->pixel_pitch() / sim.gsd();  // [m]
 }
 
+
 double Telescope::FNumber() const {
   return FocalLength() / aperture_->encircled_diameter();
 }
+
 
 double Telescope::GNumber(double lambda) const {
   double f_number = FNumber();
@@ -60,6 +65,7 @@ double Telescope::GNumber(double lambda) const {
   return (1 + 4 * f_number * f_number) /
          (M_PI * transmission[0] * aperture_->fill_factor());
 }
+
 
 double Telescope::EffectiveQ(const vector<double>& wavelengths,
                              const vector<double>& spectral_weighting) const {
@@ -75,9 +81,22 @@ double Telescope::EffectiveQ(const vector<double>& wavelengths,
   return q / total_weight;
 }
 
+
 void Telescope::Image(const vector<Mat>& radiance,
                       const vector<double>& wavelength,
                       vector<Mat>* image) {
+  CHECK(!radiance.empty());
+  CHECK(wavelength.size() == radiance.size());
+
+  Rect roi;
+  GetImagingRegion(radiance[0], &roi);
+  CHECK(roi.width > 0);
+
+  vector<Mat_<complex<double>>> radiance_dft(radiance.size());
+  for (size_t i = 0; i < radiance.size(); i++) {
+    dft(radiance[i](roi), radiance_dft[i], DFT_COMPLEX_OUTPUT);
+  }
+    
   vector<Mat> blurred_irradiance(radiance.size());
 
   // If we have off-axis aberration, we need to compute the output image in
@@ -91,11 +110,11 @@ void Telescope::Image(const vector<Mat>& radiance,
     // Allocate the blurred irradiance, we'll be building up the result one
     // isoplanatic region at a time
     for (size_t i = 0; i < radiance.size(); i++) {
-      blurred_irradiance[i] = Mat::zeros(radiance[i].size(), CV_64F);
+      blurred_irradiance[i] = Mat::zeros(radiance_dft[i].size(), CV_64F);
     }
 
     // Loop through each isoplanatic region
-    Mat_<double> isoplanatic_region(radiance[0].size());
+    Mat_<double> isoplanatic_region(radiance_dft[0].size());
     for (int i = 0; i < kRadialZones; i++) {
       for (int j = 0; j < kAngularZones; j++) {
         cout << "Processing zone r " << (i+1) << "/" << kRadialZones
@@ -111,7 +130,7 @@ void Telescope::Image(const vector<Mat>& radiance,
         // Perform image degradation and add to the total blurred image
         Mat degraded;
         for (size_t k = 0; k < radiance.size(); k++) {
-          DegradeImage(radiance[k], spectral_otfs[k], &degraded);
+          OtfDegrade(radiance_dft[k], spectral_otfs[k], &degraded);
           multiply(degraded, isoplanatic_region, degraded,
               1 / GNumber(wavelength[k]));
           blurred_irradiance[k] += degraded;
@@ -126,10 +145,11 @@ void Telescope::Image(const vector<Mat>& radiance,
     ComputeOtf(wavelength, 0, 0, &spectral_otfs);
 
     for (size_t i = 0; i < radiance.size(); i++) {
-      DegradeImage(radiance[i], spectral_otfs[i], &(blurred_irradiance[i]));
+      OtfDegrade(radiance_dft[i], spectral_otfs[i], &(blurred_irradiance[i]));
       blurred_irradiance[i] /= GNumber(wavelength[i]);
     }
   }
+  radiance_dft.clear();
                      
   // Compute the detector response
   vector<Mat> electrons;
@@ -139,50 +159,43 @@ void Telescope::Image(const vector<Mat>& radiance,
   detector_->Quantize(electrons, image);
 }
 
-void Telescope::DegradeImage(const Mat& radiance,
-                             const Mat& spectral_otf,
-                             Mat* degraded) const {
-  const int kRows = detector_->rows();
-  const int kCols = detector_->cols();
 
-  Mat radiance_roi;
-  GetImagingRegion(radiance, &radiance_roi);
-  if (radiance_roi.rows == 0) {
-    *degraded = Mat::zeros(detector_->rows(), detector_->cols(), CV_64FC1);
-    return;
-  }
-
-  Mat img_fft, blurred_fft;
-  dft(radiance_roi, img_fft, DFT_COMPLEX_OUTPUT);
-  OtfDegrade(img_fft, spectral_otf, &blurred_fft);
-
-  dft(blurred_fft, *degraded, DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
-
-  if (degraded->cols != kCols) {
-    resize(*degraded, *degraded, Size(kCols, kRows), 0, 0, INTER_AREA);
-  }
-}
-
-void Telescope::OtfDegrade(const Mat& radiance_fft,
+void Telescope::OtfDegrade(const Mat& radiance_dft,
                            const Mat& spectral_otf,
                            Mat* degraded) const {
-  Mat otf(radiance_fft.size(), CV_64FC2);
+  Mat blurred_dft;
+
+  Mat otf(radiance_dft.size(), CV_64FC2);
   otf.setTo(Scalar(0, 0));
-  int row_start = radiance_fft.rows / 2 - detector_->rows() / 2;
-  int col_start = radiance_fft.cols / 2 - detector_->cols() / 2;
+  int row_start = radiance_dft.rows / 2 - detector_->rows() / 2;
+  int col_start = radiance_dft.cols / 2 - detector_->cols() / 2;
   Range row_range(row_start, row_start + detector_->rows()),
         col_range(col_start, col_start + detector_->cols());
 
   resize(FFTShift(spectral_otf), otf(row_range, col_range),
          Size(detector_->cols(), detector_->rows()));
 
-  mulSpectrums(radiance_fft, IFFTShift(otf), *degraded, 0);
+  mulSpectrums(radiance_dft, IFFTShift(otf), blurred_dft, 0);
+
+  dft(blurred_dft, *degraded, DFT_INVERSE | DFT_SCALE | DFT_REAL_OUTPUT);
+
+  const int kRows = detector_->rows();
+  const int kCols = detector_->cols();
+  if (degraded->cols != kCols) {
+    resize(*degraded, *degraded, Size(kCols, kRows), 0, 0, INTER_AREA);
+  }
 }
 
-void Telescope::GetImagingRegion(const Mat& radiance, Mat* roi) const {
+
+void Telescope::GetImagingRegion(const Mat& radiance, Rect* roi) const {
   const int kRows = detector_->rows();
   const int kCols = detector_->cols();
   const double kAspectRatio = double(kRows) / kCols;
+
+  roi->x = 0;
+  roi->y = 0;
+  roi->width = 0;
+  roi->height = 0;
 
   if (kRows == 0 || kCols == 0) {
     mainLog() << "Error: Detector has zero size." << endl;
@@ -210,7 +223,8 @@ void Telescope::GetImagingRegion(const Mat& radiance, Mat* roi) const {
     return;
   }
 
-  *roi = radiance(Range(0, rows), Range(0, cols));
+  roi->width = cols;
+  roi->height = rows;
 }
 
 
@@ -240,6 +254,7 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
     mulSpectrums(ap_otf[i], wave_invariant_otf, otf->back(), 0);
   }
 }
+
 
 void Telescope::EffectiveOtf(const vector<double>& wavelengths,
                              const vector<double>& weights,
@@ -273,6 +288,7 @@ void Telescope::GetTransmissionSpectrum(
   transmission->clear();
   transmission->resize(wavelengths.size(), kTransmittance);
 }
+
 
 void Telescope::ComputeApertureOtf(const vector<double>& wavelengths,
                                    double image_height,

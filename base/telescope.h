@@ -118,16 +118,12 @@ class Telescope {
       double angle,
       std::vector<cv::Mat_<std::complex<double>>>* otf) const;
 
-  void DegradeImage(const cv::Mat& radiance,
-                    const cv::Mat& spectral_otf,
-                    cv::Mat* degraded) const;
-
-  void OtfDegrade(const cv::Mat& radiance_fft,
+  void OtfDegrade(const cv::Mat& radiance_dft,
                   const cv::Mat& spectral_otf,
                   cv::Mat* degraded) const;
 
   void GetImagingRegion(const cv::Mat& radiance,
-                        cv::Mat* roi) const;
+                        cv::Rect* roi) const;
 
   // Computes the interpolation weights for an isoplanatic region.
   //
