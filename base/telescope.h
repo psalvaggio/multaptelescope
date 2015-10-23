@@ -77,6 +77,13 @@ class Telescope {
              const std::vector<double>& wavelength,
              std::vector<cv::Mat>* image);
 
+  void Restore(const cv::Mat_<double>& raw_image,
+               const std::vector<double>& wavelength,
+               const std::vector<double>& illumination,
+               int band,
+               double smoothness,
+               cv::Mat_<double>* restored);
+
   // Compute the effective OTF over a bandpass.
   //
   // Arguments:

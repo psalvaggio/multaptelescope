@@ -23,7 +23,8 @@ DEFINE_int32(band, 0, "Band index for a multi-band system.");
 DEFINE_int32(simulation_id, -1, "Simulation ID in config_file "
                                 "(defaults to first).");
 DEFINE_string(output, "restored.png", "Filename for the output.");
-DEFINE_string(output_inv_filter, "", "Optional output for the inverse filter");
+DEFINE_string(illumination, "", "Filename for the illumination function.");
+//DEFINE_string(output_inv_filter, "", "Optional output for the inverse filter");
 
 int main(int argc, char** argv) {
   google::SetUsageMessage("Restores an image that has been degraded with a "
@@ -73,8 +74,8 @@ int main(int argc, char** argv) {
 
   // Read in the spectral weighting function. If there is not one, use the
   // detector QE spectrum.
-  vector<double> wavelengths, spectral_weighting;
-  if (sim_config.has_spectral_weighting_filename()) {
+  vector<double> wavelengths, illumination;
+  if (file_exists(FLAGS_illumination)) {
     vector<vector<double>> sw_data;
     if (!mats_io::TextFileReader::Parse(
           sim_config.spectral_weighting_filename(), &sw_data)) {
@@ -82,13 +83,12 @@ int main(int argc, char** argv) {
       return 1;
     }
     wavelengths.swap(sw_data[0]);
-    spectral_weighting.swap(sw_data[1]);
+    illumination.swap(sw_data[1]);
   } else {
     int band_idx = FLAGS_band;
     for (int i = 0; i < detector_params.band(band_idx).wavelength_size(); i++) {
       wavelengths.push_back(detector_params.band(band_idx).wavelength(i));
-      spectral_weighting.push_back(
-          detector_params.band(band_idx).quantum_efficiency(i));
+      illumination.push_back(1);
     }
   }
 
@@ -97,23 +97,9 @@ int main(int argc, char** argv) {
   telescope.detector()->set_rows(image.rows);
   telescope.detector()->set_cols(image.cols);
 
-  // Get the effective OTF.
-  Mat otf;
-  telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0, &otf);
-
-  // Restore the image.
-  Mat restored;
-  ConstrainedLeastSquares cls;
-  cls.Deconvolve(image, otf, FLAGS_smoothness, &restored);
-
-  // Write out the invese filters.
-  if (!FLAGS_output_inv_filter.empty()) {
-    Mat inv_filter;
-    cls.GetInverseFilter(otf, FLAGS_smoothness, &inv_filter);
-    imwrite(mats::ResolvePath(FLAGS_output_inv_filter),
-            ColorScale(GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2),
-                       COLORMAP_JET));
-  }
+  Mat_<double> restored;
+  telescope.Restore(image, wavelengths, illumination, FLAGS_band, 
+                    FLAGS_smoothness, &restored);
 
   // Inverse filtering tends to produce a lot of artifacts around the edges of
   // the image, so write out the center.

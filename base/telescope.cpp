@@ -11,6 +11,7 @@
 #include "base/system_otf.h"
 #include "io/logging.h"
 #include "optical_designs/aperture.h"
+#include "deconvolution/constrained_least_squares.h"
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -225,6 +226,62 @@ void Telescope::GetImagingRegion(const Mat& radiance, Rect* roi) const {
 
   roi->width = cols;
   roi->height = rows;
+}
+
+
+void Telescope::Restore(const Mat_<double>& raw_image,
+                        const vector<double>& wavelengths,
+                        const vector<double>& illumination,
+                        int band,
+                        double smoothness,
+                        Mat_<double>* restored) {
+  CHECK(restored);
+  CHECK(!wavelengths.empty() && wavelengths.size() == illumination.size());
+
+  vector<double> transmission, qe;
+  GetTransmissionSpectrum(wavelengths, &transmission);
+  detector_->GetQESpectrum(wavelengths, band, &qe);
+
+  vector<double> weights(wavelengths.size());
+  for (size_t i = 0; i < wavelengths.size(); i++) {
+    weights[i] = transmission[i] * qe[i] * illumination[i];
+  }
+
+  ConstrainedLeastSquares cls;
+
+  if (aperture_->HasOffAxisAberration()) {
+    restored->create(raw_image.size());
+    *restored = 0;
+
+    const int kRadialZones = simulation().radial_zones();
+    const int kAngularZones = simulation().angular_zones();
+    const double kRadialZoneWidth = 1 / max(1., kRadialZones - 1.);
+    const double kAngularZoneWidth = 2 * M_PI / kAngularZones;
+
+    Mat_<double> isoplanatic_region(raw_image.size());
+    for (int i = 0; i < kRadialZones; i++) {
+      for (int j = 0; j < kAngularZones; j++) {
+        // Compute the interpolation weights for this region
+        IsoplanaticRegion(i, j, &isoplanatic_region);
+
+        // Compute the spactral OTF in the current isoplanatic region
+        Mat otf;
+        EffectiveOtf(wavelengths, weights, i * kRadialZoneWidth,
+            j * kAngularZoneWidth, &otf);
+
+        Mat_<double> restored_region;
+        cls.Deconvolve(raw_image, otf, smoothness, &restored_region);
+
+        *restored += isoplanatic_region.mul(restored_region);
+
+        if (i == 0) j = kAngularZones;
+      }
+    }
+  } else {
+    Mat otf;
+    EffectiveOtf(wavelengths, weights, 0, 0, &otf);
+    cls.Deconvolve(raw_image, otf, smoothness, restored);
+  }
 }
 
 
