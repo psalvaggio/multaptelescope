@@ -52,6 +52,14 @@ int main(int argc, char** argv) {
   Usaf1951Target tribar(image, FLAGS_levels);
   if (!tribar.RecognizeTarget()) return 1;
 
+  // Make two diagnostic outputs so the user can see if anything messed up
+  Mat output = tribar.VisualizeBoundingBoxes();
+  imwrite(StringPrintf("%sbounding_boxes.png", dir.c_str()), output);
+
+  output = tribar.VisualizeProfileRegions();
+  imwrite(StringPrintf("%sprofile_regions.png", dir.c_str()),
+          ByteScale(output));
+
   // Output the profiles
   Gnuplot gp;
   gp << "set xlabel \"Pixel Location\"\n"
@@ -90,14 +98,6 @@ int main(int argc, char** argv) {
       vert_ofs << profile[j].first << "\t" << profile[j].second << endl;
     }
   }
-
-  // Make two diagnostic outputs so the user can see if anything messed up
-  Mat output = tribar.VisualizeBoundingBoxes();
-  imwrite(StringPrintf("%sbounding_boxes.png", dir.c_str()), output);
-
-  output = tribar.VisualizeProfileRegions();
-  imwrite(StringPrintf("%sprofile_regions.png", dir.c_str()),
-          ByteScale(output));
 
   return 0;
 }

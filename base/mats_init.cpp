@@ -29,8 +29,8 @@ bool MatsInit(const std::string& config_path,
   string version = "1.0.0";
 
   // Initialize random number generators
-  cv::theRNG().state = 74572548;
-  srand(4279419);
+  cv::theRNG().state = cv::getTickCount();
+  srand(cv::getTickCount());
 
   // Initialize logging.
   string config_file = config_path;
@@ -91,6 +91,16 @@ bool MatsInit(const std::string& config_path,
   }
 
   return true;
+}
+
+int LookupSimulationId(const mats::SimulationConfig& sim_config,
+                       int simulation_id) {
+  for (int i = 0; i < sim_config.simulation_size(); i++) {
+    if (sim_config.simulation(i).simulation_id() == simulation_id) {
+      return i;
+    }
+  }
+  return 0;
 }
 
 }

@@ -15,6 +15,8 @@ DEFINE_string(config_file, "", "Optional: SimulationConfig filename for a "
 DEFINE_int32(simulation_id, -1, "Simulation ID in config_file "
                                 "(defaults to first).");
 DEFINE_double(orientation, 0, "Orientation of the aperture.");
+DEFINE_bool(whole_image, false, "Use the entire image.");
+DEFINE_bool(quiet, false, "Do not plot");
 
 using namespace cv;
 using namespace std;
@@ -36,9 +38,13 @@ int main(int argc, char** argv) {
 
   // Extract the slant edge ROI from the image.
   Mat roi;
-  auto bounds = move(GetRoi(image));
-  image(Range(bounds[1], bounds[1] + bounds[3]),
-        Range(bounds[0], bounds[0] + bounds[2])).copyTo(roi);
+  if (FLAGS_whole_image) {
+    roi = image;
+  } else {
+    auto bounds = move(GetRoi(image));
+    image(Range(bounds[1], bounds[1] + bounds[3]),
+          Range(bounds[0], bounds[0] + bounds[2])).copyTo(roi);
+  }
 
   // Perform the slant edge analysis on the image.
   SlantEdgeMtf mtf_analyzer;
@@ -53,6 +59,8 @@ int main(int argc, char** argv) {
     mtf_data.emplace_back(freq, mtf[i]);
     cout << freq << "\t" << mtf[i] << endl;
   }
+
+  if (FLAGS_quiet) return 0;
 
   Gnuplot gp;
   gp << "set xlabel \"Spatial Frequency [cyc/pixel]\"\n"
@@ -76,7 +84,8 @@ int main(int argc, char** argv) {
     // Initialize the simulation parameters.
     sim_config.set_array_size(512);
 
-    mats::Telescope telescope(sim_config, 0, detector_params);
+    int sim_index = mats::LookupSimulationId(sim_config, FLAGS_simulation_id);
+    mats::Telescope telescope(sim_config, sim_index, detector_params);
     telescope.detector()->set_rows(512);
     telescope.detector()->set_cols(512);
 
@@ -89,8 +98,8 @@ int main(int argc, char** argv) {
                           spectral_weighting(raw_weighting[1]);
 
     double q = telescope.EffectiveQ(wavelengths, spectral_weighting);
-    cout << "F/#: " << telescope.FNumber() << endl;
-    cout << "Effective Q: " << q << endl;
+    cerr << "F/#: " << telescope.FNumber() << endl;
+    cerr << "Effective Q: " << q << endl;
 
     Mat theoretical_otf;
     telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0,

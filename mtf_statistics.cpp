@@ -24,6 +24,7 @@ using namespace std;
 DEFINE_string(extension, "png", "Extension of the images");
 DEFINE_bool(recursive, false, "Whether to go into subdirectories.");
 DEFINE_bool(global_roi, false, "Use one ROI for all directories.");
+DEFINE_bool(whole_image, false, "Whether to use the entire image.");
 DEFINE_string(output_filename, "", "Filename for saving results.");
 
 static vector<uint16_t> global_bounds;
@@ -51,18 +52,22 @@ bool AnalyzeDirectory(const string& dir) {
       return 1;
     }
 
-    if (bounds.empty()) bounds = GetRoi(image);
-
-    if (bounds[1] + bounds[3] > image.rows ||
-        bounds[0] + bounds[2] > image.cols) {
-      cerr << "Warning: Skipping " << filename << " due to insufficient size."
-           << endl;
-      continue;
-    }
-
     Mat roi;
-    image(Range(bounds[1], bounds[1] + bounds[3]),
-          Range(bounds[0], bounds[0] + bounds[2])).copyTo(roi);
+    if (FLAGS_whole_image) {
+      roi = image;
+    } else {
+      if (bounds.empty()) bounds = GetRoi(image);
+
+      if (bounds[1] + bounds[3] > image.rows ||
+          bounds[0] + bounds[2] > image.cols) {
+        cerr << "Warning: Skipping " << filename << " due to insufficient size."
+             << endl;
+        continue;
+      }
+
+      image(Range(bounds[1], bounds[1] + bounds[3]),
+            Range(bounds[0], bounds[0] + bounds[2])).copyTo(roi);
+    }
 
     double orientation;
     mtfs.emplace_back();

@@ -13,6 +13,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace mats;
 
 DEFINE_string(spectral_weighting, "", "Optional spectral weighting filename.");
 DEFINE_bool(output_inverse_filter, false,
@@ -31,9 +32,9 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  mats::SimulationConfig sim_config;
-  mats::DetectorParameters detector_params;
-  if (!mats::MatsInit(argv[1], &sim_config, &detector_params, NULL, NULL)) {
+  SimulationConfig sim_config;
+  DetectorParameters detector_params;
+  if (!MatsInit(argv[1], &sim_config, &detector_params, NULL, NULL)) {
     return 1;
   }
   if (!sim_config.has_array_size()) sim_config.set_array_size(512);
@@ -41,23 +42,14 @@ int main(int argc, char** argv) {
   detector_params.set_array_rows(512);
   detector_params.set_array_cols(512);
 
-  int sim_index = 0;
-  if (argc >= 3) {
-    int sim_id = atoi(argv[2]);
-    for (int i = 0; i < sim_config.simulation_size(); i++) {
-      if (sim_config.simulation(i).simulation_id() == sim_id) {
-        sim_index = i;
-        break;
-      }
-    }
-  }
+  int sim_index = argc >= 3 ? LookupSimulationId(sim_config, atoi(argv[2])) : 0;
 
-  mats::Telescope telescope(sim_config, sim_index, detector_params);
+  Telescope telescope(sim_config, sim_index, detector_params);
   Mat otf;
 
   mainLog() << mats_io::PrintSimulation(telescope.simulation()) << endl;
 
-  vector<mats::PupilFunction> pupil;
+  vector<PupilFunction> pupil;
   vector<double> tmp_wavelength{sim_config.reference_wavelength()};
   telescope.aperture()->GetPupilFunction(
       tmp_wavelength, 0, 0,
@@ -74,7 +66,7 @@ int main(int argc, char** argv) {
   } else {
     vector<vector<double>> data;
     CHECK(mats_io::TextFileReader::Parse(
-          mats::ResolvePath(FLAGS_spectral_weighting), &data));
+          ResolvePath(FLAGS_spectral_weighting), &data));
     wavelengths = move(data[0]);
     spectral_weighting = move(data[1]);
   }

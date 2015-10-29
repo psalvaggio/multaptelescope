@@ -33,8 +33,19 @@ class DetectorParameters;
 bool MatsInit(const std::string& base_directory,
               mats::SimulationConfig* sim_config,
               mats::DetectorParameters* detector_params,
-              std::vector<cv::Mat>* hyp_bands,
-              mats_io::EnviImageHeader* hyp_header);
+              std::vector<cv::Mat>* hyp_bands = nullptr,
+              mats_io::EnviImageHeader* hyp_header = nullptr);
+
+// Lookup the simulation id in a SimulationConfig protobuf.
+//
+// Parameters:
+//  sim_config      The SimulationConfig in which to search
+//  simulation_id   The simulation_id for which to look
+//
+// Returns:
+//  The appropriate index in sim_config.simualtion(), 0 if not found.
+int LookupSimulationId(const mats::SimulationConfig& sim_config,
+                       int simulation_id);
 
 }
 

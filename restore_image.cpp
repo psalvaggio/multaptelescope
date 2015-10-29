@@ -50,15 +50,7 @@ int main(int argc, char** argv) {
   }
 
   // Find the correct simulation
-  int sim_index = 0;
-  if (FLAGS_simulation_id >= 0) {
-    for (int i = 0; i < sim_config.simulation_size(); i++) {
-      if (sim_config.simulation(i).simulation_id() == FLAGS_simulation_id) {
-        sim_index = i;
-        break;
-      }
-    }
-  }
+  int sim_index = LookupSimulationId(sim_config, FLAGS_simulation_id);
 
   // Orient the telescope.
   sim_config.mutable_simulation(sim_index)->mutable_aperture_params()->
@@ -77,8 +69,7 @@ int main(int argc, char** argv) {
   vector<double> wavelengths, illumination;
   if (file_exists(FLAGS_illumination)) {
     vector<vector<double>> sw_data;
-    if (!mats_io::TextFileReader::Parse(
-          sim_config.spectral_weighting_filename(), &sw_data)) {
+    if (!mats_io::TextFileReader::Parse(FLAGS_illumination, &sw_data)) {
       cerr << "Could not read spectra weighting." << endl;
       return 1;
     }
