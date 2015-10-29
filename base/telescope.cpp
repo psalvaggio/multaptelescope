@@ -261,6 +261,9 @@ void Telescope::Restore(const Mat_<double>& raw_image,
     Mat_<double> isoplanatic_region(raw_image.size());
     for (int i = 0; i < kRadialZones; i++) {
       for (int j = 0; j < kAngularZones; j++) {
+        cout << "Processing zone r " << (i+1) << "/" << kRadialZones
+             << ", theta " << (j+1) << "/" << kAngularZones << endl;
+
         // Compute the interpolation weights for this region
         IsoplanaticRegion(i, j, &isoplanatic_region);
 
