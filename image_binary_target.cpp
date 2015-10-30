@@ -89,6 +89,7 @@ int main(int argc, char** argv) {
     cerr << "Could not read image file." << endl;
     return 1;
   }
+  flip(image, image, -1);
   image.convertTo(image, CV_64F);
   double im_max;
   minMaxLoc(image, NULL, &im_max);
@@ -145,6 +146,9 @@ int main(int argc, char** argv) {
 
       // Deconvolve the image
       cls.Deconvolve(raw_image, eff_otf, FLAGS_smoothness, &deconvolved);
+      
+      flip(raw_image, raw_image, 0);
+      flip(deconvolved, deconvolved, 0);
 
       // Contrast scale and output the raw and processed image
       raw_image.convertTo(raw_image, CV_8U, 255);
