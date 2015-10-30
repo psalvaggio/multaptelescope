@@ -185,8 +185,10 @@ void ConvertMatToDouble(const cv::Mat& input, cv::Mat& output) {
       break;
     case 2: case 3: // 16S, 16U  
       scale_factor = 1. / 65535;
+      break;
     case 4: // 32S
       scale_factor = 1. / (pow(2., 32) - 1);
+      break;
   }
 
   input.convertTo(output, CV_64F, scale_factor);
@@ -203,8 +205,13 @@ void ConvertMatToUint8(const cv::Mat& input, cv::Mat& output) {
       break;
     case 2: case 3: // 16S, 16U  
       scale_factor = 1. / 256;
+      break;
     case 4: // 32S
       scale_factor = 1. / pow(2., 24);
+      break;
+    case 5: case 6: // 32F, 64F
+      scale_factor = 255;
+      break;
   }
 
   input.convertTo(output, CV_8U, scale_factor);
