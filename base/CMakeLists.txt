@@ -5,7 +5,6 @@ set(MATS_SRCS ${MATS_SRCS}
     filesystem.cpp
     linear_interpolator.cpp
     mats_init.cpp
-    menu_application.cpp
     opencv_utils.cpp
     photon_noise.cpp
     pupil_function.cpp
@@ -27,7 +26,6 @@ set(MATS_HDRS ${MATS_HDRS}
     macros.h
     math_utils.h
     mats_init.h
-    menu_application.h
     opencv_utils.h
     photon_noise.h
     pupil_function.h
