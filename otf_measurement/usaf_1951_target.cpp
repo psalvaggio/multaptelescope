@@ -210,6 +210,11 @@ void Usaf1951Target::GetProfile(int bar_group,
     }
   }
 
+  min_row = max(0, min_row);
+  max_row = min(max_row, image_.rows - 1);
+  min_col = max(0, min_col);
+  max_col = min(max_col, image_.cols - 1);
+
   Mat roi = image_(Range(min_row, max_row + 1), Range(min_col, max_col + 1));
   
   double edge[3];
