@@ -44,6 +44,7 @@ ostream& Logging::Main() {
   if (!inited_) {
     cerr << "Warning: Please call mats_io::Logging::Init() before trying "
          << "to log messages." << endl;
+    return cerr;
   }
   return using_stderr_ ? cerr : main_logfile_;
 }
