@@ -17,7 +17,6 @@
 
 using namespace cv;
 using namespace std;
-using mats::MenuApplication;
 
 DEFINE_int32(exposure_time, 9, "Exposure Time [hundreths of a second]");
 
