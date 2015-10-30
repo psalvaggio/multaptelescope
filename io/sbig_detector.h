@@ -52,6 +52,10 @@ class SbigDetector {
     error_callback_ = callback;
   }
 
+ protected:
+  SbigDetector(bool mock);
+  void ClearError();
+
  private:
   bool SendCommand(short command, void* params, void* results);
   unsigned short GetCommandStatus(unsigned short command);

@@ -26,6 +26,11 @@ SbigDetector::SbigDetector()
   }
 }
 
+SbigDetector::SbigDetector(bool)
+    : has_cooled_(false),
+      last_error_(CE_NO_ERROR),
+      error_callback_([](short, short) {}) {}
+
 SbigDetector::~SbigDetector() {
   cout << "Cleaning up detector." << endl;
   if (has_cooled_) DisableCooling();
@@ -160,6 +165,10 @@ bool SbigDetector::has_error() const {
   return last_error_ != CE_NO_ERROR;
 }
 
+void SbigDetector::ClearError() {
+  last_error_ = CE_NO_ERROR;
+}
+
 bool SbigDetector::SendCommand(short command, void* params, void* results) {
   last_error_ = SBIGUnivDrvCommand(command, params, results);
   if (last_error_ != CE_NO_ERROR) {
@@ -183,7 +192,9 @@ unsigned short SbigDetector::GetCommandStatus(unsigned short command) {
 
 
 MockSbigDetector::MockSbigDetector(const Mat& image) 
-    : image_(image) {}
+    : SbigDetector(false), image_(image) {
+  ClearError();
+}
 
 void MockSbigDetector::Cool(double) {}
 void MockSbigDetector::DisableCooling() {}
