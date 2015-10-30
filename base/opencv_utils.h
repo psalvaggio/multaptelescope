@@ -71,6 +71,7 @@ cv::Mat IFFTShift(const cv::Mat& input);
 std::string GetMatDataType(const cv::Mat& mat);
 
 void ConvertMatToDouble(const cv::Mat& input, cv::Mat& output);
+void ConvertMatToUint8(const cv::Mat& input, cv::Mat& output);
 
 // Gets a 1D profile of the 2D image. A profile  starts at the center and
 // extends to the extent of the inscribed circle of the frame. There will be

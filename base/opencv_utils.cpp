@@ -192,6 +192,24 @@ void ConvertMatToDouble(const cv::Mat& input, cv::Mat& output) {
   input.convertTo(output, CV_64F, scale_factor);
 }
 
+void ConvertMatToUint8(const cv::Mat& input, cv::Mat& output) {
+  double scale_factor = 1;
+
+  int image_type_int = input.type() % 8;
+
+  switch (image_type_int) {
+    case 0: case 1: // 8U, 8S
+      scale_factor = 1;
+      break;
+    case 2: case 3: // 16S, 16U  
+      scale_factor = 1. / 256;
+    case 4: // 32S
+      scale_factor = 1. / pow(2., 24);
+  }
+
+  input.convertTo(output, CV_8U, scale_factor);
+}
+
 void GetRadialProfile(const cv::Mat& input, double theta,
                       std::vector<double>* output) {
   if (!output) return;
