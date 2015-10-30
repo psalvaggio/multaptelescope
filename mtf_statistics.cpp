@@ -33,7 +33,7 @@ bool AnalyzeDirectory(const string& dir) {
   // Get the images in the image directory.
   vector<string> filenames;
   mats::scandir(dir, "." + FLAGS_extension, &filenames);
-  if (filenames.size() == 0) {
+  if (filenames.empty()) {
     cerr << "Could not find any images in directory " << dir << endl;
     return 1;
   }
