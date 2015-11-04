@@ -10,6 +10,7 @@
 // Author: Philip Salvaggio
 
 #include "mats.h"
+#include "io/shell.h"
 
 #include <csignal>
 #include <iostream>
@@ -27,6 +28,17 @@ static Gnuplot gp;
 
 void Plot(const string& command);
 
+bool ProcessLine(const string& line);
+void ProcessPipedInput();
+
+class MtfPlotDelegate {
+ public:
+  void ProcessCommand(const vector<string>& command_parts) {
+    string cmd = mats::implode(command_parts, " ");
+    ProcessLine(cmd);
+  }
+};
+
 int main() {
   // Determine whether input is redirected or from the keyboard
   bool from_keyboard = isatty(STDIN_FILENO);
@@ -38,25 +50,39 @@ int main() {
      << "set yrange [0:1]\n"
      << "set style fill solid 0.5\n";
 
-  // Parse each line, if it's a plot command, we need to intercept it,
-  // otherwise, just pass it on to gnuplot.
-  string line;
-  if (from_keyboard) cout << "mtfplot> ";
-  while (getline(cin, line)) {
-    if (mats::starts_with(line, "plot")) {
-      Plot(line);
-    } else if (line == "exit") {
-      break;
-    } else {
-      gp << line << "\n" << endl;
-    }
-    if (from_keyboard) cout << "mtfplot> ";
+  if (!from_keyboard) {
+    ProcessPipedInput();
+    return 0;
   }
-  gp << endl;
+
+  unique_ptr<MtfPlotDelegate> delegate(new MtfPlotDelegate);
+  mats_io::Shell<MtfPlotDelegate> shell(move(delegate));
+  shell.SetPrompt("mtfplot> ");
+  shell.execute();
 
   return 0;
 }
 
+bool ProcessLine(const string& line) {
+  // If it's a plot command, we need to intercept it, otherwise,
+  // just pass it on to gnuplot.
+  if (mats::starts_with(line, "plot")) {
+    Plot(line);
+  } else if (line == "exit") {
+    return false;
+  } else {
+    gp << line << "\n" << endl;
+  }
+  return true;
+}
+
+void ProcessPipedInput() {
+  string line;
+  while (getline(cin, line)) {
+    if (!ProcessLine(line)) break;
+  }
+  gp << endl;
+}
 
 bool PlotConfigFile(const std::string& file,
                     list<string>& args,
