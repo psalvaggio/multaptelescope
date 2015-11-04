@@ -26,6 +26,7 @@ DEFINE_bool(recursive, false, "Whether to go into subdirectories.");
 DEFINE_bool(global_roi, false, "Use one ROI for all directories.");
 DEFINE_bool(whole_image, false, "Whether to use the entire image.");
 DEFINE_string(output_filename, "", "Filename for saving results.");
+DEFINE_bool(quiet, false, "Do not output plots.");
 
 static vector<uint16_t> global_bounds;
 
@@ -126,6 +127,8 @@ bool AnalyzeDirectory(const string& dir) {
     os << freq << "\t" << avg_mtf[i] << "\t" << stddev_mtf[i] << "\t"
        << min_mtf[i] << "\t" << max_mtf[i] << "\t" << mtfs.size() << endl;
   }
+
+  if (FLAGS_quiet) return true;
 
   // Plot the average and the bounds
   static Gnuplot gp;
