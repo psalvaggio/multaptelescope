@@ -203,7 +203,7 @@ bool PlotConfigFile(const std::string& file,
                   wavelengths, spectral_weighting, orientation,
                   &plot_cmd);
 
-    string title = mats::StringPrintf("\"%s\" Simulation %d",
+    string title = mats::StringPrintf("%s Simulation %d",
         mats::Basename(file).c_str(), i);
     if (sim_config.simulation(i).has_name()) {
       title = sim_config.simulation(i).name();
