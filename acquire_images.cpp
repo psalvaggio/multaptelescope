@@ -2,6 +2,7 @@
 // Author: Philip Salvaggio
 
 #include "mats.h"
+#include "io/shell.h"
 #include <iostream>
 
 #include <opencv2/opencv.hpp>
@@ -14,6 +15,7 @@ using mats_io::SbigDetector;
 DEFINE_int32(exposure_time, 1000, "Exposure time [hundreths of a second]");
 
 static int frame_index = 0;
+static bool is_cooled = false;
 
 void die(short, short) {
   cout << "Shutting down due to error." << endl;
@@ -99,6 +101,35 @@ void SetIntegrationTime() {
   }
 }
 
+class AcquireImagesDelegate {
+ public:
+  explicit AcquireImagesDelegate(SbigDetector& detector)
+      : detector_(detector) {}
+
+  void ProcessCommand(const vector<string>& command_parts) {
+    if (command_parts.empty()) return;
+    
+    if (command_parts[0] == "acquire") {
+      AcquireImages(detector_);
+    } else if (command_parts[0] == "set_exposure") {
+      SetIntegrationTime();
+    } else if (command_parts[0] == "cool") {
+      if (!is_cooled) detector_.Cool(-15);
+      is_cooled = true;
+    } else if (command_parts[0] == "warm") {
+      if (is_cooled) detector_.DisableCooling();
+      is_cooled = false;
+    } else if (command_parts[0] == "help") {
+      OutputMenu();
+    } else {
+      cerr << "Unrecognized command: " << command_parts[0] << endl;
+    }
+  }
+
+ private:
+  SbigDetector& detector_;
+};
+
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -107,31 +138,14 @@ int main(int argc, char** argv) {
   if (detector.has_error()) return 1;
   detector.set_error_callback(die);
 
-  bool is_cooled = false;
+  unique_ptr<AcquireImagesDelegate> delegate(
+     new AcquireImagesDelegate(detector));
+  mats_io::Shell<AcquireImagesDelegate> shell(move(delegate));
+
 
   OutputMenu();
-  string command;
-  do {
-    cout << "> ";
-    cin >> command;
-    if (command == "acquire") {
-      AcquireImages(detector);
-    } else if (command == "set_exposure") {
-      SetIntegrationTime();
-    } else if (command == "cool") {
-      if (!is_cooled) detector.Cool(-15);
-      is_cooled = true;
-    } else if (command == "warm") {
-      if (is_cooled) detector.DisableCooling();
-      is_cooled = false;
-    } else if (command == "help") {
-      OutputMenu();
-    } else if (command == "exit") {
-      break;
-    } else {
-      cerr << "Unrecognized command: " << command << endl;
-    }
-  } while (true);
+  shell.SetPrompt("> ");
+  shell.execute();
 
   if (is_cooled) detector.DisableCooling();
 
