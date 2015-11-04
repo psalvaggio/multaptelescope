@@ -13,6 +13,7 @@
 #define GENETIC_ALGORITHM_H
 
 #include <cstddef>
+#include <mutex>
 #include <vector>
 
 namespace genetic {
@@ -21,42 +22,55 @@ template <typename Model> class GeneticFitnessFunction;
 template <typename Model> class GeneticSearchStrategy;
 template <typename Model> class PopulationMember;
 
-// Run the genetic algorithm using the user-defined implementation.
-//
-// Parameters:
-//   impl                  The user-defined subclass of GeneticAlgorithmImpl
-//   population_size       The size of the population
-//   breeds_per_generation The number of new members to create every iteration
-//   best_model            Output: The best model found.
 template <typename Model>
-void GeneticAlgorithm(
-    GeneticFitnessFunction<Model>& fitness_function,
-    GeneticSearchStrategy<Model>& searcher,
-    size_t population_size,
-    size_t breeds_per_generation,
-    Model& best_model);
-
-// Utility class for wrapping a model and its fitness.
-template <typename Model>
-class PopulationMember {
+class GeneticAlgorithm {
  public:
-  PopulationMember(Model&& model, double fitness);
-  explicit PopulationMember(Model&& model);
-  PopulationMember(PopulationMember<Model>&& other);
+   using member_t = PopulationMember<Model>;
+   using population_t = std::vector<member_t>;
 
-  PopulationMember& operator=(PopulationMember<Model>&& other);
+   GeneticAlgorithm();
 
-  Model& model() { return model_; }
-  const Model& model() const { return model_; }
+   // Run the genetic algorithm using the user-defined implementation.
+   //
+   // Parameters:
+   //   fitness_function      The user-defined GolayFitnessFunction.
+   //   searcher              The user-defined GolaySearchStragety.
+   //   population_size       The size of the population
+   //   breeds_per_generation The number of new members to create every
+   //                         iteration
+   //   best_model            Output: The best model found.
+   void Run(GeneticFitnessFunction<Model>& fitness_function,
+            GeneticSearchStrategy<Model>& searcher,
+            size_t population_size,
+            size_t breeds_per_generation);
 
-  double fitness() const { return fitness_; }
-  void set_fitness(double fitness) { fitness_ = fitness; }
+   std::mutex& generation_lock() { return generation_lock_; }
+
+   // NOTE: If the algorithm is currently running, then acquire
+   // generation_lock() before calling these method. The returned value will
+   // only be valid while the lock is held.
+   
+   // Get the best model and optionally its fitness.
+   const Model& best_model(double* fitness = NULL);
+
+   // Get the population of the genetic algorithm.
+   const population_t& population() const { return population_; }
+
+   // Whether the algorithm is currently running
+   bool running() const { return running_; }
+
+   // The current generation number
+   int generation_num() const { return generation_num_; }
 
  private:
-  Model model_;
-  double fitness_;
+  std::mutex generation_lock_;
+  population_t population_;
+  bool running_;
+  int generation_num_;
 };
 
+
+// Concept for a fitness function.
 template <typename Model>
 class GeneticFitnessFunction {
  public:
@@ -75,6 +89,8 @@ class GeneticFitnessFunction {
   virtual void Visualize(const model_t&) {}
 };
 
+
+// Concept for a search strategy.
 template <typename Model>
 class GeneticSearchStrategy {
  public:
@@ -121,6 +137,28 @@ class GeneticSearchStrategy {
   virtual bool ShouldContinue(
       const std::vector<PopulationMember<model_t>>& population,
       size_t generation_num) = 0;
+};
+
+
+// Utility class for wrapping a model and its fitness.
+template <typename Model>
+class PopulationMember {
+ public:
+  PopulationMember(Model&& model, double fitness);
+  explicit PopulationMember(Model&& model);
+  PopulationMember(PopulationMember<Model>&& other);
+
+  PopulationMember& operator=(PopulationMember<Model>&& other);
+
+  Model& model() { return model_; }
+  const Model& model() const { return model_; }
+
+  double fitness() const { return fitness_; }
+  void set_fitness(double fitness) { fitness_ = fitness; }
+
+ private:
+  Model model_;
+  double fitness_;
 };
 
 }  // namespace genetic
