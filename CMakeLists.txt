@@ -154,6 +154,7 @@ set (LIB_NAME mats)
 # Create a shared library with all of our source files
 add_library(${LIB_NAME} SHARED ${SRCS} ${HDRS})
 target_link_libraries(${LIB_NAME} ${MATS_LINK_LIBS})
+install(TARGETS ${LIB_NAME} DESTINATION lib)
 
 # To make registries work, we need to force all (even unused) symbols to be
 # loaded.
@@ -178,14 +179,18 @@ set(EXES aberrated_otf
          mtf_plot
          mtf_statistics
          real_time_sbig_preview
+         real_time_slant_edge
          restore_image
          slant_edge
          #compare_tribar_profiles
          #perform_rer_comparison
+         #simulate_slant_edge_experiment
+         #find_mtf_correction
          )
 
 # Build each executable
 foreach(EXECUTABLE ${EXES})
   add_executable(${EXECUTABLE} ${EXECUTABLE}.cpp)
   target_link_libraries(${EXECUTABLE} ${MATS_LINK_LIBS})
+  install(TARGETS ${EXECUTABLE} DESTINATION bin)
 endforeach()
