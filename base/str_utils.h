@@ -44,6 +44,9 @@ void explode(const std::string& s,
              std::string regex_str,
              std::vector<std::string>* result);
 
+// Equivalent of PHP's implode() function.
+std::string implode(const std::vector<std::string>& parts, std::string delim);
+
 void StringAppendf(std::string* output, const char* format, va_list vargs);
 
 std::string StringPrintf(const char* format, ...);

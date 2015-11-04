@@ -39,6 +39,19 @@ void explode(const string& s, string regex_str, vector<string>* result) {
   }
 }
 
+string implode(const vector<string>& parts, string delim) {
+  string result;
+  int length = delim.size() * (parts.size() - 1);
+  for (const auto& part : parts) length += part.size();
+  result.reserve(length);
+  
+  for (size_t i = 0; i < parts.size(); i++) {
+    result += parts[i];
+    if (i != parts.size() - 1) result += delim;
+  }
+  return result;
+}
+
 void StringAppendf(string* output, const char* format, va_list vargs) {
   int size = 1024;
   char* buffer = NULL;
