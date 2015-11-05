@@ -27,6 +27,16 @@ PupilFunction::PupilFunction(PupilFunction&& other)
 
 PupilFunction::~PupilFunction() {}
 
+PupilFunction& PupilFunction::operator=(PupilFunction&& other) {
+  if (this == &other) return *this;
+
+  reference_wavelength_ = other.reference_wavelength_;
+  pupil_real_ = move(other.pupil_real_);
+  pupil_imag_ = move(other.pupil_imag_);
+  meters_per_pixel_ = other.meters_per_pixel_;
+  return *this;
+}
+
 Mat PupilFunction::magnitude() const {
   Mat mag;
   cv::magnitude(pupil_real_, pupil_imag_, mag);
@@ -39,7 +49,7 @@ Mat PupilFunction::phase() const {
   return phase;
 }
 
-Mat PupilFunction::PointSpreadFunction() {
+Mat_<double> PupilFunction::PointSpreadFunction() {
   vector<Mat> pupil_planes{pupil_real_, pupil_imag_};
   Mat pupil, pupil_fft;
   merge(pupil_planes, pupil);
@@ -48,31 +58,27 @@ Mat PupilFunction::PointSpreadFunction() {
   vector<Mat> pupil_fft_planes;
   split(pupil_fft, pupil_fft_planes);
 
-  Mat psf = pupil_fft_planes[0].mul(pupil_fft_planes[0]) +
-            pupil_fft_planes[1].mul(pupil_fft_planes[1]);
+  Mat_<double> psf = pupil_fft_planes[0].mul(pupil_fft_planes[0]) +
+                     pupil_fft_planes[1].mul(pupil_fft_planes[1]);
   normalize(psf, psf, 1, 0, NORM_L1);
 
   return psf;
 }
 
-Mat PupilFunction::OpticalTransferFunction() {
-  Mat psf = PointSpreadFunction();
-  Mat otf;
+Mat_<complex<double>> PupilFunction::OpticalTransferFunction() {
+  Mat_<double> psf = PointSpreadFunction();
+  Mat_<complex<double>> otf;
 
   dft(psf, otf, DFT_COMPLEX_OUTPUT);
   return otf;
 }
 
-Mat PupilFunction::ModulationTransferFunction() {
-  Mat psf = PointSpreadFunction();
-  Mat otf;
-
-  dft(psf, otf, DFT_COMPLEX_OUTPUT);
-
+Mat_<double> PupilFunction::ModulationTransferFunction() {
+  Mat_<complex<double>> otf = OpticalTransferFunction();
   vector<Mat> otf_planes;
   split(otf, otf_planes);
 
-  Mat mtf;
+  Mat_<double> mtf;
   cv::magnitude(otf_planes[0], otf_planes[1], mtf);
   return mtf;
 }

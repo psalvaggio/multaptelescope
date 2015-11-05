@@ -6,6 +6,7 @@
 
 #include "macros.h"
 
+#include <complex>
 #include <opencv2/core/core.hpp>
 
 namespace mats {
@@ -15,6 +16,7 @@ class PupilFunction {
   PupilFunction(int size, double reference_wavelength);
   PupilFunction(PupilFunction&& other);
   ~PupilFunction();
+  PupilFunction& operator=(PupilFunction&& other);
 
   cv::Mat_<double>& real_part() { return pupil_real_; }
   cv::Mat_<double>& imaginary_part() { return pupil_imag_; }
@@ -24,6 +26,7 @@ class PupilFunction {
   cv::Mat magnitude() const;
   cv::Mat phase() const;
 
+  int size() const { return pupil_real_.rows; }
   double reference_wavelength() const { return reference_wavelength_; }
 
   double meters_per_pixel() const { return meters_per_pixel_; }
@@ -31,9 +34,9 @@ class PupilFunction {
     meters_per_pixel_ = meters_per_pixel;
   }
 
-  cv::Mat PointSpreadFunction();
-  cv::Mat OpticalTransferFunction();
-  cv::Mat ModulationTransferFunction();
+  cv::Mat_<double> PointSpreadFunction();
+  cv::Mat_<std::complex<double>> OpticalTransferFunction();
+  cv::Mat_<double> ModulationTransferFunction();
 
  private:
   double reference_wavelength_;
