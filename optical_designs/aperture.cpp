@@ -113,48 +113,16 @@ bool Aperture::HasOffAxisAberration() const {
 }
 
 
-/*
 void Aperture::GetPupilFunction(double wavelength,
                                 double image_height,
                                 double angle,
                                 PupilFunction* pupil) const {
-  // Create the aberrated pupil function. This consists of putting the
-  // wavefront error into the phase of the complex pupil function.
-  auto& pupil_real = pupil->real_part();
-  auto& pupil_imag = pupil->imaginary_part();
-
-  // We want to pupil function to take up the center half of the array. This
-  // is a decent tradeoff so the user has enough resolution to upsample and a
-  // decent range (2x) over which to upsample.
-  const size_t kSize = pupil_real.rows;
-  int target_diameter = kSize / 2;
-
-  Range mid_range(kSize / 4, kSize / 4 + target_diameter);
-
-  // Set the scale of the pupil function, so the user can rescale the
-  // function with physical units if they need to.
-  pupil->set_meters_per_pixel(encircled_diameter() / target_diameter);
-
-  // Extract the center part of the arrays
-  Mat_<double> mask_center = pupil_real(mid_range, mid_range),
-               wfe_center = pupil_imag(mid_range, mid_range);
-
-  GetApertureMask(&mask_center);
-  GetWavefrontError(image_height, angle, &wfe_center);
-
-  // The wavefront error is in units of the reference wavelength. So, we need
-  // to scale it to be in terms of the requested wavelength.
-  wfe_center *= pupil->reference_wavelength() / wavelength;
-
-  for (int i = mid_range.start; i < mid_range.end; i++) {
-    for (int j = mid_range.start; j < mid_range.end; j++) {
-      double mask_val = pupil_real(i, j);
-      pupil_real(i, j) = mask_val * cos(2 * M_PI * pupil_imag(i, j));
-      pupil_imag(i, j) = mask_val * sin(2 * M_PI * pupil_imag(i, j));
-    }
-  }
+  vector<double> wavelengths{wavelength};
+  vector<PupilFunction> pupils;
+  GetPupilFunction(wavelengths, image_height, angle,
+                   pupil->size(), pupil->reference_wavelength(), &pupils);
+  *pupil = move(pupils[0]);
 }
-*/
 
 void Aperture::GetPupilFunction(const vector<double>& wavelength,
                                 double image_height,
