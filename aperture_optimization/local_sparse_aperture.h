@@ -45,8 +45,6 @@ class LocalSparseAperture : public GeneticSearchStrategy<Model> {
 
   void Stop() { should_continue_ = false; }
 
-  void ZeroMean(model_t* locations);
-
  private:
   model_t best_guess_;
   double mutate_probability_;
@@ -57,39 +55,39 @@ class LocalSparseAperture : public GeneticSearchStrategy<Model> {
   std::normal_distribution<double> distribution_;
 };
 
+
 template<typename Model>
 void LocalSparseAperture<Model>::Mutate(PopulationMember<model_t>& member) {
   model_t& locations(member.model());
 
-  double sigma = 0.025 * encircled_diameter_;
+  double sigma = 0.1 * encircled_diameter_;
+  double max_center_radius = encircled_diameter_ / 2.0;
+  double max_center_radius2 = pow(max_center_radius, 2);
 
   for (size_t i = 0; i < locations.size(); i += 2) {
     double p = (double)rand() / RAND_MAX;
     if (p < mutate_probability_) {
       locations[i] += distribution_(generator_) * sigma;
       locations[i+1] += distribution_(generator_) * sigma;
+      double r2 = pow(locations[i], 2) + pow(locations[i+1], 2);
+      if (r2 > max_center_radius2) {
+        double r = sqrt(r2);
+        locations[i] *= max_center_radius / r;
+        locations[i+1] *= max_center_radius / r;
+      }
+      if ((double)rand() / RAND_MAX < 0.01) {
+        double new_x = 2 * (double(rand()) / RAND_MAX - 0.5);
+        double new_y = 2 * (double(rand()) / RAND_MAX - 0.5);
+        double r2 = new_x * new_x + new_y * new_y;
+        if (r2 > 1) {
+          double r = sqrt(r2);
+          new_x /= r;
+          new_y /= r;
+        }
+        locations[i] = max_center_radius * new_x;
+        locations[i+1] = max_center_radius * new_y;
+      }
     }
-  }
-
-  //ZeroMean(&locations);
-}
-
-template<typename Model>
-void LocalSparseAperture<Model>::ZeroMean(model_t* locations) {
-  if (!locations) return;
-
-  double mean_x = 0;
-  double mean_y = 0;
-  for (size_t i = 0; i < locations->size(); i += 2) {
-    mean_x += (*locations)[i];
-    mean_y += (*locations)[i+1];
-  }
-  mean_x /= locations->size() / 2;
-  mean_y /= locations->size() / 2;
-
-  for (size_t i = 0; i < locations->size(); i += 2) {
-    (*locations)[i] -= mean_x;
-    (*locations)[i+1] -= mean_y;
   }
 }
 
