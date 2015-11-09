@@ -167,8 +167,7 @@ endif()
 list(APPEND MATS_LINK_LIBS ${LIB_NAME})
 
 # List of executables
-set(EXES aberrated_otf
-         acquire_images
+set(EXES acquire_images
          align_measured_profiles
          analyze_usaf_1951
          center_mask
@@ -182,6 +181,7 @@ set(EXES aberrated_otf
          real_time_slant_edge
          restore_image
          slant_edge
+         visualize_aperture
          #compare_tribar_profiles
          #perform_rer_comparison
          #simulate_slant_edge_experiment

@@ -1,4 +1,4 @@
-// File Description
+// A simple utility for visualizing an aperture function and its MTF.
 // Author: Philip Salvaggio
 
 #include "mats.h"
@@ -32,33 +32,32 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  // Read in the parameters and set the default array size
   SimulationConfig sim_config;
   DetectorParameters detector_params;
   if (!MatsInit(argv[1], &sim_config, &detector_params, NULL, NULL)) {
     return 1;
   }
   if (!sim_config.has_array_size()) sim_config.set_array_size(512);
-
   detector_params.set_array_rows(512);
   detector_params.set_array_cols(512);
 
+  // Determine the simulation we will be running
   int sim_index = argc >= 3 ? LookupSimulationId(sim_config, atoi(argv[2])) : 0;
 
   Telescope telescope(sim_config, sim_index, detector_params);
-  Mat otf;
 
   mainLog() << mats_io::PrintSimulation(telescope.simulation()) << endl;
 
-  vector<PupilFunction> pupil;
-  vector<double> tmp_wavelength{sim_config.reference_wavelength()};
+  // Grab a monochromatic pupil function and output the mask and WFE
+  PupilFunction pupil(sim_config.array_size(),
+                      sim_config.reference_wavelength());
   telescope.aperture()->GetPupilFunction(
-      tmp_wavelength, 0, 0,
-      sim_config.array_size(),
-      sim_config.reference_wavelength(),
-      &pupil);
-  imwrite("mask.png", ByteScale(pupil[0].magnitude()));
-  imwrite("wfe.png", ByteScale(pupil[0].phase()));
+      sim_config.reference_wavelength(), 0, 0, &pupil);
+  imwrite("mask.png", ByteScale(pupil.magnitude()));
+  imwrite("wfe.png", ByteScale(pupil.phase()));
 
+  // Determine the spectral weighting function
   vector<double> wavelengths, spectral_weighting;
   if (FLAGS_spectral_weighting == "") {
     wavelengths.push_back(sim_config.reference_wavelength());
@@ -70,14 +69,19 @@ int main(int argc, char** argv) {
     wavelengths = move(data[0]);
     spectral_weighting = move(data[1]);
   }
+
+  // Calculate the effective OTF
+  Mat otf;
   telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0, &otf);
 
+  // Output the MTF
   Mat output_mtf = GammaScale(FFTShift(magnitude(otf)), 1/2.2);
   if (FLAGS_colormap >= 0) {
     output_mtf = ColorScale(output_mtf, FLAGS_colormap);
   }
   imwrite("mtf.png", output_mtf);
 
+  // Output the inverse filter
   if (FLAGS_output_inverse_filter) {
     ConstrainedLeastSquares cls;
     Mat inv_filter;
@@ -90,6 +94,7 @@ int main(int argc, char** argv) {
     imwrite("inv_filter.png", inv_filter);
   }
 
+  // Output the point spread function
   if (FLAGS_output_psf) {
     Mat psf;
     dft(otf, psf, DFT_COMPLEX_OUTPUT);
