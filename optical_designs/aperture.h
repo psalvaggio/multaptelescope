@@ -31,6 +31,10 @@ class Aperture {
   // Destructor
   virtual ~Aperture();
 
+  // No copy or assignment
+  Aperture(const Aperture& other) = delete;
+  Aperture& operator=(const Aperture& other) = delete;
+
   // Accessors
   const mats::Simulation& simulation_params() const { return sim_params_; }
 
