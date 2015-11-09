@@ -3,6 +3,8 @@
 
 #include "mats.h"
 
+#include <numeric>
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <gflags/gflags.h>
