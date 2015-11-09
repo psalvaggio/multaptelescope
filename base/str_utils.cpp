@@ -114,11 +114,4 @@ bool ends_with(const string& haystack, const string& needle) {
   return false;
 }
 
-string AppendSlash(const string& input) {
-  if (input.back() != '/') {
-    return input + '/';
-  }
-  return input;
-}
-
 }

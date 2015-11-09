@@ -27,7 +27,8 @@ void scandir(const std::string& path,
              std::vector<std::string>* files) {
   files->clear();
 
-  DIR* dir = opendir(path.c_str());
+  std::string search_path = path.empty() ? "." : path;
+  DIR* dir = opendir(ResolvePath(search_path).c_str());
   if (!dir) return;
 
   struct dirent entry;
@@ -60,6 +61,13 @@ void subdirectories(const std::string& path,
   }
 }
 
+std::string AppendSlash(const std::string& input) {
+  if (input.back() != '/') {
+    return input + '/';
+  }
+  return input;
+}
+
 std::string ResolvePath(const std::string& path) {
   wordexp_t exp_result;
   wordexp(path.c_str(), &exp_result, 0);
@@ -84,6 +92,15 @@ std::string Basename(const std::string& path,
     basename = basename.substr(0, basename.size() - extension.size());
   }
   return basename;
+}
+
+std::string DirectoryName(const std::string& path) {
+  size_t found = path.find_last_of("/\\");
+  if (found == std::string::npos) return "";
+
+  if (found == 0) return "/";
+  
+  return path.substr(0, found);
 }
 
 }
