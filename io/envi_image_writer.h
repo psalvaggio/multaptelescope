@@ -5,7 +5,6 @@
 #define ENVI_IMAGE_WRITER_H
 
 #include "base/endian.h"
-#include "base/macros.h"
 #include "io/envi_image_header.pb.h"
 
 #include <cstddef>
@@ -68,8 +67,6 @@ class EnviImageWriter {
   void RearrangeImageData(const std::vector<cv::Mat>& image,
                           const EnviImageHeader& hdr,
                           T* data);
-
- NO_COPY_OR_ASSIGN(EnviImageWriter)
 };
 
 template <class T>
