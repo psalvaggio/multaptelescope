@@ -5,7 +5,6 @@
 #define ENVI_IMAGE_READER_H
 
 #include "base/endian.h"
-#include "base/macros.h"
 #include "io/envi_image_header.pb.h"
 
 #include <cstddef>
@@ -93,8 +92,6 @@ class EnviImageReader {
   void RearrangeImageData(T* data,
                           EnviImageHeader* hdr,
                           std::vector<cv::Mat>* image);
-
- NO_COPY_OR_ASSIGN(EnviImageReader)
 };
 
 template <class T>
