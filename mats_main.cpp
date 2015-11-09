@@ -6,10 +6,12 @@
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
+#include <numeric>
+#include <string>
+
 #include <google/protobuf/text_format.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <string>
 
 using namespace std;
 using namespace cv;
