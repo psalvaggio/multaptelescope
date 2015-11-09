@@ -52,6 +52,9 @@ class Shell {
   // Helper function to handle the action when an arrow key is pressed.
   void arrowHandler();
 
+  // Helper functio to handle tab completion
+  void tabCompletion();
+
  private:
   std::unique_ptr<Delegate> delegate_;
   CommandHistory command_history_;

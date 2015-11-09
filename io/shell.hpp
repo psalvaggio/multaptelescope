@@ -81,6 +81,11 @@ void Shell<Delegate>::execute() {
     else if (tmpChar == 4) {
       std::cout << std::endl;
       return;
+
+    // If the character was a tab, we want to do tab completion
+    } else if (tmpChar == '\t') {
+      tabCompletion();
+
     // If the character was a new line, we might want to do something
     } else if (tmpChar == '\n') {
       // Print out the new line
@@ -198,6 +203,70 @@ void Shell<Delegate>::arrowHandler() {
 template<typename Delegate>
 void Shell<Delegate>::clearPrompt() {
   std::cout << "\r" << std::string(80, ' ') << "\r";
+  std::cout.flush();
+}
+
+template<typename Delegate>
+void Shell<Delegate>::tabCompletion() {
+  // Grab the path the user is currently typing, breaks on spaces and quotes and
+  // equals signs
+  int path_start = buffer_pos_;
+  while (path_start > 0) {
+    char tmp = buffer_[path_start-1];
+    if (tmp == '\"' || tmp == '=') break;
+    if (tmp == ' ') {
+      if (path_start - 2 < 0) break;
+      if (buffer_[path_start-2] != '\\') break;
+    }
+    path_start--;
+  }
+
+  // Break the path up into directory name and basename
+  std::string path = buffer_.substr(path_start, buffer_pos_ - path_start);
+  std::string dir_name = mats::DirectoryName(path);
+  std::string basename = mats::Basename(path);
+
+  // Scan for files in the given directory
+  std::vector<std::string> filenames;
+  mats::scandir(dir_name, "", &filenames);
+
+  // Find the shared prefix of all filenames matching the basename
+  int count = 0;
+  std::string completion = "";
+  for (const auto& fname : filenames) {
+    if (mats::starts_with(fname, basename)) {
+      count++;
+      if (count == 1) {
+        completion = fname.substr(basename.length());
+      } else {
+        std::string other = fname.substr(basename.length());
+        for (size_t i = 0; i < completion.size() && i < other.size(); i++) {
+          if (completion[i] != other[i]) {
+            completion = completion.substr(0, i);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // If no completion or conflicting completions were found, beep at the user
+  if (count != 1) {
+    std::cout << "\a";
+    if (completion.empty()) return;
+  }
+
+  // If the completion is a directory, add a slash to the end of it
+  if (mats::is_dir(path + completion)) completion += "/";
+
+  // Insert the completion and echo it out
+  buffer_.insert(buffer_pos_, completion);
+  std::cout << buffer_.substr(buffer_pos_);
+  buffer_pos_ += completion.length();
+  int go_back_by = buffer_.size() - buffer_pos_;
+  for (int i = 0; i < go_back_by; i++) {
+    std::cout << "\b";
+  }
   std::cout.flush();
 }
 
