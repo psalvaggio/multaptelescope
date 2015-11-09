@@ -1,10 +1,12 @@
-// File Description
+// A representation of a complex pupil function for an imaging system. The
+// magnitude of this function is the aperture's transmission as a function
+// of spatial location and the phase is the system's wavefront error as a
+// function of position on the aperture, in units of waves. As such, a pupil
+// function is also a function of wavelength and position in the image plane.
 // Author: Philip Salvaggio
 
 #ifndef PUPIL_FUNCTION_H
 #define PUPIL_FUNCTION_H
-
-#include "macros.h"
 
 #include <complex>
 #include <opencv2/core/core.hpp>
@@ -14,9 +16,11 @@ namespace mats {
 class PupilFunction {
  public:
   PupilFunction(int size, double reference_wavelength);
-  PupilFunction(PupilFunction&& other);
-  ~PupilFunction();
-  PupilFunction& operator=(PupilFunction&& other);
+  PupilFunction(const PupilFunction& other) = delete;
+  PupilFunction(PupilFunction&& other) = default;
+
+  PupilFunction& operator=(const PupilFunction& other) = delete;
+  PupilFunction& operator=(PupilFunction&& other) = default;
 
   cv::Mat_<double>& real_part() { return pupil_real_; }
   cv::Mat_<double>& imaginary_part() { return pupil_imag_; }
@@ -43,8 +47,6 @@ class PupilFunction {
   cv::Mat_<double> pupil_real_;
   cv::Mat_<double> pupil_imag_;
   double meters_per_pixel_;
-
-  NO_COPY_OR_ASSIGN(PupilFunction);
 };
 
 }

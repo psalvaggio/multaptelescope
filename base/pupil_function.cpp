@@ -19,24 +19,6 @@ PupilFunction::PupilFunction(int size, double reference_wavelength)
       pupil_imag_(Mat_<double>::zeros(size, size)),
       meters_per_pixel_(0) {}
 
-PupilFunction::PupilFunction(PupilFunction&& other)
-    : reference_wavelength_(other.reference_wavelength_),
-      pupil_real_(move(other.pupil_real_)),
-      pupil_imag_(move(other.pupil_imag_)),
-      meters_per_pixel_(other.meters_per_pixel_) {}
-
-PupilFunction::~PupilFunction() {}
-
-PupilFunction& PupilFunction::operator=(PupilFunction&& other) {
-  if (this == &other) return *this;
-
-  reference_wavelength_ = other.reference_wavelength_;
-  pupil_real_ = move(other.pupil_real_);
-  pupil_imag_ = move(other.pupil_imag_);
-  meters_per_pixel_ = other.meters_per_pixel_;
-  return *this;
-}
-
 Mat PupilFunction::magnitude() const {
   Mat mag;
   cv::magnitude(pupil_real_, pupil_imag_, mag);
