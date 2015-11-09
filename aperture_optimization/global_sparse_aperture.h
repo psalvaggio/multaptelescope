@@ -29,9 +29,7 @@ class GlobalSparseAperture : public GeneticSearchStrategy<Model> {
         subaperture_diameter_(subaperture_diameter),
         max_center_radius2_(
             pow(0.5 * (encircled_diameter - subaperture_diameter), 2)),
-        should_continue_(true),
-        generator_(std::chrono::system_clock::now().time_since_epoch().count()),
-        distribution_() {}
+        should_continue_(true) {}
   
   model_t Introduce(GeneticFitnessFunction<model_t>& fitness_function) override;
 
@@ -47,8 +45,6 @@ class GlobalSparseAperture : public GeneticSearchStrategy<Model> {
 
   void Stop() { should_continue_ = false; }
 
-  void ZeroMean(model_t* locations);
-
  private:
   int num_subapertures_;
   double crossover_probability_;
@@ -57,10 +53,8 @@ class GlobalSparseAperture : public GeneticSearchStrategy<Model> {
   double subaperture_diameter_;
   double max_center_radius2_;
   bool should_continue_;
-
-  std::default_random_engine generator_;
-  std::normal_distribution<double> distribution_;
 };
+
 
 template<typename Model>
 typename GlobalSparseAperture<Model>::model_t
@@ -72,8 +66,11 @@ GlobalSparseAperture<Model>::Introduce(
   locations.resize(2*num_subapertures_, 0);
 
   bool keep_going = true;
+  int iter = 0;
+  const int kWarningLevel = 1000;
 
   while (keep_going) {
+    iter++;
     for (int i = 0; i < num_subapertures_; i++) {
       double r = (double)rand() / RAND_MAX * sqrt(max_center_radius2_);
       double theta = (double)rand() / RAND_MAX * 2 * M_PI;
@@ -81,12 +78,16 @@ GlobalSparseAperture<Model>::Introduce(
       locations[2*i + 1] = r * sin(theta);
     }
     keep_going = !fitness_function(member);
+    if (iter % kWarningLevel == 0) {
+      std::cerr << "WARNING: Introduce(): No valid model produced."
+                << std::endl;
+    }
   }
 
   model_t new_model = std::move(member.model());
-  //ZeroMean(&new_model);
   return new_model;
 }
+
 
 template<typename Model>
 typename GlobalSparseAperture<Model>::model_t
@@ -112,44 +113,29 @@ GlobalSparseAperture<Model>::Crossover(
   return output_locs;
 }
 
+
 template<typename Model>
 void GlobalSparseAperture<Model>::Mutate(PopulationMember<model_t>& member) {
   model_t& locations(member.model());
 
+  double max_center_radius = sqrt(max_center_radius2_);
   for (size_t i = 0; i < locations.size(); i += 2) {
     double p = (double)rand() / RAND_MAX;
     if (p < mutate_probability_) {
-      double new_r = sqrt(max_center_radius2_) * (double)rand() / RAND_MAX;
-      double new_theta = 2 * M_PI * (double)rand() / RAND_MAX;
-      double new_x = new_r * cos(new_theta);
-      double new_y = new_r * sin(new_theta);
-
-      if (new_r * new_r < max_center_radius2_) {
-        locations[i] = new_x;
-        locations[i+1] = new_y;
+      double new_x = 2 * (double(rand()) / RAND_MAX - 0.5);
+      double new_y = 2 * (double(rand()) / RAND_MAX - 0.5);
+      double r2 = new_x * new_x + new_y * new_y;
+      if (r2 > 1) {
+        double r = sqrt(r2);
+        new_x /= 1.0001 * r;
+        new_y /= 1.0001 * r;
       }
+      new_x *= max_center_radius;
+      new_y *= max_center_radius;
+
+      locations[i] = new_x;
+      locations[i+1] = new_y;
     }
-  }
-
-  //ZeroMean(&locations);
-}
-
-template<typename Model>
-void GlobalSparseAperture<Model>::ZeroMean(model_t* locations) {
-  if (!locations) return;
-
-  double mean_x = 0;
-  double mean_y = 0;
-  for (size_t i = 0; i < locations->size(); i += 2) {
-    mean_x += (*locations)[i];
-    mean_y += (*locations)[i+1];
-  }
-  mean_x /= locations->size() / 2;
-  mean_y /= locations->size() / 2;
-
-  for (size_t i = 0; i < locations->size(); i += 2) {
-    (*locations)[i] -= mean_x;
-    (*locations)[i+1] -= mean_y;
   }
 }
 
