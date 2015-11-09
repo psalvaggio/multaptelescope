@@ -55,6 +55,18 @@ int main() {
     return 0;
   }
 
+  cout << endl;
+  cout << "        M T F P L O T" << endl
+       << "        A gnuplot wrapper for the MATS project" << endl
+       << endl
+       << "        All non-plot statements use gnuplot syntax." << endl << endl
+       << "        When plotting a MATS config file, use \"s\"/"
+               << "\"simulation_id\" to specify" << endl
+       << "        the simulation in the file and \"o\"/\"orientation\" to "
+               << "to specify the" << endl
+       << "        orientation of the profile." << endl << endl
+       << "        Do not give titles to config file plots." << endl;
+
   unique_ptr<MtfPlotDelegate> delegate(new MtfPlotDelegate);
   mats_io::Shell<MtfPlotDelegate> shell(move(delegate));
   shell.SetPrompt("mtfplot> ");
