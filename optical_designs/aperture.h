@@ -150,9 +150,9 @@ class Aperture {
 // the aperture_type() in the Simulation protobuf.
 class ApertureFactory {
  public:
-   static Aperture* Create(const mats::Simulation& params);
+   ApertureFactory() = delete;
 
- NO_CONSTRUCTION(ApertureFactory)
+   static Aperture* Create(const mats::Simulation& params);
 };
 
 using ApertureFactoryImpl =
