@@ -19,6 +19,8 @@ namespace mats {
 class SystemOtf {
  public:
   SystemOtf();
+  SystemOtf(const SystemOtf& other) = delete;
+  SystemOtf& operator=(const SystemOtf& other) = delete;
 
   void PushOtf(const cv::Mat_<std::complex<double>>& otf);
   void PushOtf(const cv::Mat_<double>& mtf);

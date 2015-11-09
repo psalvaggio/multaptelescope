@@ -20,10 +20,12 @@ class WaitQueue {
   //              not be inserted.
   explicit WaitQueue(int capacity = -1);
 
-  WaitQueue(WaitQueue&& other);
   WaitQueue(const WaitQueue& other) = delete;
+  WaitQueue& operator=(const WaitQueue& other) = delete;
 
+  WaitQueue(WaitQueue&& other);
   WaitQueue& operator=(WaitQueue&& other);
+
 
   int capacity() const { return capacity_; }
 
