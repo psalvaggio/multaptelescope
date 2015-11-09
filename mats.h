@@ -41,9 +41,6 @@
 #include "otf_measurement/usaf_1951_target.h"
 
 // Aperture Optimization headers.
-#include "aperture_optimization/golay_fitness_function.h"
-#include "aperture_optimization/global_sparse_aperture.h"
-#include "aperture_optimization/local_sparse_aperture.h"
 #include "genetic/genetic_algorithm.h"
 
 #endif  // MATS_H
