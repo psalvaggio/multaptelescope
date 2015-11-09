@@ -66,7 +66,7 @@ include_directories(${MATS_BINARY_DIR})
 
 # List of submodules
 set(MODULES base
-            #aperture_optimization
+            aperture_optimization
             deconvolution
             io
             genetic
@@ -173,7 +173,7 @@ set(EXES aberrated_otf
          analyze_usaf_1951
          center_mask
          create_spectral_weighting
-         #genetic_optimization
+         genetic_optimization
          image_binary_target
          mats_main
          mtf_plot
