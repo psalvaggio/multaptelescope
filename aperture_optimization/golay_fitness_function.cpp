@@ -3,9 +3,12 @@
 
 #include "golay_fitness_function.h"
 
+#include "base/kd_tree.h"
 #include "base/pupil_function.h"
 #include "base/opencv_utils.h"
 #include "optical_designs/compound_aperture.h"
+
+#include <array>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -21,7 +24,8 @@ GolayFitnessFunction::GolayFitnessFunction(int num_subapertures,
                                            double reference_wavelength)
     : conf_(),
       max_center_radius2_(0),
-      subaperture_diameter2_(subaperture_diameter*subaperture_diameter) {
+      subaperture_diameter2_(subaperture_diameter*subaperture_diameter),
+      encircled_diameter_(encircled_diameter) {
 
   // Set up the simulation parameters, so we can just change the subaperture 
   // locations later.
@@ -63,6 +67,7 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
     }
   }
 
+/*
   // Set the subaperture positions in our parameters
   auto* ap_params = conf_.mutable_simulation(0)->mutable_aperture_params();
   auto* compound_params = ap_params->MutableExtension(compound_aperture_params);
@@ -86,6 +91,7 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
   cv::threshold(mtf_float, mtf_float, 0.03, 1, cv::THRESH_TOZERO);
   int non_zeros = cv::countNonZero(mtf_float);
   double support_frac = non_zeros / (M_PI * pow(mtf.cols / 2, 2));
+*/
   
   // Calculate the compactness of the MTF
   model_t peaks;
@@ -96,7 +102,57 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
   }
   double compactness = 1 / moment_of_inertia;
 
-  double fitness = support_frac + 1 * compactness;
+  KDTree<array<double, 2>, 2> kd_tree;
+  for (size_t i = 0; i < peaks.size(); i += 2) {
+    kd_tree.emplace_back();
+    kd_tree.back() = {{peaks[i], peaks[i+1]}};
+  }
+  kd_tree.build();
+/*
+  for (size_t i = 0; i < kd_tree.size(); i++) {
+    cout << "Peak " << i + 1 << ": " << kd_tree[i][0] << ", " << kd_tree[i][1]
+         << endl;
+  }
+*/
+  
+  
+  //const int kSamples = 512;
+  const int kSamples = 75;
+  const double kAutocorWidth = 2 * encircled_diameter_;
+  const double kPeakWidth = sqrt(subaperture_diameter2_);
+  const double kFillFactor = 6 * subaperture_diameter2_ /
+                             (encircled_diameter_ * encircled_diameter_);
+  const double kPeakHeight = 1 / 6.;
+  array<double, 2> sample;
+  vector<int> neighbors;
+  int covered = 0;
+  //cv::Mat_<uint8_t> mtf_binary(512, 512);
+  //mtf_binary = 0;
+  for (int i = 0; i < kSamples; i++) {
+    sample[1] = kAutocorWidth * (i - kSamples / 2.) / kSamples;
+    for (int j = 0; j < kSamples; j++) {
+      sample[0] = kAutocorWidth * (j - kSamples / 2.) / kSamples;
+
+      kd_tree.kNNSearch(sample, 1, kPeakWidth, &neighbors);
+      if (!neighbors.empty()) {
+        double approx_mtf = 0;
+        for (size_t k = 0; k < neighbors.size(); k++) {
+          double dist = sqrt(pow(kd_tree[neighbors[k]][0] - sample[0], 2) +
+                             pow(kd_tree[neighbors[k]][1] - sample[1], 2));
+          approx_mtf += kPeakHeight * (1 - dist / kPeakWidth);
+        }
+        if (approx_mtf > 0.03) covered++;
+      }
+      //if (!neighbors.empty()) mtf_binary(i, j) = 255;
+    }
+  }
+  double support_frac = covered / (M_PI * pow(kSamples / 2., 2));
+  //double new_support_frac = covered / (M_PI * pow(kSamples / 2., 2));
+  //cout << "Old: " << support_frac << ", New: " << new_support_frac << endl;
+  //imwrite("mtf_binary.png", mtf_binary);
+
+  //double fitness = support_frac + 1 * compactness;
+  double fitness = support_frac + 5 * compactness;
   member.set_fitness(fitness);
 
   return true;
@@ -129,9 +185,10 @@ void GolayFitnessFunction::Visualize(const model_t& locations) {
 void GolayFitnessFunction::GetAutocorrelationPeaks(const model_t& locations,
                                                    model_t* peaks) {
   if (!peaks) return;
-  peaks->resize(locations.size() * (locations.size() - 1) + 1, 0);
+  int subaps = locations.size() / 2;
+  peaks->resize(2 * (subaps * (subaps - 1) + 1), 0);
 
-  int index = 1;
+  int index = 2;
   for (size_t i = 0; i < locations.size(); i += 2) {
     for (size_t j = 0; j < locations.size(); j += 2) {
       if (i == j) continue;

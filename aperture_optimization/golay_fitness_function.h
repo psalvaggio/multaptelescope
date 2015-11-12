@@ -4,7 +4,6 @@
 #ifndef GOLAY_GENETIC_IMPL_H
 #define GOLAY_GENETIC_IMPL_H
 
-#include "aperture_optimization/local_sparse_aperture.h"
 #include "base/simulation_config.pb.h"
 #include "genetic/genetic_algorithm.h"
 #include <vector>
@@ -30,6 +29,7 @@ class GolayFitnessFunction
   mats::SimulationConfig conf_;
   double max_center_radius2_;
   double subaperture_diameter2_;
+  double encircled_diameter_;
 };
 
 }  // namespace genetic
