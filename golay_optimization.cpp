@@ -6,6 +6,7 @@
 #include "aperture_optimization/golay_fitness_function.h"
 #include "aperture_optimization/global_sparse_aperture.h"
 #include "aperture_optimization/local_sparse_aperture.h"
+#include "aperture_optimization/optimization_main.h"
 
 #include <opencv2/opencv.hpp>
 
@@ -33,7 +34,6 @@ using model_t = vector<double>;
 
 static unique_ptr<GeneticSearchStrategy<model_t>>
     search_strategy(nullptr);
-static bool is_global;
 
 static bool has_stopped = false;
 void stop_iteration(int) {
@@ -41,17 +41,7 @@ void stop_iteration(int) {
     std::cout << std::endl;
     exit(1);
   } else {
-    if (search_strategy.get()) {
-      if (is_global) {
-        auto* searcher =
-            dynamic_cast<GlobalSparseAperture<model_t>*>(search_strategy.get());
-        searcher->Stop();
-      } else {
-        auto* searcher =
-            dynamic_cast<LocalSparseAperture<model_t>*>(search_strategy.get());
-        searcher->Stop();
-      }
-    }
+    if (search_strategy.get()) search_strategy->Stop();
     has_stopped = true;
   }
 }
@@ -92,8 +82,7 @@ int main(int argc, char** argv) {
   fitness_function(truth);
   cout << "Truth: " << truth.fitness() << endl;
 
-  is_global = argc < 2;
-  if (is_global) {
+  if (argc < 2) {
     search_strategy.reset(new GlobalSparseAperture<model_t>(
           FLAGS_subapertures,
           kEncircledDiameter,
@@ -126,71 +115,11 @@ int main(int argc, char** argv) {
 
   auto raw_search_strategy = search_strategy.get();
 
-  GeneticAlgorithm<typename GolayFitnessFunction::model_t> genetic;
-  std::thread genetic_thread(
-      [&genetic, &fitness_function, raw_search_strategy] () {
-        genetic.Run(fitness_function,
-                    *raw_search_strategy,
-                    FLAGS_population_size,
-                    FLAGS_breeds_per_generation);
-      });
-
-  cout << "Waiting for genetic algorithm to start..." << endl;
-  while (!genetic.running()) usleep(1000);
-  cout << "Genetic algorithm started." << endl;
-
-
-  initscr();
-  cbreak();
-  timeout(100);
-  noecho();
-  keypad(stdscr, TRUE);
-  raw();
-  nonl();
-
-  mvprintw(LINES - 2, 0,
-           mats::StringPrintf("Truth: %f", truth.fitness()).c_str());
-  mvprintw(LINES - 1, 0, "'q' to exit");
-
-  int keycode = 0;
-  double prev_best = 0;
-  clock_t prev_time = clock();
-  int prev_gen = 0;
-  while (!has_stopped && (keycode = getch()) != 'q') {
-    usleep(1e5);
-    lock_guard<mutex> lock(genetic.generation_lock());
-
-    const auto& population = genetic.population();
-
-    int gen_num = genetic.generation_num();
-    if (gen_num - prev_gen > 1000) {
-      clock_t time = clock();
-      double elapsed_secs = double(time - prev_time) / CLOCKS_PER_SEC;
-      double time_per_gen = elapsed_secs / (gen_num - prev_gen);
-      mvprintw(LINES - 3, 0, "Time/generation = %f [ms]", time_per_gen * 1000);
-      prev_gen = gen_num;
-      prev_time = time;
-    }
-
-    mvprintw(0, 0, "Generation %d", gen_num);
-    int member_idx = 0;
-    for (const auto& member : population) {
-      mvprintw(member_idx+1, 0, "Member %d: %f", member_idx, member.fitness());
-      member_idx++;
-    }
-    if (population[0].fitness() != prev_best) {
-      fitness_function.Visualize(population[0].model());
-      prev_best = population[0].fitness();
-    }
-  }
-
-  endwin();
-
-  if (!has_stopped) {
-    stop_iteration(0);
-  }
-  genetic_thread.join();
-
+  auto genetic =
+      genetic::OptimizationMain(fitness_function,
+                                *raw_search_strategy,
+                                FLAGS_population_size,
+                                FLAGS_breeds_per_generation);
 
   const auto& best_locations = genetic.best_model();
 
