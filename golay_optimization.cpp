@@ -19,14 +19,13 @@
 #include <ncurses.h>
 
 DEFINE_int32(subapertures, 6, "Number of subapertures");
-DEFINE_double(encircled_diameter, 1, "Encircled Diameter [m]");
+DEFINE_int32(population_size, 10, "Population size");
+DEFINE_int32(breeds_per_generation, 12, "Number of new apertures to make each "
+                                        "generation");
 DEFINE_double(fill_factor, 0.18, "Fill Factor");
 
 
-static const double kReferenceWavelength = 550e-9;
-
-static const int kPopulationSize = 10;
-static const int kBreedsPerGeneration = 12;
+static const double kEncircledDiameter = 10;
 
 using namespace std;
 using namespace genetic;
@@ -65,7 +64,7 @@ int main(int argc, char** argv) {
   srand(time(NULL));
 
   // F = nd^2 / D^2 -> d = D * sqrt(F / n)
-  double subap_diameter = FLAGS_encircled_diameter * sqrt(FLAGS_fill_factor /
+  double subap_diameter = kEncircledDiameter * sqrt(FLAGS_fill_factor /
       FLAGS_subapertures);
 
 
@@ -81,14 +80,13 @@ int main(int argc, char** argv) {
     max_rad = max(sqrt(pow(truth_pos[i], 2) + pow(truth_pos[i+1], 2)), max_rad);
   }
   for (size_t i = 0; i < truth_pos.size(); i++) {
-    truth_pos[i] *= 0.999 * (0.5 * (FLAGS_encircled_diameter - subap_diameter))
+    truth_pos[i] *= 0.999 * (0.5 * (kEncircledDiameter - subap_diameter))
                     / max_rad;
   }
 
   GolayFitnessFunction fitness_function(FLAGS_subapertures,
-                                        FLAGS_encircled_diameter,
-                                        subap_diameter,
-                                        kReferenceWavelength);
+                                        kEncircledDiameter,
+                                        subap_diameter);
 
   PopulationMember<vector<double>> truth(move(truth_pos), 0);
   fitness_function(truth);
@@ -98,7 +96,7 @@ int main(int argc, char** argv) {
   if (is_global) {
     search_strategy.reset(new GlobalSparseAperture<model_t>(
           FLAGS_subapertures,
-          FLAGS_encircled_diameter,
+          kEncircledDiameter,
           subap_diameter,
           0.25,
           0.85));
@@ -114,7 +112,7 @@ int main(int argc, char** argv) {
       search_strategy.reset(new LocalSparseAperture<model_t>(
             best_guess,
             0.75,
-            FLAGS_encircled_diameter));
+            kEncircledDiameter));
     } else {
       cerr << "File: " << argv[1] << " is not readable." << endl;
       exit(1);
@@ -133,8 +131,8 @@ int main(int argc, char** argv) {
       [&genetic, &fitness_function, raw_search_strategy] () {
         genetic.Run(fitness_function,
                     *raw_search_strategy,
-                    kPopulationSize,
-                    kBreedsPerGeneration);
+                    FLAGS_population_size,
+                    FLAGS_breeds_per_generation);
       });
 
   cout << "Waiting for genetic algorithm to start..." << endl;
@@ -156,13 +154,25 @@ int main(int argc, char** argv) {
 
   int keycode = 0;
   double prev_best = 0;
+  clock_t prev_time = clock();
+  int prev_gen = 0;
   while (!has_stopped && (keycode = getch()) != 'q') {
     usleep(1e5);
     lock_guard<mutex> lock(genetic.generation_lock());
 
     const auto& population = genetic.population();
 
-    mvprintw(0, 0, "Generation %d", genetic.generation_num());
+    int gen_num = genetic.generation_num();
+    if (gen_num - prev_gen > 1000) {
+      clock_t time = clock();
+      double elapsed_secs = double(time - prev_time) / CLOCKS_PER_SEC;
+      double time_per_gen = elapsed_secs / (gen_num - prev_gen);
+      mvprintw(LINES - 3, 0, "Time/generation = %f [ms]", time_per_gen * 1000);
+      prev_gen = gen_num;
+      prev_time = time;
+    }
+
+    mvprintw(0, 0, "Generation %d", gen_num);
     int member_idx = 0;
     for (const auto& member : population) {
       mvprintw(member_idx+1, 0, "Member %d: %f", member_idx, member.fitness());
@@ -195,7 +205,7 @@ int main(int argc, char** argv) {
       << "set angle degree" << endl
       << "set size square" << endl
       << "set trange [0:360]" << endl
-      << "r = " << FLAGS_encircled_diameter * 0.5 << endl
+      << "r = " << kEncircledDiameter * 0.5 << endl
       << "r2 = " << subap_diameter * 0.5 << endl;
   
   for (size_t i = 0; i < best_locations.size(); i += 2) {
