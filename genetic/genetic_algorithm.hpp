@@ -17,6 +17,12 @@ GeneticAlgorithm<Model>::GeneticAlgorithm()
     : generation_lock_(), population_(), running_(false) {}
 
 
+template<typename Model>
+GeneticAlgorithm<Model>::GeneticAlgorithm(GeneticAlgorithm<Model>&& other)
+    : generation_lock_(),
+      population_(std::move(other.population_)),
+      running_(other.running_) {}
+
 template <typename Model>
 void GeneticAlgorithm<Model>::Run(
     GeneticFitnessFunction<Model>& fitness_function,

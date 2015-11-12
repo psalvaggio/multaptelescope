@@ -30,6 +30,8 @@ class GeneticAlgorithm {
 
    GeneticAlgorithm();
 
+   GeneticAlgorithm(GeneticAlgorithm<Model>&& other);
+
    // Run the genetic algorithm using the user-defined implementation.
    //
    // Parameters:
@@ -137,6 +139,9 @@ class GeneticSearchStrategy {
   virtual bool ShouldContinue(
       const std::vector<PopulationMember<model_t>>& population,
       size_t generation_num) = 0;
+
+  // Manually stops the iteration.
+  virtual void Stop() = 0;
 };
 
 
