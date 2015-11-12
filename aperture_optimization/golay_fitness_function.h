@@ -15,8 +15,7 @@ class GolayFitnessFunction
  public:
   GolayFitnessFunction(int num_subapertures,
                        double encircled_diameter,
-                       double subaperture_diameter,
-                       double reference_wavelength);
+                       double subaperture_diameter);
 
   bool operator()(PopulationMember<model_t>& member) override;
 
@@ -26,10 +25,10 @@ class GolayFitnessFunction
   void GetAutocorrelationPeaks(const model_t& locations, model_t* peaks);
 
  private:
-  mats::SimulationConfig conf_;
   double max_center_radius2_;
   double subaperture_diameter2_;
   double encircled_diameter_;
+  std::vector<double> peaks_;
 };
 
 }  // namespace genetic

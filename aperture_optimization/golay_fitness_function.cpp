@@ -20,33 +20,12 @@ namespace genetic {
 
 GolayFitnessFunction::GolayFitnessFunction(int num_subapertures,
                                            double encircled_diameter,
-                                           double subaperture_diameter,
-                                           double reference_wavelength)
-    : conf_(),
-      max_center_radius2_(0),
+                                           double subaperture_diameter)
+    : max_center_radius2_(0),
       subaperture_diameter2_(subaperture_diameter*subaperture_diameter),
-      encircled_diameter_(encircled_diameter) {
-
-  // Set up the simulation parameters, so we can just change the subaperture 
-  // locations later.
+      encircled_diameter_(encircled_diameter),
+      peaks_(2 * (num_subapertures * (num_subapertures - 1) + 1), 0) {
   max_center_radius2_ = pow(0.5*(encircled_diameter-subaperture_diameter), 2);
-  conf_.set_array_size(512);
-  conf_.set_reference_wavelength(reference_wavelength);
-
-  Simulation* sim = conf_.add_simulation();
-  auto* compound_params = sim->mutable_aperture_params();
-  compound_params->set_encircled_diameter(encircled_diameter);
-
-  compound_params->set_type(ApertureParameters::COMPOUND);
-  auto* array_ext = compound_params->MutableExtension(compound_aperture_params);
-  array_ext->set_combine_operation(CompoundApertureParameters::OR);
-  for (int i = 0; i < num_subapertures; i++) {
-    auto* subap = array_ext->add_aperture();
-    subap->set_type(ApertureParameters::CIRCULAR);
-    subap->set_encircled_diameter(subaperture_diameter);
-    subap->set_offset_x(0);
-    subap->set_offset_y(0);
-  }
 }
 
 bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
@@ -67,67 +46,28 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
     }
   }
 
-/*
-  // Set the subaperture positions in our parameters
-  auto* ap_params = conf_.mutable_simulation(0)->mutable_aperture_params();
-  auto* compound_params = ap_params->MutableExtension(compound_aperture_params);
-  for (size_t i = 0; i < locations.size(); i += 2) {
-    auto* subap = compound_params->mutable_aperture(i/2);
-    subap->set_offset_x(locations[i]);
-    subap->set_offset_y(locations[i+1]);
-  }
-
-  // Create the proposed aperture
-  unique_ptr<Aperture> aperture(ApertureFactory::Create(conf_.simulation(0)));
-
-  // Calculate the monochromatic, on-axis MTF
-  PupilFunction pupil(conf_.array_size(), conf_.reference_wavelength());
-  aperture->GetPupilFunction(conf_.reference_wavelength(), 0, 0, &pupil);
-  cv::Mat mtf = pupil.ModulationTransferFunction();
-
-  // Calculate the non-redencance of the MTF (as a percentage)
-  cv::Mat mtf_float;
-  mtf.convertTo(mtf_float, CV_32F);
-  cv::threshold(mtf_float, mtf_float, 0.03, 1, cv::THRESH_TOZERO);
-  int non_zeros = cv::countNonZero(mtf_float);
-  double support_frac = non_zeros / (M_PI * pow(mtf.cols / 2, 2));
-*/
-  
   // Calculate the compactness of the MTF
-  model_t peaks;
-  GetAutocorrelationPeaks(member.model(), &peaks);
-  for (size_t i = 0; i < peaks.size(); i += 2) {
-    moment_of_inertia += (peaks[i]*peaks[i] + peaks[i+1]*peaks[i+1]) / 
+  GetAutocorrelationPeaks(member.model(), &peaks_);
+  for (size_t i = 0; i < peaks_.size(); i += 2) {
+    moment_of_inertia += (peaks_[i]*peaks_[i] + peaks_[i+1]*peaks_[i+1]) / 
                          max_center_radius2_;
   }
   double compactness = 1 / moment_of_inertia;
 
   KDTree<array<double, 2>, 2> kd_tree;
-  for (size_t i = 0; i < peaks.size(); i += 2) {
+  for (size_t i = 0; i < peaks_.size(); i += 2) {
     kd_tree.emplace_back();
-    kd_tree.back() = {{peaks[i], peaks[i+1]}};
+    kd_tree.back() = {{peaks_[i], peaks_[i+1]}};
   }
   kd_tree.build();
-/*
-  for (size_t i = 0; i < kd_tree.size(); i++) {
-    cout << "Peak " << i + 1 << ": " << kd_tree[i][0] << ", " << kd_tree[i][1]
-         << endl;
-  }
-*/
   
-  
-  //const int kSamples = 512;
   const int kSamples = 75;
   const double kAutocorWidth = 2 * encircled_diameter_;
   const double kPeakWidth = sqrt(subaperture_diameter2_);
-  const double kFillFactor = 6 * subaperture_diameter2_ /
-                             (encircled_diameter_ * encircled_diameter_);
   const double kPeakHeight = 1 / 6.;
   array<double, 2> sample;
   vector<int> neighbors;
   int covered = 0;
-  //cv::Mat_<uint8_t> mtf_binary(512, 512);
-  //mtf_binary = 0;
   for (int i = 0; i < kSamples; i++) {
     sample[1] = kAutocorWidth * (i - kSamples / 2.) / kSamples;
     for (int j = 0; j < kSamples; j++) {
@@ -143,35 +83,37 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
         }
         if (approx_mtf > 0.03) covered++;
       }
-      //if (!neighbors.empty()) mtf_binary(i, j) = 255;
     }
   }
   double support_frac = covered / (M_PI * pow(kSamples / 2., 2));
-  //double new_support_frac = covered / (M_PI * pow(kSamples / 2., 2));
-  //cout << "Old: " << support_frac << ", New: " << new_support_frac << endl;
-  //imwrite("mtf_binary.png", mtf_binary);
 
-  //double fitness = support_frac + 1 * compactness;
   double fitness = support_frac + 5 * compactness;
   member.set_fitness(fitness);
 
   return true;
 }
 
+
 void GolayFitnessFunction::Visualize(const model_t& locations) {
-  ApertureParameters* ap_params(
-      conf_.mutable_simulation(0)->mutable_aperture_params());
-  CompoundApertureParameters* compound_params =
-      ap_params->MutableExtension(compound_aperture_params);
-  for (size_t i = 0; i < locations.size(); i += 2) {
-    ApertureParameters* subap = compound_params->mutable_aperture(i/2);
-    subap->set_offset_x(locations[i]);
-    subap->set_offset_y(locations[i+1]);
+  Simulation sim;
+  auto* compound_params = sim.mutable_aperture_params();
+  compound_params->set_encircled_diameter(encircled_diameter_);
+  compound_params->set_type(ApertureParameters::COMPOUND);
+
+  auto* array_ext = compound_params->MutableExtension(compound_aperture_params);
+  array_ext->set_combine_operation(CompoundApertureParameters::OR);
+  for (size_t i = 0; i < locations.size() / 2; i++) {
+    auto* subap = array_ext->add_aperture();
+    subap->set_type(ApertureParameters::CIRCULAR);
+    subap->set_encircled_diameter(sqrt(subaperture_diameter2_));
+    subap->set_offset_x(locations[2*i]);
+    subap->set_offset_y(locations[2*i+1]);
   }
 
-  PupilFunction pupil(conf_.array_size(), conf_.reference_wavelength());
-  unique_ptr<Aperture> aperture(ApertureFactory::Create(conf_.simulation(0)));
+  PupilFunction pupil(512, 550e-9);
+  unique_ptr<Aperture> aperture(ApertureFactory::Create(sim));
   aperture->GetPupilFunction(550e-9, 0, 0, &pupil);
+
   cv::Mat mtf = pupil.ModulationTransferFunction();
   cv::Mat mask = ByteScale(aperture->GetApertureMask(512));
   cv::circle(mask, cv::Point(mask.cols / 2, mask.rows / 2), mask.cols / 2,
