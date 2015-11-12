@@ -22,6 +22,8 @@ set(MATS_HDRS ${MATS_HDRS}
     endian.h
     fftw_lock.h
     filesystem.h
+    kd_tree.h
+    kd_tree.hpp
     linear_interpolator.h
     macros.h
     math_utils.h
