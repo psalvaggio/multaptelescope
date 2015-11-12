@@ -150,6 +150,8 @@ int main(int argc, char** argv) {
   raw();
   nonl();
 
+  mvprintw(LINES - 2, 0,
+           mats::StringPrintf("Truth: %f", truth.fitness()).c_str());
   mvprintw(LINES - 1, 0, "'q' to exit");
 
   int keycode = 0;
