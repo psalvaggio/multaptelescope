@@ -172,7 +172,7 @@ set(EXES acquire_images
          analyze_usaf_1951
          center_mask
          create_spectral_weighting
-         genetic_optimization
+         golay_optimization
          image_binary_target
          mats_main
          mtf_plot
