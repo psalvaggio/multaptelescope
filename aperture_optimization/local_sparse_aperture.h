@@ -43,7 +43,7 @@ class LocalSparseAperture : public GeneticSearchStrategy<Model> {
     return should_continue_;
   }
 
-  void Stop() { should_continue_ = false; }
+  void Stop() override { should_continue_ = false; }
 
  private:
   model_t best_guess_;
