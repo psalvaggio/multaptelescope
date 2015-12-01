@@ -81,6 +81,11 @@ class GeneticFitnessFunction {
 
   virtual ~GeneticFitnessFunction() {}
 
+  // Required: Evaluate the fitness function.
+  //
+  // Arguments:
+  //  member  The population member. The result should be stored in this
+  //          object using set_fitness().
   virtual bool operator()(PopulationMember<model_t>& member) = 0;
 
   // Optional: Visualize the best model. This is called at the end of each
