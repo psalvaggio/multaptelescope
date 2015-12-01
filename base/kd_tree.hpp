@@ -7,6 +7,7 @@
 
 #include "kd_tree.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numeric>
 
@@ -60,7 +61,8 @@ void KDTree<T, Dim>::clear() {
 
 
 template<typename T, int Dim>
-void KDTree<T, Dim>::kNNSearch(const T& query,
+template<typename Query>
+void KDTree<T, Dim>::kNNSearch(const Query& query,
                                int k,
                                double max_radius,
                                std::vector<int>* results) const {
@@ -125,8 +127,9 @@ void KDTree<T, Dim>::BuildKdTree(size_t root_idx, std::vector<int>& indices) {
 
 
 template<typename T, int Dim>
+template<typename Query>
 void KDTree<T, Dim>::kNNSearchHelper(
-    const T& query,
+    const Query& query,
     size_t k,
     size_t examine_index,
     double &max_distance_sq,

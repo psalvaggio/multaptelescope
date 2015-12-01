@@ -33,7 +33,8 @@ class KDTree {
 
   size_t size() const { return size_; }
 
-  void kNNSearch(const T& query,
+  template<typename Query>
+  void kNNSearch(const Query& query,
                  int k,
                  double max_radius,
                  std::vector<int>* results) const;
@@ -42,7 +43,8 @@ class KDTree {
   void BuildKdTree(size_t root_idx, std::vector<int>& indices);
 
   using neighbor_t = std::pair<int, double>;
-  void kNNSearchHelper(const T& query,
+  template<typename Query>
+  void kNNSearchHelper(const Query& query,
                        size_t k,
                        size_t examine_index,
                        double &max_distance,
