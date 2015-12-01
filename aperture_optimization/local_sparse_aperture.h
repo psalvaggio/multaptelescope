@@ -4,6 +4,7 @@
 #ifndef LOCAL_SPARSE_APERTURE_H
 #define LOCAL_SPARSE_APERTURE_H
 
+#include "aperture_optimization/circular_array.h"
 #include "base/simulation_config.pb.h"
 #include "genetic/genetic_algorithm.h"
 #include <vector>
@@ -12,16 +13,17 @@
 
 namespace genetic {
 
-template<typename Model>
-class LocalSparseAperture : public GeneticSearchStrategy<Model> {
+class LocalSparseAperture : public GeneticSearchStrategy<CircularArray> {
  public:
-  using model_t = typename GeneticSearchStrategy<Model>::model_t;
+  using model_t = CircularArray;
 
   LocalSparseAperture(const model_t& best_guess,
                       double mutate_probability,
+                      double subap_translate_stdddev,
                       double encircled_diameter)
       : best_guess_(best_guess),
         mutate_probability_(mutate_probability),
+        subap_translate_stddev_(encircled_diameter * subap_translate_stdddev),
         encircled_diameter_(encircled_diameter),
         should_continue_(true),
         generator_(std::chrono::system_clock::now().time_since_epoch().count()),
@@ -48,6 +50,7 @@ class LocalSparseAperture : public GeneticSearchStrategy<Model> {
  private:
   model_t best_guess_;
   double mutate_probability_;
+  double subap_translate_stddev_;
   double encircled_diameter_;
   bool should_continue_;
 
@@ -56,24 +59,23 @@ class LocalSparseAperture : public GeneticSearchStrategy<Model> {
 };
 
 
+/*
 template<typename Model>
 void LocalSparseAperture<Model>::Mutate(PopulationMember<model_t>& member) {
   model_t& locations(member.model());
 
-  double sigma = 0.1 * encircled_diameter_;
-  double max_center_radius = encircled_diameter_ / 2.0;
-  double max_center_radius2 = pow(max_center_radius, 2);
+  const double kEncircledRadius = encircled_diameter_ / 2.0;
 
-  for (size_t i = 0; i < locations.size(); i += 2) {
+  for (size_t i = 0; i < locations.size(); i++) {
     double p = (double)rand() / RAND_MAX;
     if (p < mutate_probability_) {
-      locations[i] += distribution_(generator_) * sigma;
-      locations[i+1] += distribution_(generator_) * sigma;
-      double r2 = pow(locations[i], 2) + pow(locations[i+1], 2);
-      if (r2 > max_center_radius2) {
-        double r = sqrt(r2);
-        locations[i] *= max_center_radius / r;
-        locations[i+1] *= max_center_radius / r;
+      locations[i].x += distribution_(generator_) * subap_translate_stddev_;
+      locations[i].y += distribution_(generator_) * subap_translate_stddev_;
+      double r = sqrt(pow(locations[i].x, 2) + pow(locations[i].y, 2));
+      if (r > kEncircledRadius - locations[i].r) {
+        double scale = 0.999 * (kEncircledRadius - locations[i].r) / r;
+        locations[i].x *= scale;
+        locations[i].y *= scale;
       }
       if ((double)rand() / RAND_MAX < 0.01) {
         double new_x = 2 * (double(rand()) / RAND_MAX - 0.5);
@@ -84,12 +86,13 @@ void LocalSparseAperture<Model>::Mutate(PopulationMember<model_t>& member) {
           new_x /= r;
           new_y /= r;
         }
-        locations[i] = max_center_radius * new_x;
-        locations[i+1] = max_center_radius * new_y;
+        locations[i].x = (kEncircledRadius - locations[i].r) * new_x;
+        locations[i].y = (kEncircledRadius - locations[i].r) * new_y;
       }
     }
   }
 }
+*/
 
 }  // namespace genetic
 

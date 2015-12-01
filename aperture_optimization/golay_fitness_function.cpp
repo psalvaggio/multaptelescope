@@ -18,53 +18,64 @@ using namespace mats;
 
 namespace genetic {
 
-GolayFitnessFunction::GolayFitnessFunction(int num_subapertures,
-                                           double encircled_diameter,
-                                           double subaperture_diameter)
-    : max_center_radius2_(0),
-      subaperture_diameter2_(subaperture_diameter*subaperture_diameter),
+GolayFitnessFunction::GolayFitnessFunction(
+    int num_subapertures,
+    double encircled_diameter,
+    const CircularSubapertureBudget& subaperture_radii)
+    : subap_radii_(subaperture_radii),
       encircled_diameter_(encircled_diameter),
-      peaks_(2 * (num_subapertures * (num_subapertures - 1) + 1), 0) {
-  max_center_radius2_ = pow(0.5*(encircled_diameter-subaperture_diameter), 2);
+      peaks_(num_subapertures * (num_subapertures - 1) + 1),
+      max_subap_radius_(0),
+      total_r2_(0) {
+  for (const auto& subap_r : subap_radii_) {
+    if (subap_r.second > 0) {
+      max_subap_radius_ = max(max_subap_radius_, subap_r.first);
+    }
+    total_r2_ += subap_r.second * subap_r.first * subap_r.first;
+  }
 }
+
 
 bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
   double moment_of_inertia = 0;
 
-  model_t& locations(member.model());
+  const model_t& locations(member.model());
 
   // Check for non-overlapping subapertures
-  for (size_t i = 0; i < locations.size(); i += 2) {
-    double sq_dist = locations[i]*locations[i] + locations[i+1]*locations[i+1];
-    if (sq_dist > max_center_radius2_) return false;
+  for (size_t i = 0; i < locations.size(); i++) {
+    double dist2 = locations[i].x * locations[i].x +
+                   locations[i].y * locations[i].y;
+    double dist = sqrt(dist2);
+    dist += locations[i].r;
+    if (dist > 0.5*encircled_diameter_) return false;
 
-    for (size_t j = i + 2; j < locations.size(); j += 2) {
-      double dx = locations[i] - locations[j];
-      double dy = locations[i+1] - locations[j+1];
+    for (size_t j = i + 1; j < locations.size(); j++) {
+      double dx = locations[i].x - locations[j].x;
+      double dy = locations[i].y - locations[j].y;
       double distance2 = dx*dx + dy*dy;
-      if (distance2 < subaperture_diameter2_) return false;
+      double min_dist = locations[i].r + locations[j].r;
+      if (distance2 < min_dist * min_dist) return false;
     }
   }
 
   // Calculate the compactness of the MTF
+  double norm = 0.25 * encircled_diameter_ * encircled_diameter_;
   GetAutocorrelationPeaks(member.model(), &peaks_);
-  for (size_t i = 0; i < peaks_.size(); i += 2) {
-    moment_of_inertia += (peaks_[i]*peaks_[i] + peaks_[i+1]*peaks_[i+1]) / 
-                         max_center_radius2_;
+  for (const auto& peak : peaks_) {
+    moment_of_inertia += (peak.x * peak.x + peak.y * peak.y) / norm;
   }
   double compactness = 1 / moment_of_inertia;
 
   KDTree<array<double, 2>, 2> kd_tree;
-  for (size_t i = 0; i < peaks_.size(); i += 2) {
+  for (const auto& peak : peaks_) {
     kd_tree.emplace_back();
-    kd_tree.back() = {{peaks_[i], peaks_[i+1]}};
+    kd_tree.back() = {{peak.x, peak.y}};
   }
   kd_tree.build();
   
   const int kSamples = 75;
   const double kAutocorWidth = 2 * encircled_diameter_;
-  const double kPeakWidth = sqrt(subaperture_diameter2_);
-  const double kPeakHeight = 1 / 6.;
+  const double kMaxPeakRadius = 2 * max_subap_radius_;
   array<double, 2> sample;
   vector<int> neighbors;
   int covered = 0;
@@ -73,13 +84,18 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
     for (int j = 0; j < kSamples; j++) {
       sample[0] = kAutocorWidth * (j - kSamples / 2.) / kSamples;
 
-      kd_tree.kNNSearch(sample, 1, kPeakWidth, &neighbors);
+      kd_tree.kNNSearch(sample, -1, kMaxPeakRadius, &neighbors);
       if (!neighbors.empty()) {
         double approx_mtf = 0;
         for (size_t k = 0; k < neighbors.size(); k++) {
-          double dist = sqrt(pow(kd_tree[neighbors[k]][0] - sample[0], 2) +
-                             pow(kd_tree[neighbors[k]][1] - sample[1], 2));
-          approx_mtf += kPeakHeight * (1 - dist / kPeakWidth);
+          const auto& peak = peaks_[neighbors[k]];
+          double dist = sqrt(pow(peak.x - sample[0], 2) +
+                             pow(peak.y - sample[1], 2)) - peak.min_r;
+          if (dist < 0) {
+            approx_mtf += peak.height;
+          } else if (dist < peak.max_r - peak.min_r) {
+            approx_mtf += peak.height * (1 - dist / (peak.max_r - peak.min_r));
+          }
         }
         if (approx_mtf > 0.03) covered++;
       }
@@ -87,7 +103,7 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
   }
   double support_frac = covered / (M_PI * pow(kSamples / 2., 2));
 
-  double fitness = support_frac + 5 * compactness;
+  double fitness = support_frac + 3 * compactness;
   member.set_fitness(fitness);
 
   return true;
@@ -102,12 +118,12 @@ void GolayFitnessFunction::Visualize(const model_t& locations) {
 
   auto* array_ext = compound_params->MutableExtension(compound_aperture_params);
   array_ext->set_combine_operation(CompoundApertureParameters::OR);
-  for (size_t i = 0; i < locations.size() / 2; i++) {
+  for (size_t i = 0; i < locations.size(); i++) {
     auto* subap = array_ext->add_aperture();
     subap->set_type(ApertureParameters::CIRCULAR);
-    subap->set_encircled_diameter(sqrt(subaperture_diameter2_));
-    subap->set_offset_x(locations[2*i]);
-    subap->set_offset_y(locations[2*i+1]);
+    subap->set_encircled_diameter(2 * locations[i].r);
+    subap->set_offset_x(locations[i].x);
+    subap->set_offset_y(locations[i].y);
   }
 
   PupilFunction pupil(512, 550e-9);
@@ -124,19 +140,27 @@ void GolayFitnessFunction::Visualize(const model_t& locations) {
 }
 
 
-void GolayFitnessFunction::GetAutocorrelationPeaks(const model_t& locations,
-                                                   model_t* peaks) {
+void GolayFitnessFunction::GetAutocorrelationPeaks(
+    const model_t& locations,
+    vector<CircularAutocorrelationPeak>* peaks) {
   if (!peaks) return;
-  int subaps = locations.size() / 2;
-  peaks->resize(2 * (subaps * (subaps - 1) + 1), 0);
+  int subaps = locations.size();
+  peaks->resize((subaps * (subaps - 1) + 1));
 
-  int index = 2;
-  for (size_t i = 0; i < locations.size(); i += 2) {
-    for (size_t j = 0; j < locations.size(); j += 2) {
+  (*peaks)[0].set(0, 0, 1, 0, max_subap_radius_ * 2);
+
+  int index = 1;
+  for (size_t i = 0; i < locations.size(); i++) {
+    for (size_t j = 0; j < locations.size(); j++) {
       if (i == j) continue;
+      double smaller_r = min(locations[i].r, locations[j].r);
+      double bigger_r = max(locations[i].r, locations[j].r);
 
-      (*peaks)[index++] = locations[i] - locations[j];
-      (*peaks)[index++] = locations[i+1] - locations[j+1];
+      (*peaks)[index++].set(locations[i].x - locations[j].x,
+                            locations[i].y - locations[j].y,
+                            pow(smaller_r, 2) / total_r2_,
+                            bigger_r - smaller_r,
+                            bigger_r + smaller_r);
     }
   }
 }
