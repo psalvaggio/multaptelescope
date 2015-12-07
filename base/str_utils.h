@@ -56,6 +56,8 @@ void SStringPrintf(std::string* output, const char* format, ...);
 bool starts_with(const std::string& haystack, const std::string& needle);
 bool ends_with(const std::string& haystack, const std::string& needle);
 
+std::string strtolower(const std::string& str);
+
 }
 
 #endif  // STR_UTILS_H

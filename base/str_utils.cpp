@@ -114,4 +114,10 @@ bool ends_with(const string& haystack, const string& needle) {
   return false;
 }
 
+string strtolower(const std::string& str) {
+  string result;
+  transform(begin(str), end(str), back_inserter(result), ::tolower);
+  return result;
+}
+
 }
