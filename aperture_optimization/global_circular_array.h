@@ -1,8 +1,9 @@
-// File Description
+// A global search strategy for sparse aperture optimizations that use the
+// CircularArray parameterization.
 // Author: Philip Salvaggio
 
-#ifndef GLOBAL_SPARSE_APERTURE_H
-#define GLOBAL_SPARSE_APERTURE_H
+#ifndef GLOBAL_CIRCULAR_ARRAY_H
+#define GLOBAL_CIRCULAR_ARRAY_H
 
 #include "aperture_optimization/circular_array.h"
 #include "base/simulation_config.pb.h"
@@ -16,16 +17,16 @@
 
 namespace genetic {
 
-class GlobalSparseAperture : public GeneticSearchStrategy<CircularArray> {
+class GlobalCircularArray : public GeneticSearchStrategy<CircularArray> {
  public:
   using model_t = CircularArray;
   using SubapertureRadii = std::vector<std::pair<double, int>>;
 
-  GlobalSparseAperture(int num_subapertures,
-                       double encircled_diameter,
-                       const SubapertureRadii& subap_radii,
-                       double crossover_probability,
-                       double mutate_probability)
+  GlobalCircularArray(int num_subapertures,
+                      double encircled_diameter,
+                      const SubapertureRadii& subap_radii,
+                      double crossover_probability,
+                      double mutate_probability)
       : num_subapertures_(num_subapertures),
         crossover_probability_(crossover_probability),
         mutate_probability_(mutate_probability),
@@ -58,4 +59,4 @@ class GlobalSparseAperture : public GeneticSearchStrategy<CircularArray> {
 
 }  // namespace genetic
 
-#endif  // GLOBAL_SPARSE_APERTURE_H
+#endif  // GLOBAL_CIRCULAR_ARRAY_H

@@ -1,12 +1,12 @@
-// File Description
+// Implementation file for global_circular_array.h
 // Author: Philip Salvaggio
 
-#include "global_sparse_aperture.h"
+#include "global_circular_array.h"
 
 namespace genetic {
 
-typename GlobalSparseAperture::model_t GlobalSparseAperture::Introduce(
-    GeneticFitnessFunction<model_t>& fitness_function) {
+auto GlobalCircularArray::Introduce(
+    GeneticFitnessFunction<model_t>& fitness_function) -> model_t {
   model_t tmp_model;
   PopulationMember<model_t> member(std::move(tmp_model));
   model_t& locations(member.model());
@@ -46,9 +46,9 @@ typename GlobalSparseAperture::model_t GlobalSparseAperture::Introduce(
 }
 
 
-typename GlobalSparseAperture::model_t GlobalSparseAperture::Crossover(
+auto GlobalCircularArray::Crossover(
     const PopulationMember<model_t>& member1,
-    const PopulationMember<model_t>& member2) {
+    const PopulationMember<model_t>& member2) -> model_t {
   const model_t& input1_locs(member1.model());
   const model_t& input2_locs(member2.model());
   model_t output_locs;
@@ -83,22 +83,12 @@ typename GlobalSparseAperture::model_t GlobalSparseAperture::Crossover(
     for (const auto& idx : samples[1])
       output_locs[index++] = input2_locs[radii_indices[1][idx]];
   }
-/*
-  for (size_t i = 0; i < input1_locs.size(); i++) {
-    double p = (double)rand() / RAND_MAX;
-    if (p < crossover_probability_) {
-      output_locs[i] = input2_locs[i];
-    } else {
-      output_locs[i] = input1_locs[i];
-    }
-  }
-*/
 
   return output_locs;
 }
 
 
-void GlobalSparseAperture::Mutate(PopulationMember<model_t>& member) {
+void GlobalCircularArray::Mutate(PopulationMember<model_t>& member) {
   model_t& locations(member.model());
 
   for (size_t i = 0; i < locations.size(); i++) {

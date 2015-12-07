@@ -1,11 +1,11 @@
-// File Description
+// Implementation file for local_circular_array.h
 // Author: Philip Salvaggio
 
-#include "local_sparse_aperture.h"
+#include "local_circular_array.h"
 
 namespace genetic {
 
-void LocalSparseAperture::Mutate(PopulationMember<model_t>& member) {
+void LocalCircularArray::Mutate(PopulationMember<model_t>& member) {
   model_t& locations(member.model());
 
   const double kEncircledRadius = encircled_diameter_ / 2.0;
