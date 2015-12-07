@@ -14,23 +14,10 @@ const CircularSubaperture& NArmArray::operator[](int index) const {
   return circ_array_cache_[index];
 }
 
-auto NArmArray::operator()(size_t index) const -> const ArmSubaperture& {
-  int arm = 0;
-  while (index >= apertures_[arm].size()) {
-    index -= apertures_[arm].size();
-    arm++;
-  }
-  return apertures_[arm][index];
-}
-
-
 void NArmArray::SetNumArms(size_t arms) {
+  apertures_.clear();
+  arm_angles_.clear();
   arm_angles_.resize(arms);
-  apertures_.resize(arms);
-
-  size_ = 0;
-  for (const auto& arm : apertures_) size_ += arm.size();
-
   cache_dirty_ = true;
 }
 
@@ -42,36 +29,26 @@ void NArmArray::SetArmAngle(int arm, double angle) {
 
 
 void NArmArray::AddAperture(int arm, double offset, double r) {
-  apertures_[arm].emplace_back(offset, r);
+  apertures_.emplace_back(arm, offset, r);
   cache_dirty_ = true;
-  size_++;
-}
-
-
-void NArmArray::RemoveAperture(int arm, int ap) {
-  apertures_[arm].erase(begin(apertures_[arm]) + ap);
 }
 
 
 void NArmArray::clear() {
   arm_angles_.clear();
   apertures_.clear();
-  size_ = 0;
   cache_dirty_ = true;
 }
 
 
 void NArmArray::CreateCircularArray() const {
   circ_array_cache_.clear();
-  for (size_t i = 0; i < apertures_.size(); i++) {
-    double arm_angle = arm_angles_[i];
-    for (size_t j = 0; j < apertures_[i].size(); j++) {
-      double from_center = apertures_[i][j].offset;
-      double subap_r = apertures_[i][j].r;
-      circ_array_cache_.emplace_back(from_center * cos(arm_angle),
-                                     from_center * sin(arm_angle),
-                                     subap_r);
-    }
+  for (const auto& ap : apertures_) {
+    double arm_angle = arm_angles_[ap.arm];
+    double from_center = ap.offset;
+    circ_array_cache_.emplace_back(from_center * cos(arm_angle),
+                                   from_center * sin(arm_angle),
+                                   ap.r);
   }
   cache_dirty_ = false;
 }
@@ -82,11 +59,15 @@ ostream& operator<<(ostream& os, const NArmArray& array) {
   os << num_arms << endl;
   for (size_t i = 0; i < num_arms; i++) {
     os << array.ArmAngle(i) << endl;
-    size_t num_aps = array.AperturesOnArm(i);
-    os << num_aps << endl;
-    for (size_t j = 0; j < num_aps; j++) {
-     os << array(i, j).offset << " " << array(i, j).r << endl;
+    stringstream ss;
+    size_t num_aps = 0;
+    for (size_t j = 0; j < array.size(); j++) {
+      if (array(j).arm == i) {
+        ss << array(j).offset << " " << array(j).r << endl;
+        num_aps++;
+      }
     }
+    os << num_aps << endl << ss.str();
   }
   return os;
 }

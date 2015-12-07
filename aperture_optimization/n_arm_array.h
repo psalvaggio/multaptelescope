@@ -26,38 +26,49 @@ class NArmArray {
   const CircularSubaperture& operator[](int index) const;
 
   struct ArmSubaperture {
-    ArmSubaperture(double offset, double r) : offset(offset), r(r) {}
+    ArmSubaperture(int arm, double offset, double r)
+        : arm(arm), offset(offset), r(r) {}
 
+    int arm;
     double offset, r;
   };
 
-  const ArmSubaperture& operator()(size_t index) const;
-
-  const ArmSubaperture& operator()(size_t arm, size_t ap) const {
-    return apertures_[arm][ap];
+  // ArmSubaperture Index
+  const ArmSubaperture& operator()(size_t index) const {
+    return apertures_[index];
+  }
+  ArmSubaperture& operator()(size_t index) {
+    cache_dirty_ = true;
+    return apertures_[index];
   }
 
-  ArmSubaperture& operator()(size_t arm, size_t ap) {
-    cache_dirty_ = false;
-    return apertures_[arm][ap];
-  }
+  // Returns the number of arms in the array
+  size_t NumArms() const { return arm_angles_.size(); }
 
-  size_t NumArms() const { return apertures_.size(); }
+  // Add an arm to the array with the given angle [radians CCW of +x]
+  void AddArm(double angle);
+
+  // Set the number of arms, this will clear all previous arms/apertures
   void SetNumArms(size_t arms);
 
+  // Get the angle of the requested arm
   double ArmAngle(int arm) const { return arm_angles_[arm]; }
+
+  // Set the angle of an arm
   void SetArmAngle(int arm, double angle);
 
+  // Add an aperture to the array
+  //
+  // Arguments:
+  //  arm     Arm to which to add the aperture
+  //  offset  The offset from the center of the array [m]
+  //  r       The radius of the aperture [m]
   void AddAperture(int arm, double offset, double r);
-  void RemoveAperture(int arm, int ap);
 
-  size_t size() const { return size_; }
-  size_t AperturesOnArm(int arm) const { return apertures_[arm].size(); }
+  // Get the number of apertures in the array
+  size_t size() const { return apertures_.size(); }
 
-  void SwapApertures(int arm1, int ap1, int arm2, int ap2) {
-    std::swap(apertures_[arm1][ap1], apertures_[arm2][ap2]);
-  }
-
+  // Clear the arms and apertures of the array
   void clear();
 
  private:
@@ -65,8 +76,7 @@ class NArmArray {
  
  private:
   std::vector<double> arm_angles_;
-  std::vector<std::vector<ArmSubaperture>> apertures_;
-  size_t size_;
+  std::vector<ArmSubaperture> apertures_;
 
   mutable CircularArray circ_array_cache_;
   mutable bool cache_dirty_;
