@@ -92,6 +92,7 @@ int main(int argc, char** argv) {
          << "Acceptable options are:" << endl
          << "  Annulus" << endl
          << "  Golay" << endl;
+    return 1;
   }
 
   if (argc < 2) {
