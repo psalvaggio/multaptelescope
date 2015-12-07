@@ -70,7 +70,6 @@ int main(int argc, char** argv) {
   // F = nd^2 / D^2 -> d = D * sqrt(F / n)
   double subap_diameter = kEncircledDiameter * sqrt(FLAGS_fill_factor /
       FLAGS_subapertures);
-  double subap_r = 0.5 * subap_diameter;
 
   // 3*r^2 + 3*(a*r)^2 = FR^2
   // r^2 = FR^2/(3 * (a^2 + 1))
