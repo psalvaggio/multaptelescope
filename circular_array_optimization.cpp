@@ -67,10 +67,6 @@ int main(int argc, char** argv) {
   signal(SIGINT, stop_iteration);
   srand(time(NULL));
 
-  // F = nd^2 / D^2 -> d = D * sqrt(F / n)
-  double subap_diameter = kEncircledDiameter * sqrt(FLAGS_fill_factor /
-      FLAGS_subapertures);
-
   // 3*r^2 + 3*(a*r)^2 = FR^2
   // r^2 = FR^2/(3 * (a^2 + 1))
   const double kSubapRRatio = 1.5;
