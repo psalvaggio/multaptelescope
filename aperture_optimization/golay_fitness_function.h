@@ -11,8 +11,11 @@
 
 namespace genetic {
 
-class GolayFitnessFunction : public GeneticFitnessFunction<CircularArray> {
+template<typename T>
+class GolayFitnessFunction : public GeneticFitnessFunction<T> {
  public:
+  using model_t = typename GeneticFitnessFunction<T>::model_t;
+
   GolayFitnessFunction(int num_subapertures,
                        double encircled_diameter,
                        const CircularSubapertureBudget& subap_radii);
@@ -34,5 +37,7 @@ class GolayFitnessFunction : public GeneticFitnessFunction<CircularArray> {
 };
 
 }  // namespace genetic
+
+#include "golay_fitness_function.hpp"
 
 #endif  // GOLAY_GENETIC_IMPL_H

@@ -1,6 +1,9 @@
 // File Description
 // Author: Philip Salvaggio
 
+#ifndef GOLAY_FITNESS_FUNCTION_HPP
+#define GOLAY_FITNESS_FUNCTION_HPP
+
 #include "golay_fitness_function.h"
 
 #include "base/kd_tree.h"
@@ -13,12 +16,10 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-using namespace std;
-using namespace mats;
-
 namespace genetic {
 
-GolayFitnessFunction::GolayFitnessFunction(
+template<typename T>
+GolayFitnessFunction<T>::GolayFitnessFunction(
     int num_subapertures,
     double encircled_diameter,
     const CircularSubapertureBudget& subaperture_radii)
@@ -29,14 +30,15 @@ GolayFitnessFunction::GolayFitnessFunction(
       total_r2_(0) {
   for (const auto& subap_r : subap_radii_) {
     if (subap_r.second > 0) {
-      max_subap_radius_ = max(max_subap_radius_, subap_r.first);
+      max_subap_radius_ = std::max(max_subap_radius_, subap_r.first);
     }
     total_r2_ += subap_r.second * subap_r.first * subap_r.first;
   }
 }
 
 
-bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
+template<typename T>
+bool GolayFitnessFunction<T>::operator()(PopulationMember<model_t>& member) {
   double moment_of_inertia = 0;
 
   const model_t& locations(member.model());
@@ -66,7 +68,7 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
   }
   double compactness = 1 / moment_of_inertia;
 
-  KDTree<array<double, 2>, 2> kd_tree;
+  KDTree<std::array<double, 2>, 2> kd_tree;
   for (const auto& peak : peaks_) {
     kd_tree.emplace_back();
     kd_tree.back() = {{peak.x, peak.y}};
@@ -76,8 +78,8 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
   const int kSamples = 75;
   const double kAutocorWidth = 2 * encircled_diameter_;
   const double kMaxPeakRadius = 2 * max_subap_radius_;
-  array<double, 2> sample;
-  vector<int> neighbors;
+  std::array<double, 2> sample;
+  std::vector<int> neighbors;
   int covered = 0;
   for (int i = 0; i < kSamples; i++) {
     sample[1] = kAutocorWidth * (i - kSamples / 2.) / kSamples;
@@ -110,24 +112,25 @@ bool GolayFitnessFunction::operator()(PopulationMember<model_t>& member) {
 }
 
 
-void GolayFitnessFunction::Visualize(const model_t& locations) {
-  Simulation sim;
+template<typename T>
+void GolayFitnessFunction<T>::Visualize(const model_t& locations) {
+  mats::Simulation sim;
   auto* compound_params = sim.mutable_aperture_params();
   compound_params->set_encircled_diameter(encircled_diameter_);
-  compound_params->set_type(ApertureParameters::COMPOUND);
+  compound_params->set_type(mats::ApertureParameters::COMPOUND);
 
   auto* array_ext = compound_params->MutableExtension(compound_aperture_params);
   array_ext->set_combine_operation(CompoundApertureParameters::OR);
   for (size_t i = 0; i < locations.size(); i++) {
     auto* subap = array_ext->add_aperture();
-    subap->set_type(ApertureParameters::CIRCULAR);
+    subap->set_type(mats::ApertureParameters::CIRCULAR);
     subap->set_encircled_diameter(2 * locations[i].r);
     subap->set_offset_x(locations[i].x);
     subap->set_offset_y(locations[i].y);
   }
 
-  PupilFunction pupil(512, 550e-9);
-  unique_ptr<Aperture> aperture(ApertureFactory::Create(sim));
+  mats::PupilFunction pupil(512, 550e-9);
+  std::unique_ptr<Aperture> aperture(ApertureFactory::Create(sim));
   aperture->GetPupilFunction(550e-9, 0, 0, &pupil);
 
   cv::Mat mtf = pupil.ModulationTransferFunction();
@@ -140,9 +143,10 @@ void GolayFitnessFunction::Visualize(const model_t& locations) {
 }
 
 
-void GolayFitnessFunction::GetAutocorrelationPeaks(
+template<typename T>
+void GolayFitnessFunction<T>::GetAutocorrelationPeaks(
     const model_t& locations,
-    vector<CircularAutocorrelationPeak>* peaks) {
+    std::vector<CircularAutocorrelationPeak>* peaks) {
   if (!peaks) return;
   int subaps = locations.size();
   peaks->resize((subaps * (subaps - 1) + 1));
@@ -153,8 +157,8 @@ void GolayFitnessFunction::GetAutocorrelationPeaks(
   for (size_t i = 0; i < locations.size(); i++) {
     for (size_t j = 0; j < locations.size(); j++) {
       if (i == j) continue;
-      double smaller_r = min(locations[i].r, locations[j].r);
-      double bigger_r = max(locations[i].r, locations[j].r);
+      double smaller_r = std::min(locations[i].r, locations[j].r);
+      double bigger_r = std::max(locations[i].r, locations[j].r);
 
       (*peaks)[index++].set(locations[i].x - locations[j].x,
                             locations[i].y - locations[j].y,
@@ -166,3 +170,5 @@ void GolayFitnessFunction::GetAutocorrelationPeaks(
 }
 
 }  // namespace genetic
+
+#endif
