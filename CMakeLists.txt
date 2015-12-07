@@ -171,12 +171,13 @@ set(EXES acquire_images
          align_measured_profiles
          analyze_usaf_1951
          center_mask
+         circular_array_optimization
          create_spectral_weighting
-         golay_optimization
          image_binary_target
          mats_main
          mtf_plot
          mtf_statistics
+         n_arm_array_optimization
          real_time_sbig_preview
          real_time_slant_edge
          restore_image
@@ -186,6 +187,7 @@ set(EXES acquire_images
          #perform_rer_comparison
          #simulate_slant_edge_experiment
          #find_mtf_correction
+         #isotropic_test
          )
 
 # Build each executable
