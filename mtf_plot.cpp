@@ -202,9 +202,14 @@ bool PlotConfigFile(const std::string& file,
 
   // Set up the spectral resolution of the simulation
   vector<vector<double>> raw_weighting;
-  mats_io::TextFileReader::Parse(
-      sim_config.spectral_weighting_filename(),
-      &raw_weighting);
+  if (sim_config.has_spectral_weighting_filename()) {
+    mats_io::TextFileReader::Parse(
+        sim_config.spectral_weighting_filename(),
+        &raw_weighting);
+  } else {
+    raw_weighting.emplace_back(1, sim_config.reference_wavelength());
+    raw_weighting.emplace_back(1, 1);
+  }
   const vector<double>& wavelengths(raw_weighting[0]);
   const vector<double>& spectral_weighting(raw_weighting[1]);
 
