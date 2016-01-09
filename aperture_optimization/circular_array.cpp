@@ -26,7 +26,7 @@ istream& operator>>(istream& is, CircularArray& aps) {
   istringstream iss;
 
   int num_subaps = 0;
-  if (!getline(is, line)) {
+  if (getline(is, line)) {
     iss.str(line);
     iss >> num_subaps;
   }
