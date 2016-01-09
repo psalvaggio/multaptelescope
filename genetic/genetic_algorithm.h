@@ -156,9 +156,9 @@ class PopulationMember {
  public:
   PopulationMember(Model&& model, double fitness);
   explicit PopulationMember(Model&& model);
-  PopulationMember(PopulationMember<Model>&& other);
+  PopulationMember(PopulationMember<Model>&& other) = default;
 
-  PopulationMember& operator=(PopulationMember<Model>&& other);
+  PopulationMember& operator=(PopulationMember<Model>&& other) = default;
 
   Model& model() { return model_; }
   const Model& model() const { return model_; }

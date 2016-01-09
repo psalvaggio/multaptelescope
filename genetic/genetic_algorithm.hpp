@@ -180,20 +180,6 @@ template <typename Model>
 PopulationMember<Model>::PopulationMember(Model&& model)
     : PopulationMember(std::move(model), 0) {}
 
-
-template <typename Model>
-PopulationMember<Model>::PopulationMember(PopulationMember<Model>&& other)
-    : PopulationMember(std::move(other.model_), other.fitness_) {}
-
-
-template <typename Model>
-PopulationMember<Model>& PopulationMember<Model>::operator=(
-    PopulationMember<Model>&& other) {
-  model_ = std::move(other.model_);
-  fitness_ = other.fitness_;
-  return *this;
-}
-
 }  // namespace genetic
 
 #endif  // GENETIC_ALGORITHM_HPP
