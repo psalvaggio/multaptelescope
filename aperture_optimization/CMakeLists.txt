@@ -1,4 +1,6 @@
 set(MATS_HDRS ${MATS_HDRS}
+    acutance_fitness_function.h
+    acutance_fitness_function.hpp
     annulus_fitness_function.h
     annulus_fitness_function.hpp
     circular_array.h
@@ -10,6 +12,8 @@ set(MATS_HDRS ${MATS_HDRS}
     local_n_arm.h
     n_arm_array.h
     optimization_main.h
+    polar_mtf_weighting_fitness_function.h
+    polar_mtf_weighting_fitness_function.hpp
     PARENT_SCOPE)
 
 set(MATS_SRCS ${MATS_SRCS}
