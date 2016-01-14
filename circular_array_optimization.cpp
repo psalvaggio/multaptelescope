@@ -4,11 +4,13 @@
 
 #include "mats.h"
 
+#include "aperture_optimization/acutance_fitness_function.h"
 #include "aperture_optimization/annulus_fitness_function.h"
 #include "aperture_optimization/golay_fitness_function.h"
 #include "aperture_optimization/global_circular_array.h"
 #include "aperture_optimization/local_circular_array.h"
 #include "aperture_optimization/optimization_main.h"
+#include "aperture_optimization/polar_mtf_weighting_fitness_function.h"
 #include "optical_designs/compound_aperture_parameters.pb.h"
 
 #include <opencv2/opencv.hpp>
@@ -69,13 +71,14 @@ int main(int argc, char** argv) {
 
   // 3*r^2 + 3*(a*r)^2 = FR^2
   // r^2 = FR^2/(3 * (a^2 + 1))
-  const double kSubapRRatio = 1.5;
+  const double kSubapRRatio = 1.0;
   double little_diameter = kEncircledDiameter * sqrt(FLAGS_fill_factor / (
       0.5 * FLAGS_subapertures * (kSubapRRatio * kSubapRRatio + 1)));
   double big_diameter = little_diameter * kSubapRRatio;
 
   auto subap_budget = MakeCircularSubapertureBudget(
-     0.5 * little_diameter, 3, 0.5 * big_diameter, 3);
+     0.5 * little_diameter, 6);
+     //0.5 * little_diameter, 3, 0.5 * big_diameter, 3);
 
   string fitness_func_str = strtolower(FLAGS_fitness_function);
   if (fitness_func_str == "annulus") {
@@ -88,11 +91,32 @@ int main(int argc, char** argv) {
         FLAGS_subapertures,
         kEncircledDiameter,
         subap_budget));
+  } else if (fitness_func_str == "acutance") {
+    fitness_function.reset(new AcutanceFitnessFunction<model_t>(
+        FLAGS_subapertures,
+        kEncircledDiameter,
+        0.03333,
+        subap_budget));
+  } else if (fitness_func_str == "dog") {
+    const double kStdDevRatio = 0.5;
+    const double kPeakFreq = 0.0333;
+    double stddev = kPeakFreq / (2 * kStdDevRatio) *
+                    sqrt((pow(kStdDevRatio, 2) - 1) / log(kStdDevRatio));
+    fitness_function.reset(new PolarMtfWeightingFitnessFunction<model_t>(
+        FLAGS_subapertures,
+        kEncircledDiameter,
+        0.1,
+        subap_budget,
+        [kStdDevRatio, stddev](double rho, double) {
+          return exp(-rho * rho / (2 * pow(stddev, 2))) -
+                 exp(-rho * rho / (2 * pow(kStdDevRatio * stddev, 2)));
+        }));
   } else {
     cerr << "Unrecognized fitness function: " << FLAGS_fitness_function << endl
          << "Acceptable options are:" << endl
          << "  Annulus" << endl
-         << "  Golay" << endl;
+         << "  Golay" << endl
+         << "  Acutance" << endl;
     return 1;
   }
 

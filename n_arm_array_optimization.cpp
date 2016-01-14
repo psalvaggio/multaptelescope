@@ -8,6 +8,7 @@
 #include "aperture_optimization/global_n_arm.h"
 #include "aperture_optimization/local_n_arm.h"
 #include "aperture_optimization/optimization_main.h"
+#include "aperture_optimization/polar_mtf_weighting_fitness_function.h"
 #include "optical_designs/compound_aperture_parameters.pb.h"
 
 #include <opencv2/opencv.hpp>
@@ -68,12 +69,13 @@ int main(int argc, char** argv) {
 
   // 3*r^2 + 3*(a*r)^2 = FR^2
   // r^2 = FR^2/(3 * (a^2 + 1))
-  const double kSubapRRatio = 1.5;
+  const double kSubapRRatio = 1.4;
   double little_diameter = kEncircledDiameter * sqrt(FLAGS_fill_factor / (
       0.5 * FLAGS_subapertures * (kSubapRRatio * kSubapRRatio + 1)));
   double big_diameter = little_diameter * kSubapRRatio;
 
   auto subap_budget = MakeCircularSubapertureBudget(
+     //0.5 * little_diameter, 6);
      0.5 * little_diameter, 3, 0.5 * big_diameter, 3);
 
   string fitness_func_str = strtolower(FLAGS_fitness_function);
