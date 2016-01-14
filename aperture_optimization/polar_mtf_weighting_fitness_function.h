@@ -23,6 +23,7 @@ class PolarMtfWeightingFitnessFunction : public GeneticFitnessFunction<T> {
   PolarMtfWeightingFitnessFunction(
       int num_subapertures,
       double encircled_diameter,
+      double maximum_mtf_value,
       const CircularSubapertureBudget& subap_radii,
       std::function<double(double, double)> weighting);
 
@@ -44,6 +45,7 @@ class PolarMtfWeightingFitnessFunction : public GeneticFitnessFunction<T> {
   double max_subap_radius_;
   double total_r2_;
   cv::Mat_<double> weighting_;
+  double max_mtf_val_;
 };
 
 }

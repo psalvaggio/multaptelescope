@@ -25,6 +25,7 @@ template<typename T>
 PolarMtfWeightingFitnessFunction<T>::PolarMtfWeightingFitnessFunction(
     int num_subapertures,
     double encircled_diameter,
+    double maximum_mtf_value,
     const CircularSubapertureBudget& subap_radii,
     std::function<double(double, double)> weighting)
     : subap_radii_(subap_radii),
@@ -32,7 +33,8 @@ PolarMtfWeightingFitnessFunction<T>::PolarMtfWeightingFitnessFunction(
       peaks_(num_subapertures * (num_subapertures - 1) + 1),
       max_subap_radius_(0),
       total_r2_(0),
-      weighting_(kSimulationSize, kSimulationSize) {
+      weighting_(kSimulationSize, kSimulationSize),
+      max_mtf_val_(maximum_mtf_value) {
   for (const auto& subap_r : subap_radii_) {
     if (subap_r.second > 0) {
       max_subap_radius_ = std::max(max_subap_radius_, subap_r.first);
@@ -112,7 +114,7 @@ bool PolarMtfWeightingFitnessFunction<T>::operator()(
             approx_mtf += peak.height * (1 - dist / (peak.max_r - peak.min_r));
           }
         }
-        weight += std::min(approx_mtf, 0.1) * weighting_(i, j);
+        weight += std::min(approx_mtf, max_mtf_val_) * weighting_(i, j);
       }
     }
   }
