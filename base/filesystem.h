@@ -27,6 +27,8 @@ std::string ResolvePath(const std::string& path);
 std::string Basename(const std::string& path,
                      const std::string& extension = "");
 
+std::string Extension(const std::string& path);
+
 std::string DirectoryName(const std::string& path);
 
 }

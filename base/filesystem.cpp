@@ -94,6 +94,12 @@ std::string Basename(const std::string& path,
   return basename;
 }
 
+std::string Extension(const std::string& path) {
+  size_t found = path.find_last_of(".");
+  if (found == std::string::npos) return "";
+  return path.substr(found + 1);
+}
+
 std::string DirectoryName(const std::string& path) {
   size_t found = path.find_last_of("/\\");
   if (found == std::string::npos) return "";
