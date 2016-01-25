@@ -38,7 +38,8 @@ GolayFitnessFunction<T>::GolayFitnessFunction(
 
 
 template<typename T>
-bool GolayFitnessFunction<T>::operator()(PopulationMember<model_t>& member) {
+bool GolayFitnessFunction<T>::operator()(
+    PopulationMember<model_t>& member) const {
   double moment_of_inertia = 0;
 
   const model_t& locations(member.model());
@@ -113,7 +114,7 @@ bool GolayFitnessFunction<T>::operator()(PopulationMember<model_t>& member) {
 
 
 template<typename T>
-void GolayFitnessFunction<T>::Visualize(const model_t& locations) {
+void GolayFitnessFunction<T>::Visualize(const model_t& locations) const {
   mats::Simulation sim;
   auto* compound_params = sim.mutable_aperture_params();
   compound_params->set_encircled_diameter(encircled_diameter_);
@@ -146,7 +147,7 @@ void GolayFitnessFunction<T>::Visualize(const model_t& locations) {
 template<typename T>
 void GolayFitnessFunction<T>::GetAutocorrelationPeaks(
     const model_t& locations,
-    std::vector<CircularAutocorrelationPeak>* peaks) {
+    std::vector<CircularAutocorrelationPeak>* peaks) const {
   if (!peaks) return;
   int subaps = locations.size();
   peaks->resize((subaps * (subaps - 1) + 1));

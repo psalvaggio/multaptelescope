@@ -54,7 +54,8 @@ AnnulusFitnessFunction<T>::AnnulusFitnessFunction(
 
 
 template<typename T>
-bool AnnulusFitnessFunction<T>::operator()(PopulationMember<model_t>& member) {
+bool AnnulusFitnessFunction<T>::operator()(
+    PopulationMember<model_t>& member) const {
   const model_t& locations(member.model());
 
   // Check for non-overlapping subapertures
@@ -182,7 +183,7 @@ bool AnnulusFitnessFunction<T>::operator()(PopulationMember<model_t>& member) {
 
 
 template<typename T>
-void AnnulusFitnessFunction<T>::Visualize(const model_t& locations) {
+void AnnulusFitnessFunction<T>::Visualize(const model_t& locations) const {
   mats::Simulation sim;
   auto* compound_params = sim.mutable_aperture_params();
   compound_params->set_encircled_diameter(encircled_diameter_);
@@ -216,7 +217,7 @@ void AnnulusFitnessFunction<T>::Visualize(const model_t& locations) {
 template<typename T>
 void AnnulusFitnessFunction<T>::GetAutocorrelationPeaks(
     const model_t& locations,
-    std::vector<CircularAutocorrelationPeak>* peaks) {
+    std::vector<CircularAutocorrelationPeak>* peaks) const {
   if (!peaks) return;
   int subaps = locations.size();
   peaks->resize((subaps * (subaps - 1) + 1));

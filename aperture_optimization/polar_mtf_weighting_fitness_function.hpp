@@ -62,7 +62,7 @@ PolarMtfWeightingFitnessFunction<T>::PolarMtfWeightingFitnessFunction(
 
 template<typename T>
 bool PolarMtfWeightingFitnessFunction<T>::operator()(
-    PopulationMember<model_t>& member) {
+    PopulationMember<model_t>& member) const {
   const model_t& locations(member.model());
 
   // Check for non-overlapping subapertures
@@ -125,7 +125,8 @@ bool PolarMtfWeightingFitnessFunction<T>::operator()(
 
 
 template<typename T>
-void PolarMtfWeightingFitnessFunction<T>::Visualize(const model_t& locations) {
+void PolarMtfWeightingFitnessFunction<T>::Visualize(
+    const model_t& locations) const {
   mats::Simulation sim;
   auto* compound_params = sim.mutable_aperture_params();
   compound_params->set_encircled_diameter(encircled_diameter_);
@@ -158,7 +159,7 @@ void PolarMtfWeightingFitnessFunction<T>::Visualize(const model_t& locations) {
 template<typename T>
 void PolarMtfWeightingFitnessFunction<T>::GetAutocorrelationPeaks(
     const model_t& locations,
-    std::vector<CircularAutocorrelationPeak>* peaks) {
+    std::vector<CircularAutocorrelationPeak>* peaks) const {
   if (!peaks) return;
   int subaps = locations.size();
   peaks->resize((subaps * (subaps - 1) + 1));

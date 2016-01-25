@@ -33,7 +33,8 @@ class GlobalNArm : public GeneticSearchStrategy<NArmArray> {
         subap_radii_(subap_radii),
         should_continue_(true) {}
   
-  model_t Introduce(GeneticFitnessFunction<model_t>& fitness_function) override;
+  model_t Introduce(const GeneticFitnessFunction<model_t>& fitness_function)
+      override;
 
   model_t Crossover(const PopulationMember<model_t>& member1,
                     const PopulationMember<model_t>& member2) override;

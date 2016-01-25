@@ -24,13 +24,14 @@ class AcutanceFitnessFunction : public GeneticFitnessFunction<T> {
                           double peak_frequency,
                           const CircularSubapertureBudget& subap_radii);
 
-  bool operator()(PopulationMember<model_t>& member) override;
+  bool operator()(PopulationMember<model_t>& member) const override;
 
-  void Visualize(const model_t& locations) override;
+  void Visualize(const model_t& locations) const override;
 
  private:
-  void GetAutocorrelationPeaks(const model_t& locations,
-                               std::vector<CircularAutocorrelationPeak>* peaks);
+  void GetAutocorrelationPeaks(
+      const model_t& locations,
+      std::vector<CircularAutocorrelationPeak>* peaks) const;
 
  private:
   static const int kSimulationSize;
@@ -38,7 +39,7 @@ class AcutanceFitnessFunction : public GeneticFitnessFunction<T> {
  private:
   CircularSubapertureBudget subap_radii_;
   double encircled_diameter_;
-  std::vector<CircularAutocorrelationPeak> peaks_;
+  mutable std::vector<CircularAutocorrelationPeak> peaks_;
   double max_subap_radius_;
   double total_r2_;
   cv::Mat_<double> csf_;

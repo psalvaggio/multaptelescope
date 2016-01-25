@@ -8,7 +8,7 @@ using namespace std;
 namespace genetic {
 
 auto GlobalNArm::Introduce(
-    GeneticFitnessFunction<model_t>& fitness_function) -> model_t {
+    const GeneticFitnessFunction<model_t>& fitness_function) -> model_t {
   model_t tmp_model;
   PopulationMember<model_t> member(std::move(tmp_model));
   model_t& array = member.model();

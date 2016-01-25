@@ -6,7 +6,7 @@
 namespace genetic {
 
 auto GlobalCircularArray::Introduce(
-    GeneticFitnessFunction<model_t>& fitness_function) -> model_t {
+    const GeneticFitnessFunction<model_t>& fitness_function) -> model_t {
   model_t tmp_model;
   PopulationMember<model_t> member(std::move(tmp_model));
   model_t& locations(member.model());

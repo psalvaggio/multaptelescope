@@ -32,7 +32,7 @@ class LocalNArm : public GeneticSearchStrategy<NArmArray> {
         generator_(std::chrono::system_clock::now().time_since_epoch().count()),
         distribution_() {}
   
-  model_t Introduce(GeneticFitnessFunction<model_t>&) override {
+  model_t Introduce(const GeneticFitnessFunction<model_t>&) override {
     return best_guess_;
   }
 
