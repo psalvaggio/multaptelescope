@@ -25,7 +25,6 @@ bool MatsInit(const std::string& config_path,
     return false;
   }
 
-
   string version = "1.0.0";
 
   // Initialize random number generators
