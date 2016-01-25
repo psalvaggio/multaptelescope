@@ -16,6 +16,19 @@ namespace mats_io {
 
 std::string PrintEnviHeader(const EnviImageHeader& hdr);
 
+// Assumes that the header file is image_filename + ".hdr".
+bool EnviImread(const std::string& image_filename,
+                std::vector<double>* wavelengths,
+                std::vector<cv::Mat>* image);
+
+// Reads in an ENVI image and returns it as an array of OpenCV images.
+// The images will be in units of [W/m^2/sr micron^-1]. Wavelengths will be
+// in units of meters.
+bool EnviImread(const std::string& image_filename,
+                const std::string& header_filename,
+                std::vector<double>* wavelengths,
+                std::vector<cv::Mat>* image);
+
 class EnviImageReader {
  public:
   // Default constructor.

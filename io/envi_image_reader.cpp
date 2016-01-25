@@ -43,6 +43,41 @@ std::string PrintEnviHeader(const EnviImageHeader& hdr) {
   return ss.str();
 }
 
+bool EnviImread(const std::string& image_filename,
+                std::vector<double>* wavelengths,
+                std::vector<cv::Mat>* image) {
+  return EnviImread(image_filename, image_filename + ".hdr",
+                    wavelengths, image);
+}
+
+bool EnviImread(const std::string& image_filename,
+                const std::string& header_filename,
+                std::vector<double>* wavelengths,
+                std::vector<cv::Mat>* image) {
+  EnviImageHeader hyp_header;
+  EnviImageReader envi_reader;
+  if (!envi_reader.Read(image_filename, header_filename,
+                        &hyp_header, image)) return false;
+
+  // Convert the center wavelengths and FWHMs into meters.
+  bool is_wavenumber = false;
+  double wave_multiplier = EnviImageReader::GetWavelengthMultiplier(
+      hyp_header.wavelength_units(), &is_wavenumber);
+
+  for (int i = 0; i < hyp_header.band_size(); i++) {
+    (*image)[i].convertTo((*image)[i], CV_64F);
+
+    (*image)[i] *= 1e4;  // [W/m^2/sr micron^-1]
+    double wave_val = hyp_header.band(i).center_wavelength();
+    if (is_wavenumber) wave_val = 1 / wave_val;
+    wave_val *= wave_multiplier;
+
+    wavelengths->push_back(wave_val);
+  }
+
+  return true;
+}
+
 EnviImageReader::EnviImageReader() {}
 
 bool EnviImageReader::Read(const string& image_filename,
