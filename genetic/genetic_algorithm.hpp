@@ -25,7 +25,7 @@ GeneticAlgorithm<Model>::GeneticAlgorithm(GeneticAlgorithm<Model>&& other)
 
 template <typename Model>
 void GeneticAlgorithm<Model>::Run(
-    GeneticFitnessFunction<Model>& fitness_function,
+    const GeneticFitnessFunction<Model>& fitness_function,
     GeneticSearchStrategy<Model>& searcher,
     size_t population_size,
     size_t breeds_per_generation) {

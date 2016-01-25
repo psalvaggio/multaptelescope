@@ -41,7 +41,7 @@ class GeneticAlgorithm {
    //   breeds_per_generation The number of new members to create every
    //                         iteration
    //   best_model            Output: The best model found.
-   void Run(GeneticFitnessFunction<Model>& fitness_function,
+   void Run(const GeneticFitnessFunction<Model>& fitness_function,
             GeneticSearchStrategy<Model>& searcher,
             size_t population_size,
             size_t breeds_per_generation);
@@ -86,14 +86,14 @@ class GeneticFitnessFunction {
   // Arguments:
   //  member  The population member. The result should be stored in this
   //          object using set_fitness().
-  virtual bool operator()(PopulationMember<model_t>& member) = 0;
+  virtual bool operator()(PopulationMember<model_t>& member) const = 0;
 
   // Optional: Visualize the best model. This is called at the end of each
   // iteration. The defualt implementation does nothing.
   //
   // Parameters:
   //   model   The best model from the current generation.
-  virtual void Visualize(const model_t&) {}
+  virtual void Visualize(const model_t&) const {}
 };
 
 
@@ -107,7 +107,7 @@ class GeneticSearchStrategy {
   // Introduce a new model into the population. It is assumed that the model is
   // valid, i.e. the fitness function would return true.
   virtual model_t Introduce(
-      GeneticFitnessFunction<model_t>& fitness_function) = 0;
+      const GeneticFitnessFunction<model_t>& fitness_function) = 0;
 
   // Perform the genetic crossover opertation. Given two parent models from the
   // population, constructs a new model. The new model is not necessary valid.
