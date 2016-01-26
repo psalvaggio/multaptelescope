@@ -32,9 +32,7 @@ class DetectorParameters;
 //                          read.
 bool MatsInit(const std::string& base_directory,
               mats::SimulationConfig* sim_config,
-              mats::DetectorParameters* detector_params,
-              std::vector<cv::Mat>* hyp_bands = nullptr,
-              mats_io::EnviImageHeader* hyp_header = nullptr);
+              mats::DetectorParameters* detector_params);
 
 // Lookup the simulation id in a SimulationConfig protobuf.
 //

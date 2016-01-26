@@ -27,12 +27,7 @@ int main(int argc, char** argv) {
   mats::DetectorParameters detector_params;
   vector<Mat> hyp_planes;
   mats_io::EnviImageHeader hyp_header;
-  if (!mats::MatsInit(argv[1],
-                      &sim_config,
-                      &detector_params,
-                      nullptr, nullptr)) {
-    return 1;
-  }
+  if (!mats::MatsInit(argv[1], &sim_config, &detector_params)) return 1;
 
   // Read in the image and size our simulation around the image size.
   vector<double> wavelengths;

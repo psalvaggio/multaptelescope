@@ -35,9 +35,8 @@ int main(int argc, char** argv) {
   // Read in the parameters and set the default array size
   SimulationConfig sim_config;
   DetectorParameters detector_params;
-  if (!MatsInit(argv[1], &sim_config, &detector_params, NULL, NULL)) {
-    return 1;
-  }
+  if (!MatsInit(argv[1], &sim_config, &detector_params)) return 1;
+
   if (!sim_config.has_array_size()) sim_config.set_array_size(512);
   detector_params.set_array_rows(512);
   detector_params.set_array_cols(512);

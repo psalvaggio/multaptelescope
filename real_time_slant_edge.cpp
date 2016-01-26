@@ -126,9 +126,7 @@ int main(int argc, char** argv) {
   // Initialize the model.
   SimulationConfig sim_config;
   DetectorParameters det_params;
-  if (!MatsInit(argv[1], &sim_config, &det_params, nullptr, nullptr)) {
-    return 1;
-  }
+  if (!MatsInit(argv[1], &sim_config, &det_params)) return 1;
 
   // Create the telescope.
   Telescope telescope(sim_config, 0, det_params);

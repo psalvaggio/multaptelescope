@@ -75,9 +75,7 @@ int main(int argc, char** argv) {
     mats::DetectorParameters detector_params;
     if (!mats::MatsInit(mats::ResolvePath(FLAGS_config_file),
                         &sim_config,
-                        &detector_params,
-                        NULL,
-                        NULL)) {
+                        &detector_params)) {
       return 1;
     }
 

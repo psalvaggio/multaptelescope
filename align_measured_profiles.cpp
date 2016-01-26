@@ -261,10 +261,7 @@ Mat GetTheoreticalMtf(const string& config_file) {
   // Initialize the model.
   mats::SimulationConfig sim_config;
   mats::DetectorParameters det_params;
-  CHECK(mats::MatsInit(config_file,
-                       &sim_config,
-                       &det_params,
-                       nullptr, nullptr));
+  CHECK(mats::MatsInit(config_file, &sim_config, &det_params));
 
   // Set up the spectral resolution of the simulation.
   vector<vector<double>> raw_weighting;

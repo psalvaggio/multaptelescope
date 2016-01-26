@@ -196,9 +196,7 @@ bool PlotConfigFile(const std::string& file,
   // Initialize the model
   mats::SimulationConfig sim_config;
   mats::DetectorParameters det_params;
-  if (!mats::MatsInit(file, &sim_config, &det_params, nullptr, nullptr)) {
-    return false;
-  }
+  if (!mats::MatsInit(file, &sim_config, &det_params)) return false;
 
   // Set up the spectral resolution of the simulation
   vector<vector<double>> raw_weighting;

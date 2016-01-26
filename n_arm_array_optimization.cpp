@@ -140,9 +140,8 @@ int main(int argc, char** argv) {
     string config_file = ResolvePath(FLAGS_base_config);
     SimulationConfig sim_config;
     DetectorParameters detector_params;
-    if (!MatsInit(config_file, &sim_config, &detector_params, NULL, NULL)) {
-      return 1;
-    }
+    if (!MatsInit(config_file, &sim_config, &detector_params)) return 1;
+
     Simulation ref_sim = sim_config.simulation(0);
     sim_config.clear_simulation();
     auto* sim = sim_config.add_simulation();

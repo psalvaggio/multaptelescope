@@ -66,8 +66,7 @@ int main(int argc, char** argv) {
   mats::DetectorParameters detector_params;
   if (!MatsInit(ResolvePath(FLAGS_config_file),
                 &sim_config,
-                &detector_params,
-                nullptr, nullptr)) {
+                &detector_params)) {
     return 1;
   }
 
