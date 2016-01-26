@@ -30,35 +30,21 @@ int main(int argc, char** argv) {
   if (!mats::MatsInit(argv[1],
                       &sim_config,
                       &detector_params,
-                      &hyp_planes,
-                      &hyp_header)) {
+                      nullptr, nullptr)) {
     return 1;
   }
 
-  // Convert the center wavelengths and FWHMs into meters.
-  bool is_wavenumber = false;
-  double wave_multiplier = mats_io::EnviImageReader::GetWavelengthMultiplier(
-      hyp_header.wavelength_units(), &is_wavenumber);
-
-  const double kGain = 10;
-
+  // Read in the image and size our simulation around the image size.
   vector<double> wavelengths;
-  for (int i = 0; i < hyp_header.band_size(); i++) {
-    hyp_planes[i].convertTo(hyp_planes[i], CV_64F);
+  mats_io::EnviImread(sim_config.input_image_filename(),
+                      &wavelengths, &hyp_planes);
+  detector_params.set_array_rows(hyp_planes[0].rows);
+  detector_params.set_array_cols(hyp_planes[0].cols);
+  sim_config.set_array_size(std::max(detector_params.array_rows(),
+                                     detector_params.array_cols()));
 
-    hyp_planes[i] *= 1e4;  // [W/m^2/sr micron^-1]
-    hyp_planes[i] *= kGain;  // [W/m^2/sr micron^-1]
-
-    double wave_val = hyp_header.band(i).center_wavelength();
-    if (is_wavenumber) wave_val = 1 / wave_val;
-    wave_val *= wave_multiplier;
-
-    wavelengths.push_back(wave_val);
-  }
-
-  mainLog() << "Read input hyperspectral image with "
-            << hyp_planes.size() << " bands." << endl;
-  mainLog() << mats_io::PrintEnviHeader(hyp_header);
+  const double kGain = 1e-3;
+  for (auto& tmp : hyp_planes) tmp *= kGain;
 
   cout << "Ready to process " << sim_config.simulation_size()
        << " simulations" << endl;
@@ -113,6 +99,5 @@ int main(int argc, char** argv) {
     }
   }
 
-  waitKey(0);
   return 0;
 }
