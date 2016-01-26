@@ -85,7 +85,7 @@ double Telescope::EffectiveQ(const vector<double>& wavelengths,
 
 void Telescope::Image(const vector<Mat>& radiance,
                       const vector<double>& wavelength,
-                      vector<Mat>* image) {
+                      vector<Mat>* image) const {
   CHECK(!radiance.empty());
   CHECK(wavelength.size() == radiance.size());
 
@@ -234,7 +234,7 @@ void Telescope::Restore(const Mat_<double>& raw_image,
                         const vector<double>& illumination,
                         int band,
                         double smoothness,
-                        Mat_<double>* restored) {
+                        Mat_<double>* restored) const {
   CHECK(restored);
   CHECK(!wavelengths.empty() && wavelengths.size() == illumination.size());
 

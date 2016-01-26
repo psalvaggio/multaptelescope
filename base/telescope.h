@@ -75,14 +75,14 @@ class Telescope {
   //  image       The output of each band of the detector.
   void Image(const std::vector<cv::Mat>& radiance,
              const std::vector<double>& wavelength,
-             std::vector<cv::Mat>* image);
+             std::vector<cv::Mat>* image) const;
 
   void Restore(const cv::Mat_<double>& raw_image,
                const std::vector<double>& wavelength,
                const std::vector<double>& illumination,
                int band,
                double smoothness,
-               cv::Mat_<double>* restored);
+               cv::Mat_<double>* restored) const;
 
   // Compute the effective OTF over a bandpass.
   //
