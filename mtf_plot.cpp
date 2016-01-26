@@ -161,10 +161,10 @@ void GetMtfProfile(const mats::SimulationConfig& sim_config,
   telescope.set_include_detector_footprint(true);
 
   // Compute the theoretical 2D OTF of the telescope.
-  Mat theoretical_otf;
+  Mat_<complex<double>> theoretical_otf;
   telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0,
                          &theoretical_otf);
-  Mat theoretical_2d_mtf = magnitude(theoretical_otf);
+  Mat_<double> theoretical_2d_mtf = magnitude(theoretical_otf);
 
   vector<double> mtf_vals;
   GetRadialProfile(FFTShift(theoretical_2d_mtf), 

@@ -268,7 +268,7 @@ void Telescope::Restore(const Mat_<double>& raw_image,
         IsoplanaticRegion(i, j, &isoplanatic_region);
 
         // Compute the spactral OTF in the current isoplanatic region
-        Mat otf;
+        Mat_<complex<double>> otf;
         EffectiveOtf(wavelengths, weights, i * kRadialZoneWidth,
             j * kAngularZoneWidth, &otf);
 
@@ -281,7 +281,7 @@ void Telescope::Restore(const Mat_<double>& raw_image,
       }
     }
   } else {
-    Mat otf;
+    Mat_<complex<double>> otf;
     EffectiveOtf(wavelengths, weights, 0, 0, &otf);
     cls.Deconvolve(raw_image, otf, smoothness, restored);
   }
@@ -320,7 +320,7 @@ void Telescope::EffectiveOtf(const vector<double>& wavelengths,
                              const vector<double>& weights,
                              double image_height,
                              double angle,
-                             cv::Mat* otf) const {
+                             cv::Mat_<complex<double>>* otf) const {
   if (!otf || wavelengths.size() == 0 || weights.size() < wavelengths.size()) {
     cerr << "Telescope::EffectiveOtf: Invalid Input" << endl;
     return;

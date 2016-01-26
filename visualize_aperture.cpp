@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
   }
 
   // Calculate the effective OTF
-  Mat otf;
+  Mat_<complex<double>> otf;
   telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0, &otf);
 
   // Output the MTF

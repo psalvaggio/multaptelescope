@@ -277,7 +277,7 @@ Mat GetTheoreticalMtf(const string& config_file) {
   telescope.detector()->set_cols(512);
 
   // Compute the theoretical 2D OTF of the telescope.
-  Mat theoretical_otf;
+  Mat_<complex<double>> theoretical_otf;
   telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0,
                          &theoretical_otf);
   return magnitude(FFTShift(theoretical_otf));

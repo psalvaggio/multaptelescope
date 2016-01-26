@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
     cerr << "F/#: " << telescope.FNumber() << endl;
     cerr << "Effective Q: " << q << endl;
 
-    Mat theoretical_otf;
+    Mat_<complex<double>> theoretical_otf;
     telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0,
                            &theoretical_otf);
     Mat theoretical_2d_mtf = magnitude(theoretical_otf);

@@ -94,7 +94,7 @@ class Telescope {
                     const std::vector<double>& weights,
                     double image_height,
                     double angle,
-                    cv::Mat* otf) const;
+                    cv::Mat_<std::complex<double>>* otf) const;
 
   // Get the transmission spectrum of the telescope optics.
   //

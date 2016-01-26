@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
       for (size_t j = 0; j < wavelengths.size(); j++) {
         weighting[j] *= illumination[j];
       }
-      Mat otf;
+      Mat_<complex<double>> otf;
       telescope.EffectiveOtf(wavelengths, weighting, 0, 0, &otf);
 
       Mat_<double> deconvolved;
