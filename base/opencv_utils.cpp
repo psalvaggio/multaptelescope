@@ -9,36 +9,35 @@
 #include <iostream>
 #include <random>
 
-cv::Mat ByteScale(const cv::Mat& input,
-                  bool verbose) {
-  cv::Mat output;
-  ByteScale(input, output, (double*)NULL, (double*)NULL, verbose);
+using namespace cv;
+
+Mat_<uint8_t> ByteScale(const Mat& input, bool verbose) {
+  Mat_<uint8_t> output;
+  ByteScale(input, output, nullptr, nullptr, verbose);
   return output;
 }
 
-void ByteScale(const cv::Mat& input,
-               cv::Mat& output,
-               bool verbose) {
+void ByteScale(const Mat& input, Mat_<uint8_t>& output, bool verbose) {
   ByteScale(input, output, (double*)NULL, (double*)NULL, verbose);
 }
 
-cv::Mat ByteScale(const cv::Mat& input,
-                  double* min,
-                  double* max,
-                  bool verbose) {
-  cv::Mat output;
+Mat_<uint8_t> ByteScale(const Mat& input,
+                        double* min,
+                        double* max,
+                        bool verbose) {
+  Mat_<uint8_t> output;
   ByteScale(input, output, min, max, verbose);
   return output;
 }
 
-void ByteScale(const cv::Mat& input,
-               cv::Mat& output,
+void ByteScale(const Mat& input,
+               Mat_<uint8_t>& output,
                double* min,
                double* max,
                bool verbose) {
   double local_min;
   double local_max;
-  cv::minMaxIdx(input, &local_min, &local_max);
+  minMaxIdx(input, &local_min, &local_max);
 
   if (min != NULL) *min = local_min;
   if (max != NULL) *max = local_max;
@@ -46,93 +45,93 @@ void ByteScale(const cv::Mat& input,
   ByteScale(input, output, local_min, local_max, verbose);
 }
 
-cv::Mat ByteScale(const cv::Mat& input,
-                  double min,
-                  double max,
-                  bool verbose) {
-  cv::Mat output;
+Mat_<uint8_t> ByteScale(const Mat& input,
+                        double min,
+                        double max,
+                        bool verbose) {
+  Mat_<uint8_t> output;
   ByteScale(input, output, min, max, verbose);
   return output;
 }
 
-void ByteScale(const cv::Mat& input,
-               cv::Mat& output,
+void ByteScale(const Mat& input,
+               Mat_<uint8_t>& output,
                double min,
                double max,
                bool verbose) {
-  cv::convertScaleAbs(input - min, output, 255 / (max - min));
+  convertScaleAbs(input - min, output, 255 / (max - min));
   if (verbose) {
     std::cout << "ByteScale: min = " << min << ", max = " << max << std::endl;
   }
 }
 
-void LogScale(const cv::Mat& input,
-              cv::Mat& output) {
-  log(input + 1, output);
+void LogScale(const Mat& input, Mat_<uint8_t>& output) {
+  Mat log_input;
+  log(input + 1, log_input);
   ByteScale(output, output);
 }
 
-cv::Mat LogScale(const cv::Mat& input) {
-  cv::Mat output;
+Mat_<uint8_t> LogScale(const Mat& input) {
+  Mat_<uint8_t> output;
   LogScale(input, output);
   return output;
 }
 
-cv::Mat GammaScale(const cv::Mat& input, double gamma) {
+Mat GammaScale(const Mat& input, double gamma) {
   double min;
   double max;
-  cv::minMaxIdx(input, &min, &max);
+  minMaxIdx(input, &min, &max);
 
-  cv::Mat scaled;
+  Mat scaled;
   input.convertTo(scaled, CV_64F);
   scaled = (scaled - min) / (max - min);
-  cv::pow(scaled, gamma, scaled);
+  pow(scaled, gamma, scaled);
   scaled *= 255;
   scaled.convertTo(scaled, CV_8U);
   return scaled;
 }
 
-cv::Mat ColorScale(const cv::Mat& input, int colormap) {
-  cv::Mat output;
-  cv::applyColorMap(ByteScale(input), output, colormap);
+Mat ColorScale(const Mat& input, int colormap) {
+  Mat output;
+  applyColorMap(ByteScale(input), output, colormap);
   return output;
 }
 
-cv::Mat magnitude(const cv::Mat& input) {
-  cv::Mat output;
+Mat_<double> magnitude(const Mat_<std::complex<double>>& input) {
+  Mat_<double> output;
   magnitude(input, output);
   return output;
 }
 
-void magnitude(const cv::Mat& input, cv::Mat& output) {
-  std::vector<cv::Mat> input_planes;
-  cv::split(input, input_planes);
-  cv::magnitude(input_planes.at(0), input_planes.at(1), output);
+void magnitude(const Mat_<std::complex<double>>& input, Mat_<double>& output) {
+  std::vector<Mat> input_planes;
+  split(input, input_planes);
+  magnitude(input_planes.at(0), input_planes.at(1), output);
 }
 
-void FFTShift(const cv::Mat& input, cv::Mat& output) {
-  circshift(input, output, cv::Point2f(input.cols / 2,
-                                       input.rows / 2), cv::BORDER_WRAP);
+void FFTShift(const Mat& input, Mat& output) {
+  circshift(input, output, Point2f(input.cols / 2,
+                                   input.rows / 2), BORDER_WRAP);
 }
 
-cv::Mat FFTShift(const cv::Mat& input) {
-  cv::Mat output;
+Mat FFTShift(const Mat& input) {
+  Mat output;
   FFTShift(input, output);
   return output;
 }
 
-void IFFTShift(const cv::Mat& input, cv::Mat& output) {
-  circshift(input, output, cv::Point2f(-input.cols / 2,
-                                       -input.rows / 2), cv::BORDER_WRAP);
+void IFFTShift(const Mat& input, Mat& output) {
+  circshift(input, output, Point2f(-input.cols / 2,
+                                   -input.rows / 2), BORDER_WRAP);
 }
 
-cv::Mat IFFTShift(const cv::Mat& input) {
-  cv::Mat output;
+Mat IFFTShift(const Mat& input) {
+  Mat output;
   IFFTShift(input, output);
   return output;
 }
 
-std::string GetMatDataType(const cv::Mat& mat) {
+std::string GetMatDataType(const Mat& mat) {
   int number = mat.type();
 
   // find type
@@ -174,7 +173,7 @@ std::string GetMatDataType(const cv::Mat& mat) {
   return type.str();
 }
 
-void ConvertMatToDouble(const cv::Mat& input, cv::Mat& output) {
+void ConvertMatToDouble(const Mat& input, Mat& output) {
   double scale_factor = 1;
 
   int image_type_int = input.type() % 8;
@@ -194,7 +193,7 @@ void ConvertMatToDouble(const cv::Mat& input, cv::Mat& output) {
   input.convertTo(output, CV_64F, scale_factor);
 }
 
-void ConvertMatToUint8(const cv::Mat& input, cv::Mat& output) {
+void ConvertMatToUint8(const Mat& input, Mat& output) {
   double scale_factor = 1;
 
   int image_type_int = input.type() % 8;
@@ -217,7 +216,7 @@ void ConvertMatToUint8(const cv::Mat& input, cv::Mat& output) {
   input.convertTo(output, CV_8U, scale_factor);
 }
 
-void GetRadialProfile(const cv::Mat& input, double theta,
+void GetRadialProfile(const Mat& input, double theta,
                       std::vector<double>* output) {
   if (!output) return;
   output->clear();
@@ -260,7 +259,7 @@ void GetRadialProfile(const cv::Mat& input, double theta,
 
 struct RoiRectangleData {
   std::vector<uint16_t>* corners;
-  cv::Mat* image;
+  Mat* image;
   std::string* window;
 };
 
@@ -270,18 +269,18 @@ void mouse_callback(int event, int x, int y, int, void* userdata) {
 
   auto draw_roi =
     [roi_data] (int x0, int y0, int x1, int y1) {
-      cv::Mat annotated_image;
-      cv::cvtColor(*(roi_data->image), annotated_image, CV_GRAY2BGR);
-      cv::rectangle(annotated_image, cv::Point(x0, y0), cv::Point(x1, y1),
-                    cv::Scalar(0, 255, 0), 1);
-      cv::imshow(*(roi_data->window), annotated_image);
+      Mat annotated_image;
+      cvtColor(*(roi_data->image), annotated_image, CV_GRAY2BGR);
+      rectangle(annotated_image, Point(x0, y0), Point(x1, y1),
+                Scalar(0, 255, 0), 1);
+      imshow(*(roi_data->window), annotated_image);
     };
 
-  if (event == cv::EVENT_LBUTTONDOWN) {
+  if (event == EVENT_LBUTTONDOWN) {
     roi_data->corners->clear();
     roi_data->corners->push_back(static_cast<uint16_t>(x));
     roi_data->corners->push_back(static_cast<uint16_t>(y));
-  } else if (event == cv::EVENT_MOUSEMOVE) {
+  } else if (event == EVENT_MOUSEMOVE) {
     if (roi_data->corners->size() == 2) {
       draw_roi(roi_data->corners->at(0), roi_data->corners->at(1), x, y);
     }
@@ -292,7 +291,7 @@ void mouse_callback(int event, int x, int y, int, void* userdata) {
   }
 }
 
-std::vector<uint16_t> GetRoi(const cv::Mat& image) {
+std::vector<uint16_t> GetRoi(const Mat& image) {
   int rows = image.rows, cols = image.cols;
   double aspect_ratio = static_cast<double>(rows) / cols;
 
@@ -302,26 +301,26 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   double scale_factor = static_cast<double>(rows) / scale_rows;
 
   // Resample the image to display.
-  cv::Mat display_image;
-  cv::resize(image, display_image, cv::Size(scale_cols, scale_rows));
+  Mat display_image;
+  resize(image, display_image, Size(scale_cols, scale_rows));
   display_image = ByteScale(display_image);
 
   // Show the full-frame image.
   std::string input_window = "Drag to specify an ROI. Enter to confirm.";
-  cv::namedWindow(input_window, CV_GUI_NORMAL | cv::WINDOW_AUTOSIZE);
-  cv::moveWindow(input_window, 0, 0);
-  cv::imshow(input_window, display_image);
+  namedWindow(input_window, CV_GUI_NORMAL | WINDOW_AUTOSIZE);
+  moveWindow(input_window, 0, 0);
+  imshow(input_window, display_image);
 
   // Wait for the user to select the corners.
   std::vector<uint16_t> roi;
   RoiRectangleData roi_data{&roi, &display_image, &input_window};
-  cv::setMouseCallback(input_window, mouse_callback, &roi_data);
+  setMouseCallback(input_window, mouse_callback, &roi_data);
   int key = 0;
   while (key != 13 || roi.size() != 4) {
-    key = cv::waitKey(50) & 0xff;
+    key = waitKey(50) & 0xff;
   }
-  cv::destroyWindow(input_window);
-  cv::waitKey(1);
+  destroyWindow(input_window);
+  waitKey(1);
 
   // Scale back to the image's resolution.
   for (auto& tmp : roi) tmp *= scale_factor;
@@ -331,7 +330,7 @@ std::vector<uint16_t> GetRoi(const cv::Mat& image) {
   return roi;
 }
 
-cv::Mat_<double> CreateEdgeTarget(int width,
+Mat_<double> CreateEdgeTarget(int width,
                                   int height,
                                   double angle,
                                   double dim,
@@ -345,7 +344,7 @@ cv::Mat_<double> CreateEdgeTarget(int width,
 
   double offset = (width / 2.0) * nx + (height / 2.0) * ny;
 
-  cv::Mat_<double> image(height, width, CV_64FC1);
+  Mat_<double> image(height, width, CV_64FC1);
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
       double nDotR = j * nx + i * ny;
@@ -367,10 +366,10 @@ cv::Mat_<double> CreateEdgeTarget(int width,
   return image;
 }
 
-void rotate(const cv::Mat& src, double angle, cv::Mat& dst) {
+void rotate(const Mat& src, double angle, Mat& dst) {
   int len = std::max(src.cols, src.rows);
-  cv::Point2f pt(0.5 * len, 0.5 * len);
-  cv::Mat r = cv::getRotationMatrix2D(pt, angle, 1.0);
+  Point2f pt(0.5 * len, 0.5 * len);
+  Mat r = getRotationMatrix2D(pt, angle, 1.0);
 
-  cv::warpAffine(src, dst, r, cv::Size(len, len));
+  warpAffine(src, dst, r, Size(len, len));
 }

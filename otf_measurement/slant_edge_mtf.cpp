@@ -118,7 +118,7 @@ void SlantEdgeMtf::Analyze(const Mat& image,
 }
 
 Mat SlantEdgeMtf::OverlayLine(const Mat& image, const double* line) {
-  Mat byte_scaled_image;
+  Mat_<uint8_t> byte_scaled_image;
   ByteScale(image, byte_scaled_image);
 
   // Replicate into RGB planes.

@@ -122,7 +122,7 @@ void JaggedEdgeMtf::Analyze(const cv::Mat& image,
 cv::Mat JaggedEdgeMtf::OverlayLine(const cv::Mat& image,
                                    const double* line,
                                    const offset_t& offsets) {
-  cv::Mat byte_scaled_image;
+  cv::Mat_<uint8_t> byte_scaled_image;
   ByteScale(image, byte_scaled_image);
 
   double lx = -line[1], ly = line[0];

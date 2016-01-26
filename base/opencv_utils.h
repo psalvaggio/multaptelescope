@@ -8,31 +8,31 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
 
-cv::Mat ByteScale(const cv::Mat& input,
-                  bool verbose = false);
+cv::Mat_<uint8_t> ByteScale(const cv::Mat& input,
+                            bool verbose = false);
 
 void ByteScale(const cv::Mat& input,
-               cv::Mat& output,
+               cv::Mat_<uint8_t>& output,
                bool verbose = false);
 
-cv::Mat ByteScale(const cv::Mat& input,
-                  double* min,
-                  double* max,
-                  bool verbose = false);
+cv::Mat_<uint8_t> ByteScale(const cv::Mat& input,
+                            double* min,
+                            double* max,
+                            bool verbose = false);
 
 void ByteScale(const cv::Mat& input,
-               cv::Mat& output,
+               cv::Mat_<uint8_t>& output,
                double* min,
                double* max,
                bool verbose = false);
 
-cv::Mat ByteScale(const cv::Mat& input,
-                  double min,
-                  double max,
-                  bool verbose = false);
+cv::Mat_<uint8_t> ByteScale(const cv::Mat& input,
+                            double min,
+                            double max,
+                            bool verbose = false);
 
 void ByteScale(const cv::Mat& input,
-               cv::Mat& output,
+               cv::Mat_<uint8_t>& output,
                double min,
                double max,
                bool verbose = false);
@@ -41,14 +41,15 @@ cv::Mat ColorScale(const cv::Mat& input,
                    int colormap = cv::COLORMAP_JET);
 
 void LogScale(const cv::Mat& input,
-              cv::Mat& output);
+              cv::Mat_<uint8_t>& output);
 
-cv::Mat LogScale(const cv::Mat& input);
+cv::Mat_<uint8_t> LogScale(const cv::Mat& input);
 
 cv::Mat GammaScale(const cv::Mat& input, double gamma);
 
-cv::Mat magnitude(const cv::Mat& input);
-void magnitude(const cv::Mat& input, cv::Mat& output);
+cv::Mat_<double> magnitude(const cv::Mat_<std::complex<double>>& input);
+void magnitude(const cv::Mat_<std::complex<double>>& input,
+               cv::Mat_<double>& output);
 
 
 cv::Mat circshift(const cv::Mat& src,
