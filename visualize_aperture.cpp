@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
   // Output the inverse filter
   if (FLAGS_output_inverse_filter) {
     ConstrainedLeastSquares cls;
-    Mat inv_filter;
+    Mat_<complex<double>> inv_filter;
     cls.GetInverseFilter(otf, FLAGS_smoothness, &inv_filter);
 
     inv_filter = GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2);

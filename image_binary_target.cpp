@@ -133,8 +133,8 @@ int main(int argc, char** argv) {
       }
 
       // Compute and output the effective OTF over the bandpass
-      Mat deconvolved;
-      Mat eff_otf;
+      Mat_<double> deconvolved;
+      Mat_<complex<double>> eff_otf;
       telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0, &eff_otf);
       resize(eff_otf, eff_otf, output_image[band].size());
       imwrite(mats::StringPrintf("sim_%d_mtf_%d.png", i, band),
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
               deconvolved);
 
       // Output the inverse filter
-      Mat inv_filter;
+      Mat_<complex<double>> inv_filter;
       cls.GetInverseFilter(eff_otf, FLAGS_smoothness, &inv_filter);
       imwrite(mats::StringPrintf("sim_%d_inv_filter_%d.png", i, band),
               GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2));

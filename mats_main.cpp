@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
       Mat otf;
       telescope.EffectiveOtf(wavelengths, weighting, 0, 0, &otf);
 
-      Mat deconvolved;
+      Mat_<double> deconvolved;
       cls.Deconvolve(output_image[band], otf, kSmoothness, &deconvolved);
       imwrite(mats::StringPrintf("output_band_%d.png", band),
             ByteScale(output_image[band]));
