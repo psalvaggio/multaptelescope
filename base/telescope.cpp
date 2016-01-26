@@ -332,7 +332,7 @@ void Telescope::EffectiveOtf(const vector<double>& wavelengths,
   double total_weight = accumulate(begin(weights), end(weights), 0.0);
 
   spectral_otf[0].copyTo(*otf);
-  (*otf) *= weights[0];
+  (*otf) *= weights[0] / total_weight;
   for (size_t i = 1; i < spectral_otf.size(); i++) {
     (*otf) += (weights[i] / total_weight) * spectral_otf[i];
   }
