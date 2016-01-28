@@ -37,8 +37,8 @@ void ByteScale(const cv::Mat& input,
                double max,
                bool verbose = false);
 
-cv::Mat ColorScale(const cv::Mat& input,
-                   int colormap = cv::COLORMAP_JET);
+cv::Mat_<cv::Vec3b> ColorScale(const cv::Mat& input,
+                               int colormap = cv::COLORMAP_JET);
 
 void LogScale(const cv::Mat& input,
               cv::Mat_<uint8_t>& output);

@@ -91,8 +91,8 @@ Mat GammaScale(const Mat& input, double gamma) {
   return scaled;
 }
 
-Mat ColorScale(const Mat& input, int colormap) {
-  Mat output;
+Mat_<Vec3b> ColorScale(const Mat& input, int colormap) {
+  Mat_<Vec3b> output;
   applyColorMap(ByteScale(input), output, colormap);
   return output;
 }
