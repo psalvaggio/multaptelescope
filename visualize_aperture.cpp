@@ -86,11 +86,12 @@ int main(int argc, char** argv) {
     Mat_<complex<double>> inv_filter;
     cls.GetInverseFilter(otf, FLAGS_smoothness, &inv_filter);
 
-    inv_filter = GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2);
+    Mat inv_filter_out =
+        GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2);
     if (FLAGS_colormap >= 0) {
-      inv_filter = ColorScale(inv_filter, FLAGS_colormap);
+      inv_filter_out = ColorScale(inv_filter_out, FLAGS_colormap);
     }
-    imwrite("inv_filter.png", inv_filter);
+    imwrite("inv_filter.png", inv_filter_out);
   }
 
   // Output the point spread function
