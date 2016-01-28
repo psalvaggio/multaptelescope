@@ -16,10 +16,10 @@
 
 using namespace cv;
 using namespace std;
-using mats::Simulation;
-using mats::ApertureParameters;
 
-CassegrainRing::CassegrainRing(const mats::Simulation& params)
+namespace mats {
+
+CassegrainRing::CassegrainRing(const Simulation& params)
     : Aperture(params),
       compound_aperture_() {
   // Copy over the CassegrainRing-specific parameters.
@@ -60,7 +60,7 @@ CassegrainRing::CassegrainRing(const mats::Simulation& params)
   }
 
   // Make a copy of our SimulationConfig to give to the subapertures.
-  mats::Simulation sim;
+  Simulation sim;
   sim.CopyFrom(simulation_params());
 
   // Add the top-level compound aperture. This is the AND of the cassegrain
@@ -79,7 +79,7 @@ CassegrainRing::CassegrainRing(const mats::Simulation& params)
   circular_mask->set_type(ApertureParameters::CIRCULAR);
   circular_mask->set_encircled_diameter(encircled_diameter());
   for (int i = 0; i < aperture_params().aberration_size(); i++) {
-    mats::ZernikeCoefficient* tmp_ab = circular_mask->add_aberration();
+    ZernikeCoefficient* tmp_ab = circular_mask->add_aberration();
     tmp_ab->CopyFrom(aperture_params().aberration(i));
   }
 
@@ -109,7 +109,7 @@ CassegrainRing::CassegrainRing(const mats::Simulation& params)
       const CassegrainRingParameters::ApertureAberrations& ap_aberrations(
           ring_params_.aperture_aberrations(ab_index));
       for (int j = 0; j < ap_aberrations.aberration_size(); j++) {
-        mats::ZernikeCoefficient* tmp_aberration = cassegrain->add_aberration();
+        ZernikeCoefficient* tmp_aberration = cassegrain->add_aberration();
         tmp_aberration->CopyFrom(ap_aberrations.aberration(j));
       }
     }
@@ -133,4 +133,6 @@ void CassegrainRing::GetOpticalPathLengthDiff(double image_height,
 
   compound_aperture_->GetWavefrontError(image_height, angle, output);
   *output += zernike;
+}
+
 }

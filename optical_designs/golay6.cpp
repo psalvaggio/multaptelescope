@@ -16,8 +16,8 @@
 
 using namespace cv;
 using namespace std;
-using mats::Simulation;
-using mats::ApertureParameters;
+
+namespace mats {
 
 Golay6::Golay6(const Simulation& params)
     : Aperture(params),
@@ -50,7 +50,7 @@ Golay6::Golay6(const Simulation& params)
   for (auto& tmp : subaperture_offsets) tmp *= diameter;
 
   // Make a copy of our SimulationConfig to give to the subapertures.
-  mats::Simulation sim;
+  Simulation sim;
   sim.CopyFrom(params);  // Rotation smuggled in here
 
   // Add the Cassegrain array.
@@ -80,7 +80,7 @@ Golay6::Golay6(const Simulation& params)
       const Golay6Parameters::ApertureAberrations& ap_aberrations(
           golay6_params_.aperture_aberrations(ab_index));
       for (int j = 0; j < ap_aberrations.aberration_size(); j++) {
-        mats::ZernikeCoefficient* tmp_aberration = cassegrain->add_aberration();
+        ZernikeCoefficient* tmp_aberration = cassegrain->add_aberration();
         tmp_aberration->CopyFrom(ap_aberrations.aberration(j));
       }
     }
@@ -105,4 +105,6 @@ void Golay6::GetOpticalPathLengthDiff(double image_height,
   ZernikeWavefrontError(image_height, angle, &global);
 
   *output += global;
+}
+
 }

@@ -8,9 +8,11 @@
 
 #include "aperture.h"
 
+namespace mats {
+
 class Cassegrain : public Aperture {
  public:
-  explicit Cassegrain(const mats::Simulation& params);
+  explicit Cassegrain(const Simulation& params);
 
   virtual ~Cassegrain();
 
@@ -19,5 +21,7 @@ class Cassegrain : public Aperture {
   void GetApertureTemplate(cv::Mat_<double>* output) const override;
 };
 REGISTER_APERTURE(Cassegrain, CASSEGRAIN)
+
+}
 
 #endif  // CASSEGRAIN_H

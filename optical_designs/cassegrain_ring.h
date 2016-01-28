@@ -14,9 +14,11 @@
 #include <memory>
 #include <vector>
 
+namespace mats {
+
 class CassegrainRing : public Aperture {
  public:
-  explicit CassegrainRing(const mats::Simulation& params);
+  explicit CassegrainRing(const Simulation& params);
 
   virtual ~CassegrainRing();
 
@@ -38,5 +40,7 @@ class CassegrainRing : public Aperture {
   std::unique_ptr<Aperture> compound_aperture_;
 };
 REGISTER_APERTURE(CassegrainRing, CASSEGRAIN_RING)
+
+}
 
 #endif  // CASSEGRAIN_RING_H

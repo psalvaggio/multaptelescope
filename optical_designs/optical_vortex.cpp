@@ -11,8 +11,9 @@
 #include <iostream>
 #include <vector>
 
-using mats::Simulation;
 using namespace cv;
+
+namespace mats {
 
 OpticalVortex::OpticalVortex(const Simulation& params) : Circular(params) {
   vortex_params_ = aperture_params().GetExtension(optical_vortex_params);
@@ -46,4 +47,6 @@ void OpticalVortex::GetOpticalPathLengthDiff(double image_height,
       }
     }
   }
+}
+
 }

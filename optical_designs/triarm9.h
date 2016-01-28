@@ -9,9 +9,11 @@
 
 #include <opencv2/core/core.hpp>
 
+namespace mats {
+
 class Triarm9 : public Aperture {
  public:
-  explicit Triarm9(const mats::Simulation& params);
+  explicit Triarm9(const Simulation& params);
 
   virtual ~Triarm9();
 
@@ -34,5 +36,7 @@ class Triarm9 : public Aperture {
   std::unique_ptr<Aperture> compound_aperture_;
 };
 REGISTER_APERTURE(Triarm9, TRIARM9)
+
+}
 
 #endif  // TRIARM9_H

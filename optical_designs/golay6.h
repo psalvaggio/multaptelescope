@@ -13,9 +13,11 @@
 #include <opencv2/core/core.hpp>
 #include <memory>
 
+namespace mats {
+
 class Golay6 : public Aperture {
  public:
-  explicit Golay6(const mats::Simulation& params);
+  explicit Golay6(const Simulation& params);
 
   virtual ~Golay6();
 
@@ -33,5 +35,7 @@ class Golay6 : public Aperture {
   std::unique_ptr<Aperture> compound_aperture_;
 };
 REGISTER_APERTURE(Golay6, GOLAY6)
+
+}
 
 #endif  // CASSEGRAIN_RING_H

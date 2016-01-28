@@ -143,7 +143,7 @@ void PolarMtfWeightingFitnessFunction<T>::Visualize(
   }
 
   mats::PupilFunction pupil(512, 550e-9);
-  std::unique_ptr<Aperture> aperture(ApertureFactory::Create(sim));
+  std::unique_ptr<mats::Aperture> aperture(mats::ApertureFactory::Create(sim));
   aperture->GetPupilFunction(550e-9, 0, 0, &pupil);
 
   cv::Mat mtf = pupil.ModulationTransferFunction();

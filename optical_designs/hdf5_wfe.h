@@ -9,9 +9,11 @@
 
 #include <opencv2/core/core.hpp>
 
+namespace mats {
+
 class Hdf5Wfe : public Aperture {
  public:
-  explicit Hdf5Wfe(const mats::Simulation& params);
+  explicit Hdf5Wfe(const Simulation& params);
 
   virtual ~Hdf5Wfe();
 
@@ -26,5 +28,7 @@ class Hdf5Wfe : public Aperture {
   Hdf5WfeParameters hdf5_wfe_params_;
 };
 REGISTER_APERTURE(Hdf5Wfe, HDF5_WFE)
+
+}
 
 #endif  // HDF5_WFE_H

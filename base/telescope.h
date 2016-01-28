@@ -11,10 +11,9 @@
 #include <memory>
 #include <vector>
 
-class Aperture;
-
 namespace mats {
 
+class Aperture;
 class Detector;
 class DetectorParameters;
 

@@ -8,9 +8,11 @@
 
 #include "aperture.h"
 
+namespace mats {
+
 class Circular : public Aperture {
  public:
-  explicit Circular(const mats::Simulation& params);
+  explicit Circular(const Simulation& params);
 
   virtual ~Circular();
 
@@ -19,5 +21,7 @@ class Circular : public Aperture {
   void GetApertureTemplate(cv::Mat_<double>* output) const override;
 };
 REGISTER_APERTURE(Circular, CIRCULAR)
+
+}
 
 #endif  // CIRCULAR_H

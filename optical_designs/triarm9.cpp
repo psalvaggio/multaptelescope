@@ -16,8 +16,8 @@
 
 using namespace cv;
 using namespace std;
-using mats::Simulation;
-using mats::ApertureParameters;
+
+namespace mats {
 
 Triarm9::Triarm9(const Simulation& params)
     : Aperture(params), triarm9_params_(), compound_aperture_() {
@@ -98,7 +98,7 @@ Triarm9::Triarm9(const Simulation& params)
       const Triarm9Parameters::ApertureAberrations& ap_aberrations(
           triarm9_params_.aperture_aberrations(ab_index));
       for (int j = 0; j < ap_aberrations.aberration_size(); j++) {
-        mats::ZernikeCoefficient* tmp_aberration = cassegrain->add_aberration();
+        ZernikeCoefficient* tmp_aberration = cassegrain->add_aberration();
         tmp_aberration->CopyFrom(ap_aberrations.aberration(j));
       }
     }
@@ -123,4 +123,6 @@ void Triarm9::GetOpticalPathLengthDiff(double image_height,
   ZernikeWavefrontError(image_height, angle, &global);
 
   *output += global;
+}
+
 }

@@ -11,9 +11,11 @@
 #include <memory>
 #include <opencv2/core/core.hpp>
 
+namespace mats {
+
 class CompoundAperture : public Aperture {
  public:
-  CompoundAperture(const mats::Simulation& params);
+  CompoundAperture(const Simulation& params);
 
   virtual ~CompoundAperture();
   
@@ -38,8 +40,10 @@ class CompoundAperture : public Aperture {
   CompoundApertureParameters compound_params_;
 
   mutable std::vector<std::unique_ptr<Aperture>> apertures_;
-  std::vector<mats::Simulation> sim_configs_;
+  std::vector<Simulation> sim_configs_;
 };
 REGISTER_APERTURE(CompoundAperture, COMPOUND)
+
+}
 
 #endif  // COMPOUND_APERTURE_H

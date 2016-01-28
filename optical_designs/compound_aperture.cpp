@@ -13,9 +13,10 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-using mats::Simulation;
 using namespace std;
 using namespace cv;
+
+namespace mats {
 
 CompoundAperture::CompoundAperture(const Simulation& params)
     : Aperture(params),
@@ -160,4 +161,6 @@ void CompoundAperture::RotateArray(Mat_<double>* array) const {
         1);
     warpAffine(*array, *array, rotation, array->size());
   }
+}
+
 }

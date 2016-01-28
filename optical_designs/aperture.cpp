@@ -15,13 +15,10 @@
 #include <cstdlib>
 #include <iostream>
 
-using mats::SimulationConfig;
-using mats::Simulation;
-using mats::PupilFunction;
-using mats::ApertureParameters;
-using mats::ZernikeCoefficient;
 using namespace std;
 using namespace cv;
+
+namespace mats {
 
 Aperture::Aperture(const Simulation& params)
     : sim_params_(params),
@@ -244,7 +241,7 @@ void Aperture::GetOpticalPathLengthDiff(double image_height,
 }
 
 // ApertureFactory Implementation.
-Aperture* ApertureFactory::Create(const mats::Simulation& params) {
+Aperture* ApertureFactory::Create(const Simulation& params) {
   auto ap_type = params.aperture_params().type();
   Aperture* ap = ApertureFactoryImpl::Create(
       ApertureParameters::ApertureType_Name(ap_type), params);
@@ -252,4 +249,6 @@ Aperture* ApertureFactory::Create(const mats::Simulation& params) {
 
   mainLog() << "ApertureFactory error: Unsupported aperture type." << endl;
   return NULL;
+}
+
 }

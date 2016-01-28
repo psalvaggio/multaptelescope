@@ -9,9 +9,11 @@
 #include "circular.h"
 #include "optical_designs/axicon_parameters.pb.h"
 
+namespace mats {
+
 class Axicon : public Circular {
  public:
-  explicit Axicon(const mats::Simulation& params);
+  explicit Axicon(const Simulation& params);
 
   virtual ~Axicon();
 
@@ -25,5 +27,7 @@ class Axicon : public Circular {
   AxiconParameters axicon_params_;
 };
 REGISTER_APERTURE(Axicon, AXICON)
+
+}
 
 #endif  // AXICON_H

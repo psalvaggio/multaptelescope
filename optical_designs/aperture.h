@@ -12,9 +12,9 @@
 #include "registry/registry.h"
 
 namespace mats {
+
 class Simulation;
 class PupilFunction;
-}
 
 // Abstraction of an optical system's aperture function. The magnitude of the
 // aperture function is a binary mask of the aperture, while the phase is the
@@ -26,7 +26,7 @@ class Aperture {
   // Arguments:
   //  params     The Simulation object containing the parameters for this
   //             run of the model.
-  explicit Aperture(const mats::Simulation& params);
+  explicit Aperture(const Simulation& params);
 
   // Destructor
   virtual ~Aperture();
@@ -36,11 +36,9 @@ class Aperture {
   Aperture& operator=(const Aperture& other) = delete;
 
   // Accessors
-  const mats::Simulation& simulation_params() const { return sim_params_; }
+  const Simulation& simulation_params() const { return sim_params_; }
 
-  const mats::ApertureParameters& aperture_params() const {
-    return aperture_params_;
-  }
+  const ApertureParameters& aperture_params() const { return aperture_params_; }
 
   const std::vector<double>& on_axis_aberrations() const {
     return on_axis_aberrations_;
@@ -65,14 +63,14 @@ class Aperture {
   void GetPupilFunction(double wavelength,
                         double image_height,
                         double angle,
-                        mats::PupilFunction* pupil) const;
+                        PupilFunction* pupil) const;
 
   void GetPupilFunction(const std::vector<double>& wavelength,
                         double image_height,
                         double angle,
                         int size,
                         double reference_wavelength,
-                        std::vector<mats::PupilFunction>* pupil) const;
+                        std::vector<PupilFunction>* pupil) const;
 
   // Get the true wavefront error across the aperture.
   //
@@ -105,9 +103,9 @@ class Aperture {
   void GetApertureMask(cv::Mat_<double>* output) const;
 
  protected:
-  bool IsOffAxis(mats::ZernikeCoefficient::AberrationType type) const;
-  bool HasAberration(mats::ZernikeCoefficient::AberrationType type) const;
-  double GetAberration(mats::ZernikeCoefficient::AberrationType type) const;
+  bool IsOffAxis(ZernikeCoefficient::AberrationType type) const;
+  bool HasAberration(ZernikeCoefficient::AberrationType type) const;
+  double GetAberration(ZernikeCoefficient::AberrationType type) const;
 
   void ZernikeWavefrontError(double image_height,
                              double angle,
@@ -137,8 +135,8 @@ class Aperture {
                                         cv::Mat_<double>* output) const;
 
  private:
-  mats::Simulation sim_params_;
-  mats::ApertureParameters aperture_params_;
+  Simulation sim_params_;
+  ApertureParameters aperture_params_;
   std::vector<double> on_axis_aberrations_;
   std::vector<double> off_axis_aberrations_;
 
@@ -156,11 +154,13 @@ class ApertureFactory {
  public:
    ApertureFactory() = delete;
 
-   static Aperture* Create(const mats::Simulation& params);
+   static Aperture* Create(const Simulation& params);
 };
 
 using ApertureFactoryImpl =
-    registry::Registry<Aperture, const mats::Simulation&>;
+    registry::Registry<Aperture, const Simulation&>;
+}
+
 #define REGISTER_APERTURE(class_name, ap_config_enum) \
   REGISTER_SUBCLASS_W_IDENTIFIER(Aperture, class_name, ap_config_enum, \
                                  const mats::Simulation&)

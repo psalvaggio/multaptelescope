@@ -15,8 +15,9 @@
 #include <iostream>
 #include <vector>
 
-using mats::Simulation;
 using namespace cv;
+
+namespace mats {
 
 Circular::Circular(const Simulation& params) : Aperture(params) {}
 
@@ -39,4 +40,6 @@ void Circular::GetApertureTemplate(Mat_<double>* output) const {
       mask(i, j) = (r2 < kPrimaryR2) ? 1 : 0;
     }
   }
+}
+
 }

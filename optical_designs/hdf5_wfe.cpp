@@ -12,7 +12,9 @@
 
 using namespace cv;
 
-Hdf5Wfe::Hdf5Wfe(const mats::Simulation& params)
+namespace mats {
+
+Hdf5Wfe::Hdf5Wfe(const Simulation& params)
     : Aperture(params) {
   hdf5_wfe_params_ = aperture_params().GetExtension(hdf5_wfe_params);
 }
@@ -69,4 +71,6 @@ void Hdf5Wfe::GetOpticalPathLengthDiff(double /*image_height*/,
   cv::Range row_range(first_row, last_row + 1),
             col_range(first_col, last_col + 1);
   cv::resize(opd(row_range, col_range), *output, output->size());
+}
+
 }

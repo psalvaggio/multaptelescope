@@ -11,8 +11,9 @@
 #include <iostream>
 #include <vector>
 
-using mats::Simulation;
 using namespace cv;
+
+namespace mats {
 
 Axicon::Axicon(const Simulation& params)
     : Circular(params) {
@@ -43,4 +44,6 @@ void Axicon::GetOpticalPathLengthDiff(double image_height,
       opd(i, j) += (r2 < kPrimaryR2) ? sqrt(r2) * kNumCycles : 0;
     }
   }
+}
+
 }

@@ -9,9 +9,11 @@
 #include "circular.h"
 #include "optical_designs/optical_vortex_parameters.pb.h"
 
+namespace mats {
+
 class OpticalVortex : public Circular {
  public:
-  explicit OpticalVortex(const mats::Simulation& params);
+  explicit OpticalVortex(const Simulation& params);
 
   virtual ~OpticalVortex();
 
@@ -25,5 +27,7 @@ class OpticalVortex : public Circular {
   OpticalVortexParameters vortex_params_;
 };
 REGISTER_APERTURE(OpticalVortex, OPTICAL_VORTEX)
+
+}
 
 #endif  // OPTICAL_VORTEX_H

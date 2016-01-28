@@ -13,8 +13,9 @@
 #include <iostream>
 #include <vector>
 
-using mats::Simulation;
 using namespace cv;
+
+namespace mats {
 
 Cassegrain::Cassegrain(const Simulation& params)
     : Aperture(params) {}
@@ -40,4 +41,6 @@ void Cassegrain::GetApertureTemplate(Mat_<double>* output) const {
       mask(i, j) = (r2 < primary_r2 && r2 >= secondary_r2) ? 1 : 0;
     }
   }
+}
+
 }
