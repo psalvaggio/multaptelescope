@@ -1,11 +1,8 @@
-// File Description
+// Implementation file for pupil_function.h.
 // Author: Philip Salvaggio
 
 #include "pupil_function.h"
 
-#include "base/fftw_lock.h"
-
-#include <fftw3.h>
 #include <vector>
 
 using namespace std;
