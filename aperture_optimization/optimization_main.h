@@ -14,14 +14,13 @@ namespace genetic {
 
 template<typename model_t>
 GeneticAlgorithm<model_t> OptimizationMain(
-    GeneticFitnessFunction<model_t>& fitness_function,
+    const GeneticFitnessFunction<model_t>& fitness_function,
     GeneticSearchStrategy<model_t>& search_strategy,
     int population_size,
     int breeds_per_generation) {
   GeneticAlgorithm<model_t> genetic;
   std::thread genetic_thread(
-      [&genetic, &fitness_function, &search_strategy, population_size,
-        breeds_per_generation] () {
+      [&] () {
         genetic.Run(fitness_function,
                     search_strategy,
                     population_size,
