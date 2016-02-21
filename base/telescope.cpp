@@ -16,6 +16,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include <tbb/parallel_for.h>
+
 #include <algorithm>
 #include <numeric>
 
@@ -30,7 +32,8 @@ Telescope::Telescope(const SimulationConfig& sim_config,
     : sim_config_(sim_config),
       aperture_(ApertureFactory::Create(sim_config.simulation(sim_index))),
       detector_(new Detector(det_params)),
-      include_detector_footprint_(false) {}
+      include_detector_footprint_(false),
+      parallelism_(false) {}
 
 Telescope::~Telescope() {}
 
@@ -93,9 +96,15 @@ void Telescope::Image(const vector<Mat>& radiance,
   GetImagingRegion(radiance[0], &roi);
   CHECK(roi.width > 0);
 
+  // Take the DFT of the given image.
   vector<Mat_<complex<double>>> radiance_dft(radiance.size());
-  for (size_t i = 0; i < radiance.size(); i++) {
+  auto RadianceDft = [&roi, &radiance, &radiance_dft](size_t i) {
     dft(radiance[i](roi), radiance_dft[i], DFT_COMPLEX_OUTPUT);
+  };
+  if (parallelism_) {
+    tbb::parallel_for(size_t{0}, radiance.size(), RadianceDft);
+  } else {
+    for (size_t i = 0; i < radiance.size(); i++) RadianceDft(i);
   }
     
   vector<Mat> blurred_irradiance(radiance.size());
@@ -141,14 +150,8 @@ void Telescope::Image(const vector<Mat>& radiance,
       }
     }
   } else {
-    // Compute the OTF for each of the spectral points in the input data.
-    vector<Mat> spectral_otfs;
-    ComputeOtf(wavelength, 0, 0, &spectral_otfs);
-
-    for (size_t i = 0; i < radiance.size(); i++) {
-      OtfDegrade(radiance_dft[i], spectral_otfs[i], &(blurred_irradiance[i]));
-      blurred_irradiance[i] /= GNumber(wavelength[i]);
-    }
+    ImageInIsoplanaticRegion(wavelength, radiance_dft, 0, 0,
+                             &blurred_irradiance);
   }
   radiance_dft.clear();
                      
@@ -288,6 +291,50 @@ void Telescope::Restore(const Mat_<double>& raw_image,
 }
 
 
+void Telescope::Restore(const Mat_<double>& raw_image,
+                        const vector<double>& wavelengths,
+                        const vector<Mat>& illumination,
+                        int band,
+                        double smoothness,
+                        Mat_<double>* restored) const {
+  CHECK(restored);
+  CHECK(!wavelengths.empty() && wavelengths.size() == illumination.size());
+
+  vector<double> transmission, qe;
+  GetTransmissionSpectrum(wavelengths, &transmission);
+  detector_->GetQESpectrum(wavelengths, band, &qe);
+
+  vector<Mat> spectral_otf;
+  ComputeOtf(wavelengths, 0, 0, &spectral_otf);
+
+  ConstrainedLeastSquares cls;
+  
+  restored->create(raw_image.size());
+  *restored = 0;
+  for (int r = 0; r < illumination[0].rows; r++) {
+    for (int c = 0; c < illumination[0].cols; c++) {
+      vector<double> spec_weights(wavelengths.size(), 0);
+      for (size_t i = 0; i < wavelengths.size(); i++) {
+        spec_weights[i] = qe[i] * transmission[i] *
+                          illumination[i].at<double>(r, c);
+      }
+      Mat_<complex<double>> eff_otf;
+      EffectiveOtf(spec_weights, spectral_otf, &eff_otf);
+
+      Mat_<double> restored_tile;
+      cls.Deconvolve(raw_image, eff_otf, smoothness, &restored_tile);
+
+      Mat_<double> interp_weights(restored_tile.size());
+      GridRegion(interp_weights, c, r,
+                 illumination[0].cols, illumination[0].rows);
+      *restored += restored_tile.mul(interp_weights);
+    }
+    imshow("Restored", ByteScale(*restored));
+    waitKey(1);
+  }
+}
+
+
 void Telescope::ComputeOtf(const vector<double>& wavelengths,
                            double image_height,
                            double angle,
@@ -299,7 +346,22 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
 
   double int_time = simulation().integration_time();
 
+/*
+  Mat_<double> nonmod_mtf(kOtfSize, kOtfSize);
+  for (int r = 0; r < nonmod_mtf.rows; r++) {
+    double xi = r - kOtfSize / 2;
+    for (int c = 0; c < nonmod_mtf.cols; c++) {
+      double eta = c - kOtfSize / 2;
+      double rho = sqrt(xi*xi + eta*eta) / kOtfSize;
+      nonmod_mtf(r, c) = rho < 1e-10 ? 1 : sin(rho * 1.75 * M_PI) /
+                         (rho * 1.75 * M_PI);
+    }
+  }
+  nonmod_mtf = IFFTShift(nonmod_mtf);
+*/
+
   SystemOtf wave_invar_sys_otf;
+  //wave_invar_sys_otf.PushOtf(nonmod_mtf);
   wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0, int_time,
                                                     kOtfSize, kOtfSize));
   wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0, int_time,
@@ -309,10 +371,18 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   }
   Mat_<complex<double>> wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
-  for (size_t i = 0; i < wavelengths.size(); i++) {
-    otf->emplace_back();
-    mulSpectrums(ap_otf[i], wave_invariant_otf, otf->back(), 0);
+  otf->resize(wavelengths.size());
+  auto ComputeOtfBody = [&ap_otf, &wave_invariant_otf, &otf] (size_t i) {
+    mulSpectrums(ap_otf[i], wave_invariant_otf, (*otf)[i], 0);
+  };
+
+  if (parallelism_) {
+    tbb::parallel_for(size_t{0}, wavelengths.size(), ComputeOtfBody);
+  } else {
+    for (size_t i = 0; i < wavelengths.size(); i++) ComputeOtfBody(i);
   }
+    //mulSpectrums(ap_otf[i], wave_invariant_otf, (*otf)[i], 0);
+  //}
 }
 
 
@@ -329,6 +399,12 @@ void Telescope::EffectiveOtf(const vector<double>& wavelengths,
   vector<Mat> spectral_otf;
   ComputeOtf(wavelengths, image_height, angle, &spectral_otf);
 
+  EffectiveOtf(weights, spectral_otf, otf);
+}
+
+void Telescope::EffectiveOtf(const vector<double>& weights,
+                             const std::vector<cv::Mat>& spectral_otf,
+                             cv::Mat_<complex<double>>* otf) const {
   double total_weight = accumulate(begin(weights), end(weights), 0.0);
 
   spectral_otf[0].copyTo(*otf);
@@ -492,6 +568,80 @@ void Telescope::IsoplanaticRegion(int radial_idx,
 
       (*isoplanatic_region)(i, j) = r_weight * theta_weight;
     }
+  }
+}
+
+
+void Telescope::GridRegion(cv::Mat_<double>& weights,
+                           int x_region, int y_region,
+                           int x_regions, int y_regions) const {
+  const double kYStep = 1. / y_regions;
+  const double kXStep = 1. / x_regions;
+
+  vector<double> x_weights(weights.cols, 0);
+  for (int x = 0; x < weights.cols; x++) {
+    double x_frac = (x / (weights.cols - 1.)) - 0.5 * kXStep;
+    x_frac = max(x_frac, 0.);
+    int next_x = ceil(x_frac * x_regions);
+
+    double x_weight = 0;
+    if (next_x == x_region) {
+      x_weight = (next_x == 0) ? 1 : 1 - (next_x * kXStep - x_frac) / kXStep;
+    } else if (next_x == x_region + 1) {
+      x_weight = (next_x == x_regions) ? 1 :
+                 (next_x * kXStep - x_frac) / kXStep;
+    }
+    x_weights[x] = x_weight;
+  }
+
+  for (int y = 0; y < weights.rows; y++) {
+    double y_frac = (y / (weights.rows - 1.)) - 0.5 * kYStep;
+    y_frac = max(y_frac, 0.);
+    int next_y = ceil(y_frac * y_regions);
+
+    double y_weight = 0;
+    if (next_y == y_region) {
+      y_weight = (next_y == 0) ? 1 : 1 - (next_y * kYStep - y_frac) / kYStep;
+    } else if (next_y == y_region + 1) {
+      y_weight = next_y == y_regions ? 1 :
+                 (next_y * kYStep - y_frac) / kYStep;
+    }
+        
+    for (int x = 0; x < weights.cols; x++) {
+      weights(y, x) = y_weight * x_weights[x];
+    }
+  }
+}
+
+
+void Telescope::ImageInIsoplanaticRegion(
+      const vector<double>& wavelength,
+      const vector<Mat_<complex<double>>>& input_dft,
+      int radial_zone,
+      int angular_zone,         
+      vector<Mat>* output) const {
+  const int kRadialZones = simulation().radial_zones();
+  const int kAngularZones = simulation().angular_zones();
+  const double kRadialZoneWidth = 1 / max(1., kRadialZones - 1.);
+  const double kAngularZoneWidth = 2 * M_PI / kAngularZones;
+
+  // Compute the spactral OTF in the current isoplanatic region
+  vector<Mat> spectral_otfs;
+  ComputeOtf(wavelength,
+             radial_zone * kRadialZoneWidth,
+             angular_zone * kAngularZoneWidth,
+             &spectral_otfs);
+
+  // Perform image degradation and add to the total blurred image
+  output->resize(input_dft.size());
+  auto DegradeBody = [&] (size_t i) {
+    OtfDegrade(input_dft[i], spectral_otfs[i], &((*output)[i]));
+    (*output)[i] *= 1 / GNumber(wavelength[i]);
+  };
+  if (parallelism_) {
+    tbb::parallel_for(size_t{0}, input_dft.size(), DegradeBody);
+  } else {
+    for (size_t i = 0; i < input_dft.size(); i++) DegradeBody(i);
   }
 }
 

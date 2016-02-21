@@ -54,6 +54,9 @@ class Telescope {
     include_detector_footprint_ = include;
   }
 
+  bool parallelism() const { return parallelism_; }
+  void set_parallelism(bool use) { parallelism_ = use; }
+
   // Gets the effective Q (lambda * F# / p) of the system over a bandpass
   //
   // Arguments:
@@ -79,6 +82,13 @@ class Telescope {
   void Restore(const cv::Mat_<double>& raw_image,
                const std::vector<double>& wavelength,
                const std::vector<double>& illumination,
+               int band,
+               double smoothness,
+               cv::Mat_<double>* restored) const;
+
+  void Restore(const cv::Mat_<double>& raw_image,
+               const std::vector<double>& wavelength,
+               const std::vector<cv::Mat>& illumination,
                int band,
                double smoothness,
                cv::Mat_<double>* restored) const;
@@ -124,6 +134,10 @@ class Telescope {
       double angle,
       std::vector<cv::Mat_<std::complex<double>>>* otf) const;
 
+  void EffectiveOtf(const std::vector<double>& weights,
+                    const std::vector<cv::Mat>& spectral_otf,
+                    cv::Mat_<std::complex<double>>* otf) const;
+
   void OtfDegrade(const cv::Mat& radiance_dft,
                   const cv::Mat& spectral_otf,
                   cv::Mat* degraded) const;
@@ -141,11 +155,24 @@ class Telescope {
   void IsoplanaticRegion(int radial_idx,
                          int angular_idx,
                          cv::Mat_<double>* isoplanatic_region) const;
+
+  void GridRegion(cv::Mat_<double>& weights,
+                  int x_region, int y_region,
+                  int x_regions, int y_regions) const;
+
+  void ImageInIsoplanaticRegion(
+      const std::vector<double>& wavelength,
+      const std::vector<cv::Mat_<std::complex<double>>>& input_dft,
+      int radial_zone,
+      int angular_zone,
+      std::vector<cv::Mat>* output) const;
+
  private:
   mats::SimulationConfig sim_config_;
   std::unique_ptr<Aperture> aperture_;
   std::unique_ptr<Detector> detector_;
   bool include_detector_footprint_;
+  bool parallelism_;
 };
 
 }
