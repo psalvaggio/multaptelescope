@@ -11,10 +11,12 @@
 
 DEFINE_string(config_file, "", "SimulationConfig filename.");
 DEFINE_string(target_file, "", "Target image filename.");
-DEFINE_double(smoothness, 1e-2, "Inverse filtering smoothness.");
 DEFINE_double(orientation, 0, "Aperture orientation.");
 DEFINE_double(full_well_frac, 0.8, "Fraction of the full-well capacity for the"
                                    " bright regions.");
+DEFINE_string(output_prefix, "./", "Output directory + filename prefix");
+DEFINE_string(illumination, "", "Illumination filename");
+
 using namespace std;
 using namespace cv;
 using namespace mats;
@@ -72,9 +74,8 @@ int main(int argc, char** argv) {
 
   // Read in the spectral weighting function for the binary target
   vector<vector<double>> data;
-  if (!mats_io::TextFileReader::Parse(sim_config.spectral_weighting_filename(),
-                                      &data)) {
-    cerr << "Could not read spectral weighting file." << endl;
+  if (!mats_io::TextFileReader::Parse(ResolvePath(FLAGS_illumination), &data)) {
+    cerr << "Could not read illumination file." << endl;
     return 1;
   }
   const vector<double>& wavelengths = data[0];
@@ -100,6 +101,8 @@ int main(int argc, char** argv) {
   detector_params.set_array_rows(image.rows);
   detector_params.set_array_cols(image.cols);
 
+  string output_path = ResolvePath(FLAGS_output_prefix);
+
   // Perform each simulation
   for (int i = 0; i < sim_config.simulation_size(); i++) {
     mainLog() << "Simulation " << (i+1) << " of "
@@ -120,9 +123,6 @@ int main(int argc, char** argv) {
     vector<Mat> output_image;
     telescope.Image(spectral_radiance, wavelengths, &output_image);
 
-    cout << "Restoring..." << endl;
-    ConstrainedLeastSquares cls;
-
     // For each output band, perfom inverse filtering and write output
     for (size_t band = 0; band < output_image.size(); band++) {
       // Compute the spectral weighting for the effective OTF
@@ -132,39 +132,17 @@ int main(int argc, char** argv) {
         spectral_weighting.push_back(det_qe[i] * illumination[i]);
       }
 
-      // Compute and output the effective OTF over the bandpass
-      Mat_<double> deconvolved;
-      Mat_<complex<double>> eff_otf;
-      telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0, &eff_otf);
-      resize(eff_otf, eff_otf, output_image[band].size());
-      imwrite(mats::StringPrintf("sim_%d_mtf_%d.png", i, band),
-              GammaScale(FFTShift(magnitude(eff_otf)), 1/2.2));
-
       // Convert the raw image to the 0-1 range
       Mat raw_image;
       output_image[band].convertTo(raw_image, CV_64F,
           1 / pow(2., telescope.detector()->bit_depth()));
 
-      // Deconvolve the image
-      cls.Deconvolve(raw_image, eff_otf, FLAGS_smoothness, &deconvolved);
-      
       flip(raw_image, raw_image, 0);
-      flip(deconvolved, deconvolved, 0);
 
       // Contrast scale and output the raw and processed image
       raw_image.convertTo(raw_image, CV_8U, 255);
-      imwrite(mats::StringPrintf("sim_%d_output_band_%d.png", i, band),
-              raw_image);
-
-      deconvolved.convertTo(deconvolved, CV_8U, 255);
-      imwrite(mats::StringPrintf("sim_%d_processed_band_%d.png", i, band),
-              deconvolved);
-
-      // Output the inverse filter
-      Mat_<complex<double>> inv_filter;
-      cls.GetInverseFilter(eff_otf, FLAGS_smoothness, &inv_filter);
-      imwrite(mats::StringPrintf("sim_%d_inv_filter_%d.png", i, band),
-              GammaScale(FFTShift(magnitude(inv_filter)), 1/2.2));
+      imwrite(StringPrintf("%ssim_%d_output_band_%d.png", output_path.c_str(),
+                           i, band), raw_image);
     }
   }
 
