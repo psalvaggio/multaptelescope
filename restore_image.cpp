@@ -49,46 +49,6 @@ void RestoreWithSystem(const cv::Mat& image,
                     FLAGS_smoothness, &restored);
 }
 
-void InterpolationWeights(cv::Mat_<double>& weights,
-                          int x_region, int y_region,
-                          int x_regions, int y_regions) {
-  const double kYStep = 1. / y_regions;
-  const double kXStep = 1. / x_regions;
-
-  vector<double> x_weights(weights.cols, 0);
-  for (int x = 0; x < weights.cols; x++) {
-    double x_frac = (x / (weights.cols - 1.)) - 0.5 * kXStep;
-    x_frac = max(x_frac, 0.);
-    int next_x = ceil(x_frac * x_regions);
-
-    double x_weight = 0;
-    if (next_x == x_region) {
-      x_weight = (next_x == 0) ? 1 : 1 - (next_x * kXStep - x_frac) / kXStep;
-    } else if (next_x == x_region + 1) {
-      x_weight = (next_x == x_regions) ? 1 :
-                 (next_x * kXStep - x_frac) / kXStep;
-    }
-    x_weights[x] = x_weight;
-  }
-
-  for (int y = 0; y < weights.rows; y++) {
-    double y_frac = (y / (weights.rows - 1.)) - 0.5 * kYStep;
-    y_frac = max(y_frac, 0.);
-    int next_y = ceil(y_frac * y_regions);
-
-    double y_weight = 0;
-    if (next_y == y_region) {
-      y_weight = (next_y == 0) ? 1 : 1 - (next_y * kYStep - y_frac) / kYStep;
-    } else if (next_y == y_region + 1) {
-      y_weight = next_y == y_regions ? 1 :
-                 (next_y * kYStep - y_frac) / kYStep;
-    }
-        
-    for (int x = 0; x < weights.cols; x++) {
-      weights(y, x) = y_weight * x_weights[x];
-    }
-  }
-}
 
 void RestoreWithSpectrum(const cv::Mat& image,
                          const Telescope& telescope,
@@ -101,6 +61,7 @@ void RestoreWithSpectrum(const cv::Mat& image,
   telescope.Restore(image, sw_data[0], sw_data[1], FLAGS_band, 
                     FLAGS_smoothness, &restored);
 }
+
 
 void RestoreWithImage(const cv::Mat& image,
                       const Telescope& telescope,
@@ -118,30 +79,10 @@ void RestoreWithImage(const cv::Mat& image,
   cout << "Hyperspectral weight resolution: " << kRows << " x " << kCols
        << " x " << low_res_hyp.size() << endl;
  
-      Gnuplot gp;
-  for (int i = 0; i < kRows; i++) {
-    for (int j = 0; j < kCols; j++) {
-      vector<double> spectral_weighting(low_res_hyp.size());
-      for (size_t k = 0; k < low_res_hyp.size(); k++) {
-        spectral_weighting[k] = low_res_hyp[k].at<double>(i, j);
-      }
-
-      Mat_<double> tmp_restored;
-      telescope.Restore(image, wavelengths, spectral_weighting, FLAGS_band,
-                        FLAGS_smoothness, &tmp_restored);
-
-      if (restored.size() != tmp_restored.size()) {
-        restored.create(tmp_restored.size());
-        restored = 0;
-      }
-
-      Mat_<double> weights(restored.size());
-      InterpolationWeights(weights, j, i, kCols, kRows);
-      restored += weights.mul(tmp_restored);
-      imwrite(mats::ResolvePath(FLAGS_output), ByteScale(restored, true));
-    }
-  }
+  telescope.Restore(image, wavelengths, low_res_hyp, FLAGS_band,
+                    FLAGS_smoothness, &restored);
 }
+
 
 int main(int argc, char** argv) {
   google::SetUsageMessage("Restores an image that has been degraded with a "
@@ -189,11 +130,13 @@ int main(int argc, char** argv) {
   cout << "Mean Input " << mean(image) << endl;
   Mat_<double> restored;
 
+  telescope.set_parallelism(true);
   if (file_exists(FLAGS_illumination)) {
     string ext = strtolower(Extension(FLAGS_illumination));
     if (ext == "txt") {
       RestoreWithSpectrum(image, telescope, restored);
     } else if (ext == "img") {
+      telescope.set_parallelism(false);
       RestoreWithImage(image, telescope, restored);
     } else {
       cerr << "Error: Illumination file formats are .txt and .img." << endl;
