@@ -57,6 +57,7 @@ int main(int argc, char** argv) {
               << mats_io::PrintSimulation(sim_config.simulation(i));
 
     mats::Telescope telescope(sim_config, i, detector_params);
+    telescope.set_parallelism(true);
 
     mainLog() << "Focal Length: " << telescope.FocalLength() << " [m]" << endl;
 
