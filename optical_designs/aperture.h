@@ -145,6 +145,8 @@ class Aperture {
   mutable cv::Mat_<double> on_axis_opd_;
   mutable double encircled_diameter_;
   mutable double fill_factor_;
+  mutable std::mutex mask_mutex_;
+  mutable std::mutex opd_mutex_;
 };
 
 

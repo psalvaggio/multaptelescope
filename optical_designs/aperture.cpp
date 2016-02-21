@@ -184,6 +184,7 @@ void Aperture::GetWavefrontError(double image_height,
 
 // Accessors for aperture masks.
 Mat Aperture::GetApertureMask(int size) const {
+  lock_guard<mutex> guard(mask_mutex_);
   if (size > 0 && size != mask_.rows) {
     mask_.create(size, size);
     GetApertureTemplate(&mask_);
@@ -195,6 +196,7 @@ Mat Aperture::GetApertureMask(int size) const {
 
 
 void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
+  lock_guard<mutex> guard(mask_mutex_);
   if (output->rows > 0 && output->rows != mask_.rows) {
     mask_.create(output->rows, output->rows);
     GetApertureTemplate(&mask_);
@@ -206,11 +208,14 @@ void Aperture::GetApertureMask(cv::Mat_<double>* output) const {
 void Aperture::ZernikeWavefrontError(double image_height,
                                      double angle,
                                      cv::Mat_<double>* output) const {
-  if (on_axis_opd_.rows != output->rows) {
-    ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
-    ab_factory.aberrations(on_axis_aberrations_, output->rows, &on_axis_opd_);
+  {
+    lock_guard<mutex> guard(opd_mutex_);
+    if (on_axis_opd_.rows != output->rows) {
+      ZernikeAberrations& ab_factory(ZernikeAberrations::getInstance());
+      ab_factory.aberrations(on_axis_aberrations_, output->rows, &on_axis_opd_);
+    }
+    on_axis_opd_.copyTo(*output);
   }
-  on_axis_opd_.copyTo(*output);
 
   // If we are on axis, we're done.
   if (abs(image_height) < 1e-10) return;
