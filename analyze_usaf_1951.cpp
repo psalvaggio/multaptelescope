@@ -50,7 +50,10 @@ int main(int argc, char** argv) {
 
   // Perform recognition
   Usaf1951Target tribar(image, FLAGS_levels);
-  if (!tribar.RecognizeTarget()) return 1;
+  if (!tribar.RecognizeTarget()) {
+    cerr << "Failed to recognize target." << endl;
+    return 1;
+  }
 
   // Make two diagnostic outputs so the user can see if anything messed up
   Mat output = tribar.VisualizeBoundingBoxes();
