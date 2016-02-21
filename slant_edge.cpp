@@ -17,6 +17,7 @@ DEFINE_int32(simulation_id, -1, "Simulation ID in config_file "
 DEFINE_double(orientation, 0, "Orientation of the aperture.");
 DEFINE_bool(whole_image, false, "Use the entire image.");
 DEFINE_bool(quiet, false, "Do not plot");
+DEFINE_bool(output_esf, false, "Output the ESF instead of the MTF.");
 
 using namespace cv;
 using namespace std;
@@ -46,8 +47,22 @@ int main(int argc, char** argv) {
           Range(bounds[0], bounds[0] + bounds[2])).copyTo(roi);
   }
 
-  // Perform the slant edge analysis on the image.
   SlantEdgeMtf mtf_analyzer;
+  if (FLAGS_output_esf) {
+    double edge[3];
+    if (mtf_analyzer.DetectEdge(roi, edge)) {
+      int samples = mtf_analyzer.GetSamplesPerPixel(image, edge);
+      vector<double> esf, esf_stddevs;
+      mtf_analyzer.GenerateEsf(roi, edge, samples, &esf, &esf_stddevs);
+      mtf_analyzer.SmoothEsf(&esf);
+      for (size_t i = 0; i < esf.size(); i++) {
+        cout << i / double(samples) << "\t" << esf[i] << endl;
+      }
+    }
+    return 0;
+  }
+
+  // Perform the slant edge analysis on the image.
   double orientation;
   vector<double> mtf;
   mtf_analyzer.Analyze(roi, &orientation, &mtf);
