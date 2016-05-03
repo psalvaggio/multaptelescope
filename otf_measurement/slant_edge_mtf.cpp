@@ -201,9 +201,9 @@ bool SlantEdgeMtf::DetectEdge(const Mat& image, double* edge) {
   }
 
   // Use RANSAC to find the inlier points on the line.
-  RansacFitLine line_fitter(3);
-  RansacFitLine::model_t* best_model = NULL;
-  list<int> inliers;
+  ransac::RansacFitLine line_fitter(3);
+  ransac::RansacFitLine::model_t best_model;
+  vector<int> inliers;
   ransac::Error_t error = ransac::Ransac(
       line_fitter,
       line_pts,
@@ -211,8 +211,8 @@ bool SlantEdgeMtf::DetectEdge(const Mat& image, double* edge) {
       2,
       10,
       10000,
-      &best_model,
-      &inliers);
+      best_model,
+      inliers);
 
   // Bail out if RANSAC failed.
   if (error != ransac::RansacSuccess) {
@@ -221,14 +221,11 @@ bool SlantEdgeMtf::DetectEdge(const Mat& image, double* edge) {
   }
 
   // Use least-squares on the inliers to fit a more stable line.
-  delete best_model;
   line_fitter.FitLeastSquaresLine(line_pts, inliers, &best_model);
 
-  edge[0] = (*best_model)[0];
-  edge[1] = (*best_model)[1];
-  edge[2] = (*best_model)[2];
-
-  delete best_model;
+  edge[0] = best_model[0];
+  edge[1] = best_model[1];
+  edge[2] = best_model[2];
 
   return true;
 }

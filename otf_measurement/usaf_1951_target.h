@@ -4,7 +4,10 @@
 #ifndef USAF_1951_TARGET_H
 #define USAF_1951_TARGET_H
 
+#include "otf_measurement/usaf_1951_template.pb.h"
+
 #include <opencv2/core.hpp>
+#include <array>
 #include <tuple>
 #include <vector>
 
@@ -19,6 +22,7 @@ class Usaf1951Target {
   // Standed number of tri bars in a level of the target.
   static const int kTriBarsPerLevel = 24;
   static const int kTriBarPairsPerLevel = 12;
+  //static const double kAreaRatio = 0.796;
 
  public:
   // Constructor
@@ -38,6 +42,12 @@ class Usaf1951Target {
   // Returns:
   //  Whether recognition wa successful.
   bool RecognizeTarget();
+
+  // Use a pre-loaded template instead of recognizing the target.
+  //
+  // Arguments:
+  //  tmpl   The template to use
+  void UseTemplate(const mats::Usaf1951Template& tmpl);
 
   // Returns whether or not a given bar group was found.
   //
@@ -67,13 +77,17 @@ class Usaf1951Target {
   // for taking profiles.
   cv::Mat VisualizeProfileRegions() const;
 
+  void WriteTemplate(const std::string& filename) const;
+
  private:
   // Represntation of a Tri-bar group. Each element is a connected component
   // label. The first element is the middle bar, there is no guarantee about the
   // order of the second and third bar.
-  using TriBar = std::tuple<int, int, int>;
+  using TriBar = std::array<int, 3>;
 
-  using Vector2d = std::tuple<double, double>;  // [x, y]
+  using Vector2d = std::array<double, 2>;  // [x, y]
+
+  using Box = std::array<double, 10>;
 
   // Representation of a bounding box. Since our tri-bars are not necessarily
   // axis-aligned, all for corners are given as [x0 y0 .. x3 y3]
@@ -81,7 +95,7 @@ class Usaf1951Target {
 
   // Result for one PC in a 2D PCA analysis. The result is given as
   // [eigenvalue, eigenvector x, eigenvector y]
-  using Pca2dResult = std::tuple<double, double, double>;
+  using Pca2dResult = std::array<double, 3>;
 
  private:
   // Perform a 2D principal components analysis on a connected component (CC).
@@ -96,6 +110,19 @@ class Usaf1951Target {
                    int label,
                    std::vector<Pca2dResult>* results) const;
 
+  // Perform base detection of bounding boxes of tri-bars from a binary image.
+  // 
+  // Arguments:
+  //  image_bw        Thresholded binary image (0, 1)
+  //  bounding_boxes  Output: The bounding boxes for each detected tri-bar in
+  //                          bar_groups. Misses will be all have 0 for the
+  //                          conrers and (-1, -1) for the centroid.
+  //  mean_vectors    Output: The mean orientation vector for the bars groups
+  //                          in oriented_bars.
+  bool DetectBoundingBoxes(const cv::Mat& image_bw,
+                           std::vector<std::vector<Box>>* bounding_boxes,
+                           std::vector<Vector2d>* mean_vectors) const;
+                           
   // Determine which connected components (CCs) in an image are USAF target
   // bars.
   //
@@ -127,9 +154,10 @@ class Usaf1951Target {
   //                            in oriented_bars.
   void SplitHorizontalVerticalBars(
       const std::vector<int>& bar_ccs,
+      const cv::Mat_<int32_t>& cc_stats,
       const std::vector<Vector2d>& bar_orientations,
       std::vector<std::vector<int>>* oriented_bars,
-      std::vector<Vector2d>* mean_vectors);
+      std::vector<Vector2d>* mean_vectors) const;
 
   // From a set of bars oriented in the same direction, find tri-bar groups.
   //
@@ -140,6 +168,7 @@ class Usaf1951Target {
   //  tribars        Output: The tribar groups detected.
   void DetectTriBars(const std::vector<int>& oriented_bars,
                      const Vector2d& mean_vector,
+                     const cv::Mat_<int32_t>& cc_stats,
                      const cv::Mat_<double>& cc_centroids,
                      std::vector<TriBar>* tribars) const;
 
@@ -164,8 +193,9 @@ class Usaf1951Target {
   //                        is biased, so this is an approximation of the mean
   //                        area ratio for non-misses.
   //  ratio_spread  Output: The spread (standard deviation) of the area ratios.
-  void AnalyzeAreaRatios(const std::vector<std::vector<TriBar>>& bar_groups,
-                         const cv::Mat_<int32_t>& cc_stats,
+  //void AnalyzeAreaRatios(const std::vector<std::vector<TriBar>>& bar_groups,
+                         //const cv::Mat_<int32_t>& cc_stats,
+  void AnalyzeAreaRatios(const std::vector<std::vector<Box>>& bar_groups,
                          std::vector<std::vector<double>>* area_ratios,
                          double* median_ratio,
                          double* ratio_spread) const;
@@ -178,8 +208,10 @@ class Usaf1951Target {
   //                            should be sorted in order of decreasing size.
   //                            This list will be modified by this routine.
   //  cc_stats    The CC statistics from OpenCV's CCA
-  void DetectMisses(std::vector<std::vector<TriBar>>& bar_groups,
-                    const cv::Mat_<int32_t>& cc_stats) const;
+  void DetectMisses(const std::vector<std::vector<Box>>& boxes,
+                    cv::Mat_<double>& output) const;
+  //void DetectMisses(std::vector<std::vector<TriBar>>& bar_groups,
+  //                  const cv::Mat_<int32_t>& cc_stats) const;
 
   // Find the bounding boxes around each detected tri-bar group.
   //
@@ -200,6 +232,13 @@ class Usaf1951Target {
       const cv::Mat_<int32_t>& cc_stats,
       const std::vector<Vector2d>& mean_vectors,
       cv::Mat_<double>* bounding_boxes) const;
+
+  void FitBoundingBoxes(
+      const std::vector<std::vector<TriBar>>& bar_groups,
+      const cv::Mat_<int32_t>& cc_labels,
+      const cv::Mat_<int32_t>& cc_stats,
+      const std::vector<Vector2d>& mean_vectors,
+      std::vector<std::vector<std::array<double, 10>>>* bounding_boxes) const;
 
   // Find the missing bounding box when only one of two tri-bars in a
   // horizontal/vertical pair was found.
@@ -226,6 +265,9 @@ class Usaf1951Target {
   //  bounding_boxes  Tri-bar bounding boxes (complete)
   //  mean_vectors    The orientation vectors of the target.
   bool IsHorizontalFirst(
+       const std::vector<std::vector<TriBar>>& tri_bars,
+       const cv::Mat_<double>& cc_centroids) const;
+  bool IsHorizontalFirst(
        const cv::Mat_<double>& bounding_boxes,
        const std::vector<Vector2d>& mean_vectors) const;
 
@@ -246,6 +288,32 @@ class Usaf1951Target {
   //  y     Y-coordinate of test point
   //  quad  Quad to test.
   bool PointInQuad(double x, double y, const BoundingBox& quad) const;
+
+  // Get a visualization of the connected components in the image.
+  cv::Mat VisualizeCCs(const cv::Mat_<int32_t>& cc_labels) const;
+
+  // Get a visualization of the detected bars in the image.
+  cv::Mat VisualizeBars(const cv::Mat_<int32_t>& cc_labels,
+                        const std::vector<int>& bar_ccs) const;
+
+  // Get a visualization of the detected bars in the image.
+  cv::Mat VisualizeTriBars(
+      const cv::Mat_<int32_t>& cc_labels,
+      const std::vector<std::vector<TriBar>>& tribars) const;
+
+   template <typename T>
+   static double BoxArea(const T& box) {
+     return TriangleArea(box[0], box[1], box[2], box[3], box[4], box[5]) +
+            TriangleArea(box[0], box[1], box[6], box[7], box[4], box[5]);
+   }
+
+   static double TriangleArea(double x1, double y1, double x2, double y2,
+                              double x3, double y3) {
+     return 0.5 * std::abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+   }
+
+ private:
+  static const std::vector<cv::Scalar> kColors;
 
  private:
   // The image of the target.

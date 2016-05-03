@@ -14,52 +14,12 @@
 //
 // srand(time(NULL));
 //
-// This is a template-based framework. So, to use the framework, a
-// class implementing the following interface must be defined. This class must:
-//
-// 1.) Define a public typedef data_t, which is the type of the data on which
-//     RANSAC will fit. Normally, this is a matrix of some form. Data points
-//     must be identifiable by an int index.
-// 
-// 2.) Define a public typedef model_t, which is the type of the model that
-//     will be fit to the data. Normally, this is a matrix of some form, but
-//     the class will be responsible for applying the model, so any type
-//     will be fine in the framework's eyes.
-//
-// 3.) Define the following public method
-//
-//     bool RansacDegeneracyScreen(const data_t& data,
-//                                 const std::vector<int>& random_sample) const;
-//
-//     Which will return true if the model will be degenerate. This method
-//     is intended to quickly discard samples that will be degenerate, without
-//     actually fitting the model. If no such quick test exists, simply
-//     return false and degeneracy will be handled in (4).
-//
-// 4.) Define the following public method
-//
-//     void RansacFitModel(const data_t& data,
-//                         const std::vector<int>& random_sample, 
-//                         std::vector<model_t*>* models) const;
-//
-//     This function will fit one or more models to the random sample.
-//     
-// 5.) Define the following public method
-//
-//     int RansacGetInliers(const data_t& data,
-//                          const std::vector<model_t*>& models,
-//                          std::list<int>* inliers) const;
-//
-//     This function takes in the data and the models returned from
-//     RansacFitModel() and determines the indices of the inliers in data.
-//     Returns the index of the best model in models.
-//
 // The Ransac algorithm may then be run using:
 //
 // srand(time(NULL));
 // ImplClass fitter;
-// typename ImplClass::model_t* best_model = NULL;
-// std::list<int> inliers;
+// typename ImplClass::model_t best_model;
+// std::vector<int> inliers;
 // ransac::Error_t error = ransac::Ransac(
 //       fitter,
 //       data,
@@ -67,8 +27,8 @@
 //       minimum_data_points_for_model,
 //       max_data_trials,
 //       max_overall_trials,
-//       &best_model,
-//       &inliers);
+//       best_model,
+//       inliers);
 //                                        
 // The best model and inliers will only be populated if the results of RANSAC
 // are valid. To check whether they will be populated, call
@@ -129,6 +89,50 @@ void RandomSample(size_t num_to_select,
                   std::vector<int>* indices);
 
 
+template <typename Data, typename Model>
+class RansacImpl {
+ public:
+  using data_t = Data;
+  using model_t = Model;
+
+  // An optional pre-screening to efficiently test for model degeneracy
+  //
+  // Arguments:
+  //  data          The data set
+  //  random_sample The indices of the data points composing the random sample
+  virtual bool DegeneracyScreen(const data_t& data,
+                                const std::vector<int>& random_sample) const {
+    return false;
+  }
+
+  // Fits model(s) to a random sample of the data set
+  //
+  // Arguments:
+  //  data          The data set
+  //  random_sample The indices of the data points composing the random sample
+  //  models        Output: Append all fit models to this list. Appending no
+  //                        models implies degeneracy and will result in a new
+  //                        random sample being taken
+  virtual void FitModel(const data_t& data,
+                        const std::vector<int>& random_sample, 
+                        std::vector<model_t>* models) const = 0;
+
+  // Tests the models returned from RansacFitModel() and determines the indices
+  // of the inliers in data.
+  //
+  // Arguments:
+  //  data    The data set
+  //  models  The models fit by FitModel()
+  //  inliers Output: List o indices of inliers in the data set
+  //
+  // Returns:
+  //  The index of the best model in models
+  virtual int GetInliers(const data_t& data,
+                         const std::vector<model_t>& models,
+                         std::vector<int>* inliers) const = 0;
+};
+
+
 // Run the RANSAC algorithm. See the file header for a detailed description.
 //
 // Parameters:
@@ -143,17 +147,17 @@ void RandomSample(size_t num_to_select,
 //  best_model - Output parameter for the best model. The calling program takes
 //               ownership if RansacHasValidResults(result) returns true.
 //  best_inliers - Output parameter to hold the indices of the inliers.
-template <class Impl>
-Error_t Ransac(const Impl& impl,
-               const typename Impl::data_t& data,
+template <typename Data, typename Model>
+Error_t Ransac(const RansacImpl<Data, Model>& impl,
+               const Data& data,
                size_t num_data_points,
                size_t minimum_data_points_for_model,
                size_t max_data_trials,
                size_t max_overall_trials,
-               typename Impl::model_t** best_model,
-               std::list<int>* best_inliers) {
+               Model& best_model,
+               std::vector<int>& best_inliers) {
   // Validate inputs.
-  if (!best_model || num_data_points < minimum_data_points_for_model) {
+  if (num_data_points < minimum_data_points_for_model) {
     return RansacInvalidInput;
   }
 
@@ -161,10 +165,9 @@ Error_t Ransac(const Impl& impl,
 
   // Initialize containers for the current iteration's models, the current
   // iteration's inliers, the best inliers and the random sample of indices.
-  std::vector<typename Impl::model_t*> current_models;
-  std::list<int>* inliers =
-      (best_inliers == NULL) ? new std::list<int>() : best_inliers;
-  std::list<int> current_inliers;
+  std::vector<Model> current_models;
+  std::vector<int> current_inliers;
+  current_inliers.reserve(num_data_points);
   std::vector<int> random_sample(minimum_data_points_for_model, 0);
 
   // p = 0.99 => A 99% probability of selecting the optimal model if the
@@ -178,7 +181,7 @@ Error_t Ransac(const Impl& impl,
 
   // N is the upper bound on iterations to ensure the condition of p. This
   // is determined by the current value of best_num_inliers;
-  size_t N = 1;
+  size_t N = max_overall_trials;
 
   // Used if a termination condition is reached.
   bool status = true;
@@ -199,13 +202,13 @@ Error_t Ransac(const Impl& impl,
                    &random_sample);
 
       // Use the implementation's quick screen for degeneracy.
-      degenerate = impl.RansacDegeneracyScreen(data, random_sample);
+      degenerate = impl.DegeneracyScreen(data, random_sample);
 
       // If they didn't think it was degenerate, fit an actual model to
       // the data. There could potentially be more than one. There could also
       // be none, if they were wrong about degeneracy.
       if (!degenerate) {
-        impl.RansacFitModel(data, random_sample, &current_models);
+        impl.FitModel(data, random_sample, &current_models);
         if (current_models.empty()) degenerate = true;
       }
       
@@ -221,25 +224,17 @@ Error_t Ransac(const Impl& impl,
     if (!status) break;
 
     // Call the implementation method to get the inliers for a given model.
-    size_t current_best_index = impl.RansacGetInliers(data,
-                                                      current_models,
-                                                      &current_inliers);
+    size_t current_best_index = impl.GetInliers(data,
+                                                current_models,
+                                                &current_inliers);
     size_t num_inliers = current_inliers.size();
 
     // If this model gave the best number of inliers, keep it around.
     if (num_inliers > best_num_inliers) {
       // Update our current bests.
       best_num_inliers = num_inliers;
-      inliers->swap(current_inliers);
-
-      if (*best_model) delete *best_model;
-      *best_model = current_models[current_best_index];
-
-      // Free all of the inferior models for this iteration.
-      for (size_t i = 0; i < current_models.size(); i++) {
-        if (i == current_best_index) continue;
-        delete current_models[i];
-      }
+      best_inliers.swap(current_inliers);
+      std::swap(best_model, current_models[current_best_index]);
 
       // Update the needed number of trials.
       double fraction_of_inliers = num_inliers / double(num_data_points);
@@ -248,11 +243,6 @@ Error_t Ransac(const Impl& impl,
       p_no_outliers = (EPS > p_no_outliers) ? EPS : p_no_outliers;
       p_no_outliers = (1 - EPS < p_no_outliers) ? 1 - EPS : p_no_outliers;
       N = log(1-p) / log(p_no_outliers);
-    } else {
-      // If this iteration did not yield a new best model, free the models.
-      for (size_t i = 0; i < current_models.size(); i++) {
-        delete current_models[i];
-      }
     }
 
     // Enforce the max iteration.
@@ -262,16 +252,6 @@ Error_t Ransac(const Impl& impl,
       status = false;
       break;
     }
-  }
-
-  // If we failed at some point, clear the results.
-  bool keep_results = RansacHasValidResults(result);
-  if (!keep_results) {
-    if (*best_model) {
-      delete *best_model;
-      *best_model = NULL;
-    }
-    inliers->clear();
   }
 
   return result;

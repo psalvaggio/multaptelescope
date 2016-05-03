@@ -1,0 +1,19 @@
+package mats;
+
+message Usaf1951Template {
+  message BoundingBox {
+    repeated double x = 1;
+    repeated double y = 2;
+    optional double centroid_x = 3;
+    optional double centroid_y = 4;
+  }
+
+  repeated BoundingBox horizontal = 1;
+  repeated BoundingBox vertical = 2;
+
+  message Vector2d {
+    required double x = 1;
+    required double y = 2;
+  }
+  repeated Vector2d mean_vector = 3;
+}

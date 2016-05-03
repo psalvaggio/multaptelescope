@@ -250,14 +250,14 @@ bool JaggedEdgeMtf::DetectEdge(const cv::Mat& image,
 
   const int kNeighborhoodSize = 2 * round(average_line_spread) + 1;
   const int kNeighborhoodHalfSize = kNeighborhoodSize / 2;
-  RansacFitLine line_fitter(1);
+  ransac::RansacFitLine line_fitter(1);
   for (int i = 1; i < (int)edge_offsets->size() - 1; i++) {
     int start = max(0, i - kNeighborhoodHalfSize); 
     int end = min((int)edge_offsets->size(), i + kNeighborhoodHalfSize + 1);
     int num_observations = end - start + 1;
 
     vector<double> data(num_observations * 2, 0);
-    list<int> sample;
+    vector<int> sample;
     double offset_mean = 0;
     for (int j = start, k = 0; j < end; j++, k++) {
       data[2*k] = get<0>((*edge_offsets)[j]);
@@ -268,22 +268,21 @@ bool JaggedEdgeMtf::DetectEdge(const cv::Mat& image,
     }
     offset_mean /= num_observations;
 
-    vector<double>* model_raw;
-    line_fitter.FitLeastSquaresLine(data, sample, &model_raw);
-    unique_ptr<vector<double>> model(model_raw);
+    vector<double> model;
+    line_fitter.FitLeastSquaresLine(data, sample, &model);
 
     double error_mean = 0, error_variance = 0;
     for (int j = start, k = 0; j < end; j++, k++) {
-      double error = (*model)[0] * get<0>((*edge_offsets)[j]) +
-                     (*model)[1] * get<1>((*edge_offsets)[j]) -
-                     (*model)[2];
+      double error = model[0] * get<0>((*edge_offsets)[j]) +
+                     model[1] * get<1>((*edge_offsets)[j]) -
+                     model[2];
       error_variance += error * error;
       error_mean += error;
     }
     error_mean /= num_observations;
     error_variance /= num_observations;
     double error_stddev = sqrt(error_variance - error_mean * error_mean);
-    double how_horizontal = (*model)[1];
+    double how_horizontal = model[1];
 
     get<2>((*edge_offsets)[i]) = (1 - error_stddev) + 0.25 * how_horizontal;
   }
