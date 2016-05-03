@@ -57,6 +57,11 @@ class Telescope {
   bool parallelism() const { return parallelism_; }
   void set_parallelism(bool use) { parallelism_ = use; }
 
+  void set_nonmodeled_mtf(const std::vector<double>& mtf) {
+    nonmodeled_mtf_ = mtf;
+  }
+  void clear_nonmodeled_mtf() { nonmodeled_mtf_.clear(); }
+
   // Gets the effective Q (lambda * F# / p) of the system over a bandpass
   //
   // Arguments:
@@ -171,6 +176,7 @@ class Telescope {
   mats::SimulationConfig sim_config_;
   std::unique_ptr<Aperture> aperture_;
   std::unique_ptr<Detector> detector_;
+  std::vector<double> nonmodeled_mtf_;
   bool include_detector_footprint_;
   bool parallelism_;
 };

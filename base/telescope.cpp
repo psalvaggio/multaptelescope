@@ -32,6 +32,7 @@ Telescope::Telescope(const SimulationConfig& sim_config,
     : sim_config_(sim_config),
       aperture_(ApertureFactory::Create(sim_config.simulation(sim_index))),
       detector_(new Detector(det_params)),
+      nonmodeled_mtf_(),
       include_detector_footprint_(false),
       parallelism_(false) {}
 
@@ -346,22 +347,7 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
 
   double int_time = simulation().integration_time();
 
-/*
-  Mat_<double> nonmod_mtf(kOtfSize, kOtfSize);
-  for (int r = 0; r < nonmod_mtf.rows; r++) {
-    double xi = r - kOtfSize / 2;
-    for (int c = 0; c < nonmod_mtf.cols; c++) {
-      double eta = c - kOtfSize / 2;
-      double rho = sqrt(xi*xi + eta*eta) / kOtfSize;
-      nonmod_mtf(r, c) = rho < 1e-10 ? 1 : sin(rho * 1.75 * M_PI) /
-                         (rho * 1.75 * M_PI);
-    }
-  }
-  nonmod_mtf = IFFTShift(nonmod_mtf);
-*/
-
   SystemOtf wave_invar_sys_otf;
-  //wave_invar_sys_otf.PushOtf(nonmod_mtf);
   wave_invar_sys_otf.PushOtf(detector_->GetSmearOtf(0, 0, int_time,
                                                     kOtfSize, kOtfSize));
   wave_invar_sys_otf.PushOtf(detector_->GetJitterOtf(0, int_time,
@@ -369,10 +355,45 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   if (include_detector_footprint_) {
     wave_invar_sys_otf.PushOtf(detector_->GetSamplingOtf(kOtfSize, kOtfSize));
   }
+  if (!nonmodeled_mtf_.empty()) {
+    vector<double> freq(nonmodeled_mtf_.size());
+    for (size_t i = 0; i < nonmodeled_mtf_.size(); i++) {
+      freq[i] = double(i) / (nonmodeled_mtf_.size() - 1);
+    }
+
+    Mat_<double> nonmod_mtf(ap_otf[0].size());
+    double mtf_spacing = 1 / (nonmodeled_mtf_.size() - 1);
+    for (int i = 0; i < nonmod_mtf.rows; i++) {
+      double y = min(i, nonmod_mtf.rows - i) / double(nonmod_mtf.rows);
+      for (int j = 0; j < nonmod_mtf.cols; j++) {
+        double x = min(j, nonmod_mtf.cols - j) / double(nonmod_mtf.cols);
+        double r = sqrt(x*x + y*y);
+
+        auto lower = lower_bound(begin(freq), end(freq), r);
+        if (lower == begin(freq)) {
+          nonmod_mtf(i, j) = 1;
+        } else if (lower == end(freq)) {
+          nonmod_mtf(i, j) = nonmodeled_mtf_.back();
+        } else {
+          int gt_index = lower - begin(freq);
+          int lt_index = gt_index - 1;
+          double range =
+              nonmodeled_mtf_[gt_index] - nonmodeled_mtf_[lt_index];
+
+          double blend = (r - freq[lt_index]) / range;
+
+          nonmod_mtf(i, j) = (1 - blend) * nonmodeled_mtf_[lt_index] +
+                             blend * nonmodeled_mtf_[gt_index];
+        }
+      }
+    }
+    wave_invar_sys_otf.PushOtf(nonmod_mtf);
+  }
+  
   Mat_<complex<double>> wave_invariant_otf = wave_invar_sys_otf.GetOtf();
 
   otf->resize(wavelengths.size());
-  auto ComputeOtfBody = [&ap_otf, &wave_invariant_otf, &otf] (size_t i) {
+  auto ComputeOtfBody = [&] (size_t i) {
     mulSpectrums(ap_otf[i], wave_invariant_otf, (*otf)[i], 0);
   };
 
@@ -381,8 +402,6 @@ void Telescope::ComputeOtf(const vector<double>& wavelengths,
   } else {
     for (size_t i = 0; i < wavelengths.size(); i++) ComputeOtfBody(i);
   }
-    //mulSpectrums(ap_otf[i], wave_invariant_otf, (*otf)[i], 0);
-  //}
 }
 
 
