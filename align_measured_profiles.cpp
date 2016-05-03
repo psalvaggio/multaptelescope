@@ -46,6 +46,7 @@ DEFINE_double(local_limit, 1, "Maximum deviation for a single profile [deg]");
 DEFINE_double(local_resolution, 0.2, "Search resolution on orientation [deg]");
 DEFINE_int32(reflection, 6, "The degree of angular symmetry (periodicity) in "
                             "the MTF.");
+DEFINE_string(nonmodeled_mtf, "", "Optional: Non-modeled MTF effects.");
 DEFINE_string(output_mtf_image, "", "Optional: Output an MTF comparison "
                                     "image.");
 
@@ -201,8 +202,7 @@ int main(int argc, char** argv) {
     mtf_2d.copyTo(output_mtf(Range(0, mtf_2d.rows), Range(0, mtf_2d.cols)));
     mtf_meas.copyTo(output_mtf(Range(0, mtf_2d.rows),
                                Range(mtf_2d.cols, output_mtf.cols)));
-    imwrite(FLAGS_output_mtf_image, ColorScale(GammaScale(output_mtf, 1/2.2),
-                                               COLORMAP_JET));
+    imwrite(FLAGS_output_mtf_image, GammaScale(output_mtf, 1/2.2));
   }
 
   return 0;
@@ -275,6 +275,12 @@ Mat GetTheoreticalMtf(const string& config_file) {
   mats::Telescope telescope(sim_config, 0, det_params);
   telescope.detector()->set_rows(512);
   telescope.detector()->set_cols(512);
+
+  vector<vector<double>> nonmod_data;
+  if (mats_io::TextFileReader::Parse(mats::ResolvePath(FLAGS_nonmodeled_mtf),
+                                                       &nonmod_data)) {
+    telescope.set_nonmodeled_mtf(nonmod_data[1]);
+  }
 
   // Compute the theoretical 2D OTF of the telescope.
   Mat_<complex<double>> theoretical_otf;
