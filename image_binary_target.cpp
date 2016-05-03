@@ -16,6 +16,7 @@ DEFINE_double(full_well_frac, 0.8, "Fraction of the full-well capacity for the"
                                    " bright regions.");
 DEFINE_string(output_prefix, "./", "Output directory + filename prefix");
 DEFINE_string(illumination, "", "Illumination filename");
+DEFINE_bool(parallelism, false, "Whether to use parallelism.");
 
 using namespace std;
 using namespace cv;
@@ -91,7 +92,7 @@ int main(int argc, char** argv) {
     cerr << "Could not read image file." << endl;
     return 1;
   }
-  flip(image, image, -1);
+  flip(image, image, 1);
   image.convertTo(image, CV_64F);
   double im_max;
   minMaxLoc(image, NULL, &im_max);
@@ -115,6 +116,7 @@ int main(int argc, char** argv) {
 
     // Create the telescope
     mats::Telescope telescope(sim_config, i, detector_params);
+    telescope.set_parallelism(FLAGS_parallelism);
     vector<Mat> spectral_radiance;
     CorrectExposure(image, wavelengths, illumination, telescope,
                     &spectral_radiance);
@@ -137,7 +139,7 @@ int main(int argc, char** argv) {
       output_image[band].convertTo(raw_image, CV_64F,
           1 / pow(2., telescope.detector()->bit_depth()));
 
-      flip(raw_image, raw_image, 0);
+      flip(raw_image, raw_image, 1);
 
       // Contrast scale and output the raw and processed image
       raw_image.convertTo(raw_image, CV_8U, 255);
