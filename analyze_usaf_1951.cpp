@@ -14,8 +14,9 @@ using namespace mats;
 
 DEFINE_string(image, "", "Image filename");
 DEFINE_int32(levels, 2, "Number of nested USAF targets.");
-DEFINE_string(output_dir, ".", "Directory into which to store the output.");
+DEFINE_string(output_prefix, "./", "Prefix for output files.");
 DEFINE_bool(whole_image, false, "If specified, will not ask for an ROI.");
+DEFINE_string(tmpl, "", "Filename of the template");
 
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -39,29 +40,41 @@ int main(int argc, char** argv) {
   }
 
   // Validate the output directory
-  string dir = ResolvePath(FLAGS_output_dir);
+  string dir = ResolvePath(DirectoryName(FLAGS_output_prefix));
   if (!is_dir(dir)) {
     if (!boost::filesystem::create_directories(dir)) {
       cerr << "Output directory " << dir << " could not be created." << endl;
       return 1;
     }
-    dir = AppendSlash(dir);
   }
 
   // Perform recognition
   Usaf1951Target tribar(image, FLAGS_levels);
-  if (!tribar.RecognizeTarget()) {
+
+  string tmpl_filename = FLAGS_tmpl == "" ? "" : ResolvePath(FLAGS_tmpl);
+  if (file_exists(tmpl_filename)) {
+    mats::Usaf1951Template tmpl;
+    if (!mats_io::ProtobufReader::Read(tmpl_filename, &tmpl)) {
+      cerr << "Could not read template file." << endl;
+      return 1;
+    }
+    tribar.UseTemplate(tmpl);
+  } else if (!tribar.RecognizeTarget()) {
     cerr << "Failed to recognize target." << endl;
     return 1;
   }
 
+  tribar.WriteTemplate(
+      StringPrintf("%stemplate.tpl", FLAGS_output_prefix.c_str()));
+
   // Make two diagnostic outputs so the user can see if anything messed up
   Mat output = tribar.VisualizeBoundingBoxes();
-  imwrite(StringPrintf("%sbounding_boxes.png", dir.c_str()), output);
+  imwrite(StringPrintf("%sbounding_boxes.png", FLAGS_output_prefix.c_str()),
+          output);
 
   output = tribar.VisualizeProfileRegions();
-  imwrite(StringPrintf("%sprofile_regions.png", dir.c_str()),
-          ByteScale(output));
+  imwrite(StringPrintf("%sprofile_regions.png", FLAGS_output_prefix.c_str()),
+          output);
 
   // Output the profiles
   Gnuplot gp;
@@ -76,7 +89,8 @@ int main(int argc, char** argv) {
     string filename;
 
     tribar.GetProfile(i, Usaf1951Target::HORIZONTAL, &profile);
-    filename = StringPrintf("%sgroup_%02d_horizontal", dir.c_str(), i);
+    filename = StringPrintf("%sgroup_%02d_horizontal",
+                            FLAGS_output_prefix.c_str(), i);
 
     gp << "set output \"" << filename << ".eps\"\n"
        << "plot" << gp.file1d(profile) << "w l\n" << endl;
@@ -89,7 +103,8 @@ int main(int argc, char** argv) {
     }
 
     tribar.GetProfile(i, Usaf1951Target::VERTICAL, &profile);
-    filename = StringPrintf("%s/group_%02d_vertical", dir.c_str(), i);
+    filename = StringPrintf("%sgroup_%02d_vertical",
+                            FLAGS_output_prefix.c_str(), i);
 
     gp << "set output \"" << filename << ".eps\"\n"
        << "plot" << gp.file1d(profile) << "w l\n" << endl;
