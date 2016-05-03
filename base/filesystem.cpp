@@ -69,6 +69,8 @@ std::string AppendSlash(const std::string& input) {
 }
 
 std::string ResolvePath(const std::string& path) {
+  if (path.empty()) return "";
+
   wordexp_t exp_result;
   wordexp(path.c_str(), &exp_result, 0);
   std::string new_path = exp_result.we_wordv[0];
