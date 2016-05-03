@@ -3,7 +3,7 @@
 
 #include "mats.h"
 
-#include "io/detector_reader.h"
+#include "io/protobuf_reader.h"
 
 #include <iostream>
 #include <numeric>
@@ -54,8 +54,7 @@ int main(int argc, char** argv) {
       // If this was a detector file, read in the config file.
       mats::DetectorParameters det_params;
       if (units == kDetector) {
-        mats_io::DetectorReader det_reader;
-        if (!det_reader.Read(param, &det_params)) {
+        if (!mats_io::ProtobufReader::Read(param, &det_params)) {
           cerr << "Could not read detector file." << endl;
           return 1;
         }

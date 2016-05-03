@@ -28,6 +28,7 @@
 #include "io/envi_image_header.pb.h"
 #include "io/envi_image_reader.h"
 #include "io/envi_image_writer.h"
+#include "io/protobuf_reader.h"
 #include "io/sbig_detector.h"
 #include "io/text_file_reader.h"
 

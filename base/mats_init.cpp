@@ -4,11 +4,12 @@
 #include "mats_init.h"
 
 #include "base/filesystem.h"
-#include "io/detector_reader.h"
 #include "io/logging.h"
 #include "io/envi_image_header.pb.h"
 #include "io/envi_image_reader.h"
-#include "io/input_reader.h"
+#include "io/protobuf_reader.h"
+
+#include <iostream>
 
 using namespace std;
 using cv::Mat;
@@ -48,8 +49,7 @@ bool MatsInit(const std::string& config_path,
             << version << ") Main Log File" << endl << endl;
 
   // Initialize the simulation parameters.
-  mats_io::InputReader reader;
-  if (!reader.Read(config_file, sim_config)) {
+  if (!mats_io::ProtobufReader::Read(config_file, sim_config)) {
     cerr << "Could not read simulations file." << endl;
     return false;
   }
@@ -59,9 +59,8 @@ bool MatsInit(const std::string& config_path,
 
   // Initialize the detector parameters.
   if (detector_params) {
-    mats_io::DetectorReader det_reader;
-    if (!det_reader.Read(sim_config->detector_params_filename(),
-                         detector_params)) {
+    if (!mats_io::ProtobufReader::Read(sim_config->detector_params_filename(),
+                                       detector_params)) {
       cerr << "Could not read detector file." << endl;
       return false;
     }
