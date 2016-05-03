@@ -68,7 +68,7 @@ void ByteScale(const Mat& input,
 void LogScale(const Mat& input, Mat_<uint8_t>& output) {
   Mat log_input;
   log(input + 1, log_input);
-  ByteScale(output, output);
+  ByteScale(log_input, output);
 }
 
 Mat_<uint8_t> LogScale(const Mat& input) {
