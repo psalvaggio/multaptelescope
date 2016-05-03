@@ -160,6 +160,10 @@ void GetMtfProfile(const mats::SimulationConfig& sim_config,
   telescope.detector()->set_cols(512);
   telescope.set_include_detector_footprint(true);
 
+vector<vector<double>> nonmod_data;
+mats_io::TextFileReader::Parse("/Users/philipsalvaggio/Documents/Thesis/Results/slant_edge_study/control/nonmodeled_mtf_fit.txt", &nonmod_data);
+telescope.set_nonmodeled_mtf(nonmod_data[1]);
+
   // Compute the theoretical 2D OTF of the telescope.
   Mat_<complex<double>> theoretical_otf;
   telescope.EffectiveOtf(wavelengths, spectral_weighting, 0, 0,
